@@ -1,9 +1,16 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
+/** En Netlify el runtime OpenNext empaqueta el servidor; standalone queda para Docker. */
+const isNetlify = process.env.NETLIFY === "true";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
-  outputFileTracingRoot: path.join(__dirname),
+  ...(isNetlify
+    ? {}
+    : {
+        output: "standalone" as const,
+        outputFileTracingRoot: path.join(__dirname),
+      }),
   async headers() {
     return [
       {

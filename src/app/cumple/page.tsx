@@ -2,6 +2,7 @@
 
 import { NearbyPromos } from "@/components/NearbyPromos";
 import { DemoNotice } from "@/components/DemoNotice";
+import { BirthdayPushButton } from "@/components/BirthdayPushButton";
 import { useSession } from "@/components/SessionProvider";
 import { isBirthdayToday } from "@/lib/night";
 import Link from "next/link";
@@ -28,10 +29,10 @@ export default function CumplePage() {
       )}
       {user && !today && (
         <p className="mt-6 text-sm text-[var(--muted)]">
-          Hoy no es tu cumpleaños. Igual puedes ver qué suelen regalar — el push llega el
-          día.
+          Hoy no es tu cumpleaños. Igual puedes ver qué suelen regalar.
         </p>
       )}
+      {user && <BirthdayPushButton />}
       {today && (
         <p className="mt-6 font-display text-2xl text-[var(--gold)]">
           Feliz cumpleaños, {user?.name}. Esto te regalan cerca.

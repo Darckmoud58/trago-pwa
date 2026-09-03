@@ -51,7 +51,12 @@ export function BranchPromoList({
               </span>
             </div>
             {link.officialActive && (
-              <ValidityVote promoId={promo.id} branchId={branch.id} link={link} />
+              <ValidityVote
+                promoId={promo.id}
+                branchId={branch.id}
+                link={link}
+                branchGeo={branch.geo}
+              />
             )}
           </li>
         );

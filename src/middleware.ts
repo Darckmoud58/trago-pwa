@@ -7,17 +7,7 @@ function secret() {
   return new TextEncoder().encode(raw);
 }
 
-const PROTECTED = [
-  "/promos",
-  "/nocturno",
-  "/cumple",
-  "/cadenas",
-  "/sucursales",
-  "/cuenta",
-  "/api/cadenas",
-  "/api/reportes",
-  "/api/fuentes",
-];
+const PROTECTED = ["/cuenta", "/panel", "/api/reportes", "/api/fuentes", "/api/panel"];
 
 function isNightInMexico() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -70,16 +60,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/promos/:path*",
-    "/promos",
     "/nocturno",
-    "/cumple",
-    "/cadenas/:path*",
-    "/cadenas",
-    "/sucursales/:path*",
     "/cuenta",
-    "/api/cadenas/:path*",
+    "/panel",
     "/api/reportes/:path*",
     "/api/fuentes/:path*",
+    "/api/panel/:path*",
   ],
 };

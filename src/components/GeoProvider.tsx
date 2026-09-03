@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { DEFAULT_GEO } from "@/lib/geo";
 import type { GeoPoint } from "@/lib/types";
 
@@ -19,6 +19,7 @@ const GeoContext = createContext<GeoState>({
 export function GeoProvider({ children }: { children: React.ReactNode }) {
   const [origin, setOrigin] = useState<GeoPoint>(DEFAULT_GEO);
   const [status, setStatus] = useState<GeoState["status"]>("idle");
+  const watchRef = useRef<number | null>(null);
 
   const request = useCallback(() => {
     if (!navigator.geolocation) {
@@ -32,12 +33,28 @@ export function GeoProvider({ children }: { children: React.ReactNode }) {
         setStatus("ready");
       },
       () => setStatus("denied"),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 },
     );
+    if (watchRef.current == null) {
+      watchRef.current = navigator.geolocation.watchPosition(
+        (pos) => {
+          setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setStatus("ready");
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 15000 },
+      );
+    }
   }, []);
 
   useEffect(() => {
     request();
+    return () => {
+      if (watchRef.current != null) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
+    };
   }, [request]);
 
   return (

@@ -1,0 +1,11 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+  AUTH_COOKIE_SECURE = "true"
+  PUBLIC_DEMO = "true"
+  NEXT_PUBLIC_DEMO = "true"
+  TRAGO_SKIP_MONGO = "true"

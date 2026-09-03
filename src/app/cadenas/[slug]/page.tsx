@@ -7,7 +7,6 @@ import { DemoNotice } from "@/components/DemoNotice";
 import { getChainBySlug } from "@/lib/catalog";
 import { getCatalog } from "@/lib/queries";
 import { TIER_LABELS, VENUE_LABELS } from "@/lib/types";
-import { RefreshSources } from "@/components/RefreshSources";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -52,7 +51,6 @@ export default async function CadenaPage({ params }: PageProps) {
 
       <div className="mt-8">
         <DemoNotice />
-        <RefreshSources />
       </div>
 
       {chain.showAds && (

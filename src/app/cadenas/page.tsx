@@ -3,7 +3,6 @@ import { TIER_LABELS } from "@/lib/types";
 import { ChainMark } from "@/components/ChainMark";
 import { DemoNotice } from "@/components/DemoNotice";
 import { getCatalog } from "@/lib/queries";
-import { RefreshSources } from "@/components/RefreshSources";
 
 export default async function CadenasPage() {
   const { chains } = await getCatalog();
@@ -16,7 +15,6 @@ export default async function CadenasPage() {
       </p>
       <div className="mt-6">
         <DemoNotice />
-        <RefreshSources />
       </div>
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         {chains.map((chain) => (

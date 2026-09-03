@@ -12,29 +12,17 @@ export function BirthdayNotifier() {
   useEffect(() => {
     if (!user?.birthDate || !isBirthdayToday(user.birthDate)) return;
     if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const sent = localStorage.getItem(KEY);
-    if (sent === today) return;
+    if (localStorage.getItem(KEY) === today) return;
 
-    const notify = () => {
-      new Notification("Feliz cumpleaños — TraGo", {
-        body: `${user.name}, hay lugares en Guadalajara que hoy te regalan algo. Ábrelo en Cumple.`,
-        icon: "/icon.svg",
-        tag: "trago-birthday",
-      });
-      localStorage.setItem(KEY, today);
-    };
-
-    if (Notification.permission === "granted") {
-      notify();
-      return;
-    }
-    if (Notification.permission === "default") {
-      Notification.requestPermission().then((perm) => {
-        if (perm === "granted") notify();
-      });
-    }
+    new Notification("Feliz cumpleaños — TraGo", {
+      body: `${user.name}, hay lugares en Guadalajara que hoy te regalan algo. Ábrelo en Cumple.`,
+      icon: "/icon.svg",
+      tag: "trago-birthday",
+    });
+    localStorage.setItem(KEY, today);
   }, [user]);
 
   return null;

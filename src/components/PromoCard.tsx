@@ -5,6 +5,7 @@ import type { Branch, BranchPromo, Promo } from "@/lib/types";
 import { KIND_LABELS } from "@/lib/types";
 import { crowdStatus, STATUS_LABELS } from "@/lib/validity";
 import { formatKm } from "@/lib/geo";
+import { isBranchOpen } from "@/lib/hours";
 import { branchesForPromo, getChain } from "@/lib/catalog";
 import { ChainMark } from "./ChainMark";
 import { useCatalog } from "./CatalogProvider";
@@ -64,6 +65,9 @@ export function PromoCard({
         <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-[var(--gold)]">
           {typeof km === "number" && <span>{formatKm(km)}</span>}
           {status && <span>{STATUS_LABELS[status]}</span>}
+          {branch && !isBranchOpen(branch.hours) && (
+            <span className="text-[var(--muted)]">Cerrado ahora</span>
+          )}
         </div>
       </div>
     </Link>

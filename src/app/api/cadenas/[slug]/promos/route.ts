@@ -9,8 +9,18 @@ interface RouteParams {
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_request: Request, { params }: RouteParams) {
+function authorized(request: Request): boolean {
+  const expected = process.env.TRAGO_API_KEY;
+  if (!expected) return true;
+  return request.headers.get("x-api-key") === expected;
+}
+
+export async function GET(request: Request, { params }: RouteParams) {
   const { slug } = await params;
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "API key inválida. Usa el header x-api-key." }, { status: 401 });
+  }
+
   const catalog = await getCatalog();
   const chain = getChainBySlug(catalog, slug);
 

@@ -12,6 +12,9 @@ const g = globalThis as unknown as {
 };
 
 export function hasMongoUri() {
+  if (process.env.NEXT_PUBLIC_DEMO === "true" || process.env.TRAGO_SKIP_MONGO === "true") {
+    return false;
+  }
   return Boolean(process.env.MONGODB_URI);
 }
 

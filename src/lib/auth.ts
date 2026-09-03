@@ -57,7 +57,9 @@ export async function getSession(): Promise<SessionUser | null> {
 export const SESSION_COOKIE_OPTS = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.AUTH_COOKIE_SECURE === "true",
+  secure:
+    process.env.AUTH_COOKIE_SECURE === "true" ||
+    (process.env.NODE_ENV === "production" && process.env.AUTH_COOKIE_SECURE !== "false"),
   path: "/",
   maxAge: 60 * 60 * 24 * 14,
 };

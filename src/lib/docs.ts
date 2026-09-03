@@ -82,6 +82,16 @@ export interface ReportDoc extends Document {
   stillValid: boolean;
   createdAt: Date;
   updatedAt: Date;
+  lat?: number;
+  lng?: number;
+}
+
+export interface PushSubDoc extends Document {
+  userId: string;
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export function chainFromDoc(d: ChainDoc): Chain {

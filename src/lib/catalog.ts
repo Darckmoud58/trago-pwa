@@ -1,4 +1,5 @@
 import { haversineKm } from "./geo";
+import { isBranchOpen } from "./hours";
 import type { Branch, BranchPromo, Catalog, Chain, GeoPoint, Promo } from "./types";
 import { crowdStatus, isShownAsActive, isWithinDates } from "./validity";
 
@@ -25,6 +26,10 @@ export function getPromoBySlug(catalog: Catalog, slug: string) {
 
 export function getBranchBySlug(catalog: Catalog, slug: string) {
   return catalog.branches.find((b) => b.slug === slug);
+}
+
+export function getBranch(catalog: Catalog, id: string) {
+  return catalog.branches.find((b) => b.id === id);
 }
 
 export function branchesForPromo(catalog: Catalog, promoId: string) {
@@ -78,5 +83,6 @@ export function nearbyPromos(
       return nearest ? { promo, nearest } : null;
     })
     .filter((row): row is NonNullable<typeof row> => row !== null && row.nearest.km <= maxKm)
+    .filter((row) => (opts?.nocturno ? isBranchOpen(row.nearest.branch.hours) : true))
     .sort((a, b) => a.nearest.km - b.nearest.km);
 }

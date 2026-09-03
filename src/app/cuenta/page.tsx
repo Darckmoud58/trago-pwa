@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { LogoutButton } from "@/components/LogoutButton";
+import { BirthdayPushButton } from "@/components/BirthdayPushButton";
+import { canOperatePanel } from "@/lib/panel-auth";
 import { isBirthdayToday } from "@/lib/night";
 import Link from "next/link";
 
@@ -23,6 +25,14 @@ export default async function CuentaPage() {
             Ver qué te regalan cerca
           </Link>
           .
+        </p>
+      )}
+      <BirthdayPushButton />
+      {canOperatePanel(user) && (
+        <p className="mt-6 text-sm">
+          <Link href="/panel" className="text-[var(--gold)]">
+            Panel de cadenas
+          </Link>
         </p>
       )}
       <div className="mt-8">
