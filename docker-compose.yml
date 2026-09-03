@@ -1,0 +1,42 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: trago-mongo
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - trago_mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  trago:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trago:latest
+    container_name: trago
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      MONGODB_URI: mongodb://mongo:27017/trago
+      MONGODB_DB: trago
+      AUTH_SECRET: trago-dev-secret-cambia-en-prod-32
+      AUTH_COOKIE_SECURE: "false"
+      APP_ORIGIN: http://localhost:3000
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    restart: unless-stopped
+
+volumes:
+  trago_mongo:

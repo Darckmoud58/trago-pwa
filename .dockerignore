@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+docs
+Dockerfile
+docker-compose.yml
+.dockerignore
+.env
+.env.*
+.DS_Store
+npm-debug.log*
+coverage
+.vercel
+*.pem
+.tsbuildinfo
