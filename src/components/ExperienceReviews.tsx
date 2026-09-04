@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Branch } from "@/lib/types";
-import { MAX_POINTS_PER_DAY } from "@/lib/security";
+import { MAX_POINTS_PER_DAY } from "@/lib/security-limits";
 import { useSession } from "./SessionProvider";
 import { useGeo } from "./GeoProvider";
 import Link from "next/link";
