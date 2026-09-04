@@ -17,6 +17,10 @@ export default function EntrarPage() {
         <Link href="/registro" className="text-[var(--gold)]">
           Crear cuenta
         </Link>
+        {" · "}
+        <Link href="/recuperar" className="text-[var(--gold)]">
+          Recuperar contraseña
+        </Link>
       </p>
     </div>
   );

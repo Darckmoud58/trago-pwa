@@ -14,6 +14,8 @@ export interface UserDoc extends Document {
   };
   role: "user" | "chain";
   points?: number;
+  /** 2FA por código al correo tras la contraseña. */
+  twoFactorEmail?: boolean;
   createdAt: Date;
 }
 
@@ -77,8 +79,11 @@ export interface ReviewDoc extends Document {
   branchId: string;
   rating: number;
   text: string;
+  textHash: string;
   nearStore: boolean;
+  pointsAwarded: number;
   createdAt: Date;
+  updatedAt?: Date;
   lat?: number;
   lng?: number;
 }
@@ -90,6 +95,38 @@ export interface CouponDoc extends Document {
   costPoints: number;
   createdAt: Date;
   redeemedAt?: Date | null;
+}
+
+export interface PointLedgerDoc extends Document {
+  userId: string;
+  delta: number;
+  reason: "vote" | "review" | "redeem";
+  /** Clave única anti-farmeo, p.ej. vote:user:promo:branch */
+  refKey: string;
+  createdAt: Date;
+}
+
+export interface AuthLockDoc extends Document {
+  _id: string;
+  failures: number;
+  lockedUntil?: Date | null;
+  updatedAt: Date;
+}
+
+export interface PasswordResetDoc extends Document {
+  email: string;
+  tokenHash: string;
+  expiresAt: Date;
+  createdAt: Date;
+  usedAt?: Date | null;
+}
+
+export interface TwoFactorChallengeDoc extends Document {
+  userId: string;
+  codeHash: string;
+  expiresAt: Date;
+  createdAt: Date;
+  attempts: number;
 }
 
 export interface BranchPromoDoc extends Document {

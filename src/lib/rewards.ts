@@ -1,7 +1,8 @@
 /** Puntos TraGo: la calle gana cupones; la cadena gana reputación. */
 export const POINTS_VOTE = 5;
+/** Solo se otorgan cerca de la sucursal (anti-farmeo remoto). */
 export const POINTS_REVIEW_NEAR = 15;
-export const POINTS_REVIEW_REMOTE = 8;
+export const POINTS_REVIEW_REMOTE = 0;
 export const COUPON_COST = 50;
 
 export const COUPON_LABEL =

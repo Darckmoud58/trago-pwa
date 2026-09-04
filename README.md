@@ -18,6 +18,17 @@ No basta con “hay 2x1 en la cadena”. TraGo responde: **¿en esta sucursal, a
 
 Las opiniones y reportes son el incentivo para que la cadena **cumpla** lo anunciado.
 
+## Seguridad (anti-abuso)
+
+- Opinión: **una por promo+sucursal**; puntos solo la 1.ª vez y **solo con GPS cerca**
+- Voto: puntos solo el **primer** reporte de ese par promo/local
+- Tope **40 pts / 24 h**; ledger único por `refKey`
+- Login: bloqueo tras 5 fallos, rate limit por IP/correo; password ≥10 con letra y número
+- **Recuperar contraseña** por correo (`/recuperar`, token 30 min, un solo uso)
+- **2FA por correo** (opcional en Cuenta): tras password, código de 6 dígitos
+- Cabeceras: CSP, `X-Frame-Options`, `nosniff`; POSTs validan `Origin` vs `APP_ORIGIN`
+- Canje de cupón atómico (`points >= costo`)
+
 ## PWA (requisitos)
 
 | Característica | En TraGo |

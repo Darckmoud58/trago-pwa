@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { LogoutButton } from "@/components/LogoutButton";
 import { BirthdayPushButton } from "@/components/BirthdayPushButton";
 import { RewardsPanel } from "@/components/RewardsPanel";
+import { TwoFactorSettings } from "@/components/TwoFactorSettings";
 import { canOperatePanel } from "@/lib/panel-auth";
 import { isBirthdayToday } from "@/lib/night";
 import Link from "next/link";
@@ -30,6 +31,7 @@ export default async function CuentaPage() {
         </p>
       )}
       <BirthdayPushButton />
+      <TwoFactorSettings />
       <RewardsPanel />
       <div className="mt-8 space-y-3 text-sm">
         {panel ? (

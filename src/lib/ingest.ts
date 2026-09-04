@@ -300,6 +300,7 @@ export async function refreshOfficialSources(opts?: { ifStaleHours?: number; for
       imageUrl: string;
       featured: boolean;
       isDemo: false;
+      origin?: "official";
       sourceUrl: string;
       sourceLabel: string;
     };

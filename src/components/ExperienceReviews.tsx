@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Branch } from "@/lib/types";
-import { POINTS_REVIEW_NEAR, POINTS_REVIEW_REMOTE } from "@/lib/rewards";
+import { MAX_POINTS_PER_DAY } from "@/lib/security";
 import { useSession } from "./SessionProvider";
 import { useGeo } from "./GeoProvider";
 import Link from "next/link";
@@ -41,13 +41,20 @@ export function ExperienceReviews({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !branchId) return;
+    if (status !== "ready") {
+      setNote("Activa el GPS: solo se puede opinar cerca de la sucursal.");
+      return;
+    }
     setBusy(true);
     setNote(null);
-    const body: Record<string, unknown> = { promoId, branchId, rating, text };
-    if (status === "ready") {
-      body.lat = origin.lat;
-      body.lng = origin.lng;
-    }
+    const body = {
+      promoId,
+      branchId,
+      rating,
+      text,
+      lat: origin.lat,
+      lng: origin.lng,
+    };
     const res = await fetch("/api/opiniones", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,7 +66,12 @@ export function ExperienceReviews({
       setNote(typeof data.error === "string" ? data.error : "No se guardó.");
       return;
     }
-    setNote(`+${data.pointsAwarded} puntos · saldo ${data.points}`);
+    const awarded = data.pointsAwarded ?? 0;
+    setNote(
+      awarded > 0
+        ? `+${awarded} puntos · saldo ${data.points} (máx. ${MAX_POINTS_PER_DAY}/día)`
+        : data.note || `Guardado sin puntos nuevos · saldo ${data.points}`,
+    );
     setText("");
     const refreshed = await fetch(`/api/opiniones?promoId=${promoId}`).then((r) => r.json());
     setReviews(Array.isArray(refreshed.reviews) ? refreshed.reviews : []);
@@ -69,8 +81,8 @@ export function ExperienceReviews({
     <section className="mt-12">
       <h2 className="font-display text-2xl text-[var(--foam)]">Experiencia en sucursal</h2>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Opina si la promo se cumplió. Ganas {POINTS_REVIEW_NEAR} pts cerca del local o{" "}
-        {POINTS_REVIEW_REMOTE} a distancia. Las opiniones empujan a la cadena a cumplir.
+        Una opinión por promo y sucursal. Solo cuenta (y da puntos) si estás cerca del local.
+        Actualizar el texto no vuelve a pagar puntos.
       </p>
 
       {!user ? (
@@ -113,7 +125,7 @@ export function ExperienceReviews({
             ¿Qué pasó en el local?
             <textarea
               required
-              minLength={8}
+              minLength={12}
               maxLength={500}
               value={text}
               onChange={(e) => setText(e.target.value)}

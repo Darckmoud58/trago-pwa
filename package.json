@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/validity.test.ts src/lib/presence.test.ts src/lib/hours.test.ts"
+    "test": "tsx --test src/lib/validity.test.ts src/lib/presence.test.ts src/lib/hours.test.ts src/lib/security.test.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

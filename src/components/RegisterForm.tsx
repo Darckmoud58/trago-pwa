@@ -63,8 +63,11 @@ export function RegisterForm() {
         <input
           name="password"
           type="password"
-          minLength={8}
+          minLength={10}
+          maxLength={72}
+          placeholder="Mín. 10 caracteres, letra y número"
           required
+          autoComplete="new-password"
           className="mt-1 w-full border border-white/15 bg-black/30 px-3 py-2 text-[var(--foam)]"
         />
       </label>

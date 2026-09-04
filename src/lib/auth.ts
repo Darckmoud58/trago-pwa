@@ -5,6 +5,8 @@ import { SESSION_COOKIE } from "./auth-cookie";
 
 export { SESSION_COOKIE };
 
+export const TWO_FA_COOKIE = "trago_2fa_pending";
+
 function secret() {
   const raw = process.env.AUTH_SECRET;
   if (!raw || raw.length < 16) {
@@ -27,10 +29,44 @@ export async function signSession(user: SessionUser) {
     .sign(secret());
 }
 
+export async function signTwoFactorPending(opts: {
+  userId: string;
+  challengeId: string;
+  email: string;
+}) {
+  return new SignJWT({
+    kind: "2fa",
+    challengeId: opts.challengeId,
+    email: opts.email,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(opts.userId)
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(secret());
+}
+
+export async function readTwoFactorPending(
+  token: string,
+): Promise<{ userId: string; challengeId: string; email: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, secret());
+    if (payload.kind !== "2fa" || !payload.sub || !payload.challengeId) return null;
+    return {
+      userId: payload.sub,
+      challengeId: String(payload.challengeId),
+      email: String(payload.email ?? ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function readSessionFromToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, secret());
     if (!payload.sub || payload.isAdult !== true) return null;
+    if (payload.kind === "2fa") return null;
     return {
       id: payload.sub,
       email: String(payload.email ?? ""),
@@ -64,9 +100,31 @@ export const SESSION_COOKIE_OPTS = {
   maxAge: 60 * 60 * 24 * 14,
 };
 
+const TWO_FA_COOKIE_OPTS = {
+  ...SESSION_COOKIE_OPTS,
+  maxAge: 60 * 10,
+};
+
 export async function setSessionCookie(token: string) {
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, SESSION_COOKIE_OPTS);
+}
+
+export async function setTwoFactorPendingCookie(token: string) {
+  const jar = await cookies();
+  jar.set(TWO_FA_COOKIE, token, TWO_FA_COOKIE_OPTS);
+}
+
+export async function clearTwoFactorPendingCookie() {
+  const jar = await cookies();
+  jar.delete(TWO_FA_COOKIE);
+}
+
+export async function getTwoFactorPendingCookie() {
+  const jar = await cookies();
+  const token = jar.get(TWO_FA_COOKIE)?.value;
+  if (!token) return null;
+  return readTwoFactorPending(token);
 }
 
 export async function clearSessionCookie() {

@@ -40,7 +40,8 @@ export function RewardsPanel() {
     <section className="mt-10 border border-white/10 p-4">
       <h2 className="font-display text-2xl text-[var(--foam)]">Recompensas</h2>
       <p className="mt-2 text-sm text-[var(--muted)]">
-        Reporta vigencia y opina en sucursal. Con {COUPON_COST} puntos canjeas un cupón TraGo.
+        Reporta vigencia y opina en sucursal (GPS). Tope diario de puntos; una sola
+        recompensa por promo+local. Con {COUPON_COST} puntos canjeas un cupón TraGo.
       </p>
       <p className="mt-4 text-3xl font-display text-[var(--gold)]">{points} pts</p>
       <button

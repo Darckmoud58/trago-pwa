@@ -11,6 +11,10 @@ import {
   type BranchPromoDoc,
   type ChainDoc,
   type CouponDoc,
+  type PointLedgerDoc,
+  type AuthLockDoc,
+  type PasswordResetDoc,
+  type TwoFactorChallengeDoc,
   type PromoDoc,
   type PushSubDoc,
   type ReportDoc,
@@ -30,10 +34,17 @@ import {
   COUPON_COST,
   COUPON_LABEL,
   POINTS_REVIEW_NEAR,
-  POINTS_REVIEW_REMOTE,
   POINTS_VOTE,
   couponCode,
 } from "./rewards";
+import {
+  LOGIN_LOCK_MINUTES,
+  LOGIN_MAX_FAILURES,
+  MAX_POINTS_PER_DAY,
+  REVIEW_MAX_PER_HOUR,
+  sanitizeText,
+  textFingerprint,
+} from "./security";
 import type { Catalog, GeoPoint, PromoKind, SessionUser } from "./types";
 
 async function collections() {
@@ -47,6 +58,10 @@ async function collections() {
     reports: db.collection<ReportDoc>("reports"),
     reviews: db.collection<ReviewDoc>("reviews"),
     coupons: db.collection<CouponDoc>("coupons"),
+    pointLedger: db.collection<PointLedgerDoc>("pointLedger"),
+    authLocks: db.collection<AuthLockDoc>("authLocks"),
+    passwordResets: db.collection<PasswordResetDoc>("passwordResets"),
+    twoFactorChallenges: db.collection<TwoFactorChallengeDoc>("twoFactorChallenges"),
     pushSubs: db.collection<PushSubDoc>("pushSubs"),
     meta: db.collection<{
       _id: string;
@@ -76,10 +91,18 @@ export async function ensureIndexesAndSeed() {
   await col.pushSubs.createIndex({ endpoint: 1 }, { unique: true });
   await col.pushSubs.createIndex({ userId: 1 });
   await col.reviews.createIndex({ promoId: 1, createdAt: -1 });
-  await col.reviews.createIndex({ userId: 1, promoId: 1, branchId: 1 });
+  await col.reviews.createIndex({ userId: 1, promoId: 1, branchId: 1 }, { unique: true });
+  await col.reviews.createIndex({ userId: 1, createdAt: -1 });
   await col.coupons.createIndex({ userId: 1, createdAt: -1 });
   await col.coupons.createIndex({ code: 1 }, { unique: true });
   await col.chains.createIndex({ ownerUserId: 1 }, { sparse: true });
+  await col.pointLedger.createIndex({ refKey: 1 }, { unique: true });
+  await col.pointLedger.createIndex({ userId: 1, createdAt: -1 });
+  await col.authLocks.createIndex({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
+  await col.passwordResets.createIndex({ tokenHash: 1 }, { unique: true });
+  await col.passwordResets.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await col.twoFactorChallenges.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await col.twoFactorChallenges.createIndex({ userId: 1 });
 
   if (seeded) return;
   const meta = await col.meta.findOne({ _id: "catalog" });
@@ -361,11 +384,73 @@ export async function saveVote(opts: {
     { upsert: true },
   );
 
-  if (!isUpdateSameLink || prev?.stillValid !== opts.stillValid) {
-    await addPoints(opts.userId, POINTS_VOTE);
+  // Puntos solo la primera vez que reportas esa promo+sucursal (no al cambiar de opinión).
+  if (!prev) {
+    await awardPointsOnce({
+      userId: opts.userId,
+      delta: POINTS_VOTE,
+      reason: "vote",
+      refKey: `vote:${opts.userId}:${opts.promoId}:${opts.branchId}`,
+    });
   }
 
   return recountLinkVotes(opts.promoId, opts.branchId);
+}
+
+async function pointsEarnedLast24h(userId: string): Promise<number> {
+  const col = await collections();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const rows = await col.pointLedger
+    .aggregate<{ total: number }>([
+      { $match: { userId, createdAt: { $gte: since }, delta: { $gt: 0 } } },
+      { $group: { _id: null, total: { $sum: "$delta" } } },
+    ])
+    .toArray();
+  return rows[0]?.total ?? 0;
+}
+
+/**
+ * Otorga puntos una sola vez por refKey (anti-farmeo).
+ * Respeta tope de puntos en 24 h.
+ */
+async function awardPointsOnce(opts: {
+  userId: string;
+  delta: number;
+  reason: "vote" | "review";
+  refKey: string;
+}): Promise<{ awarded: number; points: number; skipped?: string }> {
+  if (opts.delta <= 0) {
+    const bal = await getUserPoints(opts.userId);
+    return { awarded: 0, points: bal };
+  }
+  const col = await collections();
+  const earned = await pointsEarnedLast24h(opts.userId);
+  const room = Math.max(0, MAX_POINTS_PER_DAY - earned);
+  const delta = Math.min(opts.delta, room);
+  if (delta <= 0) {
+    const bal = await getUserPoints(opts.userId);
+    return { awarded: 0, points: bal, skipped: "tope diario de puntos" };
+  }
+
+  try {
+    await col.pointLedger.insertOne({
+      userId: opts.userId,
+      delta,
+      reason: opts.reason,
+      refKey: opts.refKey,
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    const code = (err as { code?: number }).code;
+    if (code === 11000) {
+      const bal = await getUserPoints(opts.userId);
+      return { awarded: 0, points: bal, skipped: "ya premiado" };
+    }
+    throw err;
+  }
+
+  const points = await addPoints(opts.userId, delta);
+  return { awarded: delta, points };
 }
 
 async function addPoints(userId: string, delta: number) {
@@ -398,15 +483,26 @@ export async function redeemCoupon(userId: string) {
   const { ObjectId } = await import("mongodb");
   if (!ObjectId.isValid(userId)) throw new VoteError(400, "Usuario inválido.");
 
-  const user = await col.users.findOne({ _id: new ObjectId(userId) });
-  const points = user?.points ?? 0;
-  if (points < COUPON_COST) {
-    throw new VoteError(400, `Necesitas ${COUPON_COST} puntos. Tienes ${points}.`);
+  const updated = await col.users.findOneAndUpdate(
+    { _id: new ObjectId(userId), points: { $gte: COUPON_COST } },
+    { $inc: { points: -COUPON_COST } },
+    { returnDocument: "after" },
+  );
+  if (!updated) {
+    const user = await col.users.findOne({ _id: new ObjectId(userId) });
+    throw new VoteError(400, `Necesitas ${COUPON_COST} puntos. Tienes ${user?.points ?? 0}.`);
   }
 
   const code = couponCode();
   const now = new Date();
-  await col.users.updateOne({ _id: new ObjectId(userId) }, { $inc: { points: -COUPON_COST } });
+  const refKey = `redeem:${userId}:${code}`;
+  await col.pointLedger.insertOne({
+    userId,
+    delta: -COUPON_COST,
+    reason: "redeem",
+    refKey,
+    createdAt: now,
+  });
   await col.coupons.insertOne({
     userId,
     code,
@@ -415,8 +511,138 @@ export async function redeemCoupon(userId: string) {
     createdAt: now,
     redeemedAt: null,
   });
-  const fresh = await col.users.findOne({ _id: new ObjectId(userId) });
-  return { code, label: COUPON_LABEL, points: fresh?.points ?? points - COUPON_COST };
+  return { code, label: COUPON_LABEL, points: updated.points ?? 0 };
+}
+
+export async function assertLoginAllowed(lockKey: string) {
+  if (!hasMongoUri()) return;
+  const col = await collections();
+  const doc = await col.authLocks.findOne({ _id: lockKey });
+  if (doc?.lockedUntil && doc.lockedUntil > new Date()) {
+    const mins = Math.ceil((doc.lockedUntil.getTime() - Date.now()) / 60000);
+    throw new VoteError(429, `Demasiados intentos. Espera ~${mins} min.`);
+  }
+}
+
+export async function recordLoginFailure(lockKey: string) {
+  if (!hasMongoUri()) return;
+  const col = await collections();
+  const now = new Date();
+  const doc = await col.authLocks.findOne({ _id: lockKey });
+  const failures = (doc?.failures ?? 0) + 1;
+  const lockedUntil =
+    failures >= LOGIN_MAX_FAILURES
+      ? new Date(now.getTime() + LOGIN_LOCK_MINUTES * 60 * 1000)
+      : null;
+  await col.authLocks.updateOne(
+    { _id: lockKey },
+    { $set: { failures, lockedUntil, updatedAt: now } },
+    { upsert: true },
+  );
+}
+
+export async function clearLoginFailures(lockKey: string) {
+  if (!hasMongoUri()) return;
+  const col = await collections();
+  await col.authLocks.deleteOne({ _id: lockKey });
+}
+
+export async function createPasswordReset(email: string) {
+  await ensureIndexesAndSeed();
+  const col = await collections();
+  const user = await findUserByEmail(email);
+  if (!user?.passwordHash) {
+    return { created: false as const };
+  }
+  const { newResetToken, hashToken, RESET_TTL_MS } = await import("./tokens");
+  const raw = newResetToken();
+  const tokenHash = hashToken(raw);
+  const now = new Date();
+  await col.passwordResets.deleteMany({ email: user.email });
+  await col.passwordResets.insertOne({
+    email: user.email,
+    tokenHash,
+    expiresAt: new Date(now.getTime() + RESET_TTL_MS),
+    createdAt: now,
+    usedAt: null,
+  });
+  return { created: true as const, email: user.email, token: raw, name: user.profile.name };
+}
+
+export async function resetPasswordWithToken(token: string, newPassword: string) {
+  await ensureIndexesAndSeed();
+  const col = await collections();
+  const { hashToken } = await import("./tokens");
+  const { hashPassword } = await import("./auth-validate");
+  const tokenHash = hashToken(token);
+  const doc = await col.passwordResets.findOne({ tokenHash, usedAt: null });
+  if (!doc || doc.expiresAt < new Date()) {
+    throw new VoteError(400, "El enlace expiró o no es válido. Solicita otro.");
+  }
+  const user = await findUserByEmail(doc.email);
+  if (!user) throw new VoteError(400, "El enlace expiró o no es válido. Solicita otro.");
+  const passwordHash = await hashPassword(newPassword);
+  const { ObjectId } = await import("mongodb");
+  await col.users.updateOne({ _id: user._id }, { $set: { passwordHash } });
+  await col.passwordResets.updateOne({ _id: doc._id }, { $set: { usedAt: new Date() } });
+  await col.passwordResets.deleteMany({ email: doc.email, usedAt: null });
+  await clearLoginFailures(`login:${doc.email}`);
+  return { email: doc.email };
+}
+
+export async function setTwoFactorEmail(userId: string, enabled: boolean) {
+  await ensureIndexesAndSeed();
+  const col = await collections();
+  const { ObjectId } = await import("mongodb");
+  if (!ObjectId.isValid(userId)) throw new VoteError(400, "Usuario inválido.");
+  await col.users.updateOne({ _id: new ObjectId(userId) }, { $set: { twoFactorEmail: enabled } });
+  return enabled;
+}
+
+export async function getTwoFactorEnabled(userId: string) {
+  const user = await findUserById(userId);
+  return Boolean(user?.twoFactorEmail);
+}
+
+export async function createTwoFactorChallenge(userId: string) {
+  await ensureIndexesAndSeed();
+  const col = await collections();
+  const { newOtpCode, hashToken, OTP_TTL_MS } = await import("./tokens");
+  const code = newOtpCode();
+  const now = new Date();
+  await col.twoFactorChallenges.deleteMany({ userId });
+  const result = await col.twoFactorChallenges.insertOne({
+    userId,
+    codeHash: hashToken(code),
+    expiresAt: new Date(now.getTime() + OTP_TTL_MS),
+    createdAt: now,
+    attempts: 0,
+  });
+  return { challengeId: String(result.insertedId), code };
+}
+
+export async function verifyTwoFactorChallenge(challengeId: string, code: string) {
+  await ensureIndexesAndSeed();
+  const col = await collections();
+  const { ObjectId } = await import("mongodb");
+  const { hashToken } = await import("./tokens");
+  if (!ObjectId.isValid(challengeId)) {
+    throw new VoteError(400, "Código inválido o expirado.");
+  }
+  const doc = await col.twoFactorChallenges.findOne({ _id: new ObjectId(challengeId) });
+  if (!doc || doc.expiresAt < new Date()) {
+    throw new VoteError(400, "Código inválido o expirado.");
+  }
+  if (doc.attempts >= 5) {
+    await col.twoFactorChallenges.deleteOne({ _id: doc._id });
+    throw new VoteError(429, "Demasiados intentos. Vuelve a iniciar sesión.");
+  }
+  if (doc.codeHash !== hashToken(code.trim())) {
+    await col.twoFactorChallenges.updateOne({ _id: doc._id }, { $inc: { attempts: 1 } });
+    throw new VoteError(401, "Código incorrecto.");
+  }
+  await col.twoFactorChallenges.deleteOne({ _id: doc._id });
+  return { userId: doc.userId };
 }
 
 export async function listReviewsForPromo(promoId: string, limit = 12) {
@@ -457,6 +683,12 @@ export async function saveReview(opts: {
   await ensureIndexesAndSeed();
   const col = await collections();
 
+  const text = sanitizeText(opts.text);
+  if (text.length < 12) {
+    throw new VoteError(400, "Escribe al menos 12 caracteres (sin farmear con basura).");
+  }
+  const hash = textFingerprint(text);
+
   const link = await col.branchPromos.findOne({
     promoId: opts.promoId,
     branchId: opts.branchId,
@@ -466,32 +698,96 @@ export async function saveReview(opts: {
   const branch = await col.branches.findOne({ _id: opts.branchId });
   if (!branch) throw new VoteError(404, "Sucursal no encontrada.");
   const point = branchFromDoc(branch).geo;
-  const nearStore = opts.geo ? isNearBranch(opts.geo, point) : false;
+  if (!opts.geo || !isNearBranch(opts.geo, point)) {
+    const maxM = Math.round(presenceMaxKm() * 1000);
+    throw new VoteError(
+      403,
+      `Para opinar y ganar puntos hay que estar a menos de ${maxM} m de la sucursal.`,
+    );
+  }
 
-  const recent = await col.reviews.findOne({
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const recentCount = await col.reviews.countDocuments({
+    userId: opts.userId,
+    createdAt: { $gte: hourAgo },
+  });
+  if (recentCount >= REVIEW_MAX_PER_HOUR) {
+    throw new VoteError(429, "Demasiadas opiniones en una hora.");
+  }
+
+  const dupText = await col.reviews.findOne({
+    userId: opts.userId,
+    textHash: hash,
+    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+  });
+  if (dupText) {
+    throw new VoteError(400, "Ese texto ya lo usaste. No farmees con el mismo comentario.");
+  }
+
+  const existing = await col.reviews.findOne({
     userId: opts.userId,
     promoId: opts.promoId,
     branchId: opts.branchId,
-    createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
   });
-  if (recent) throw new VoteError(429, "Ya opinaste aquí hoy. Vuelve mañana.");
+  if (existing) {
+    await col.reviews.updateOne(
+      { _id: existing._id },
+      {
+        $set: {
+          rating: opts.rating,
+          text,
+          textHash: hash,
+          nearStore: true,
+          updatedAt: new Date(),
+          lat: opts.geo.lat,
+          lng: opts.geo.lng,
+        },
+      },
+    );
+    const points = await getUserPoints(opts.userId);
+    return {
+      nearStore: true,
+      pointsAwarded: 0,
+      points,
+      note: "Opinión actualizada. Los puntos solo se dan la primera vez.",
+    };
+  }
 
   const now = new Date();
   await col.reviews.insertOne({
     userId: opts.userId,
-    userName: opts.userName,
+    userName: opts.userName.slice(0, 80),
     promoId: opts.promoId,
     branchId: opts.branchId,
     rating: opts.rating,
-    text: opts.text.slice(0, 500),
-    nearStore,
+    text,
+    textHash: hash,
+    nearStore: true,
+    pointsAwarded: 0,
     createdAt: now,
-    ...(opts.geo ? { lat: opts.geo.lat, lng: opts.geo.lng } : {}),
+    lat: opts.geo.lat,
+    lng: opts.geo.lng,
   });
 
-  const pts = nearStore ? POINTS_REVIEW_NEAR : POINTS_REVIEW_REMOTE;
-  const points = await addPoints(opts.userId, pts);
-  return { nearStore, pointsAwarded: pts, points };
+  const award = await awardPointsOnce({
+    userId: opts.userId,
+    delta: POINTS_REVIEW_NEAR,
+    reason: "review",
+    refKey: `review:${opts.userId}:${opts.promoId}:${opts.branchId}`,
+  });
+  if (award.awarded > 0) {
+    await col.reviews.updateOne(
+      { userId: opts.userId, promoId: opts.promoId, branchId: opts.branchId },
+      { $set: { pointsAwarded: award.awarded } },
+    );
+  }
+
+  return {
+    nearStore: true,
+    pointsAwarded: award.awarded,
+    points: award.points,
+    note: award.skipped ? `Sin puntos: ${award.skipped}.` : undefined,
+  };
 }
 
 export async function userOwnsChain(userId: string) {
