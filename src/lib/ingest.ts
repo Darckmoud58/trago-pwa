@@ -333,6 +333,7 @@ export async function refreshOfficialSources(opts?: { ifStaleHours?: number; for
             imageUrl: hit.imageUrl,
             featured: i < 3,
             isDemo: false,
+            origin: "official" as const,
             sourceUrl: hit.sourceUrl,
             sourceLabel: `Página oficial · ${chain.name}`,
           },

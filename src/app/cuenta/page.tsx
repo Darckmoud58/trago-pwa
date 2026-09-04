@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { LogoutButton } from "@/components/LogoutButton";
 import { BirthdayPushButton } from "@/components/BirthdayPushButton";
+import { RewardsPanel } from "@/components/RewardsPanel";
 import { canOperatePanel } from "@/lib/panel-auth";
 import { isBirthdayToday } from "@/lib/night";
 import Link from "next/link";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function CuentaPage() {
   const user = await getSession();
   if (!user) redirect("/entrar?next=/cuenta");
+  const panel = await canOperatePanel(user);
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
@@ -28,13 +30,22 @@ export default async function CuentaPage() {
         </p>
       )}
       <BirthdayPushButton />
-      {canOperatePanel(user) && (
-        <p className="mt-6 text-sm">
-          <Link href="/panel" className="text-[var(--gold)]">
-            Panel de cadenas
-          </Link>
-        </p>
-      )}
+      <RewardsPanel />
+      <div className="mt-8 space-y-3 text-sm">
+        {panel ? (
+          <p>
+            <Link href="/panel" className="text-[var(--gold)]">
+              Panel de cadenas
+            </Link>
+          </p>
+        ) : (
+          <p>
+            <Link href="/empresa/registro" className="text-[var(--gold)]">
+              Registrar mi cadena / negocio
+            </Link>
+          </p>
+        )}
+      </div>
       <div className="mt-8">
         <LogoutButton />
       </div>

@@ -19,10 +19,11 @@ export default function HomePage() {
             TraGo
           </p>
           <h1 className="rise-delay mt-5 max-w-xl text-2xl font-medium text-[var(--foam)] sm:text-3xl">
-            Promos vigentes en Guadalajara. En la sucursal de a lado.
+            Promos que sí se cumplen. Cerca de ti.
           </h1>
           <p className="rise-delay mt-3 max-w-md text-[var(--muted)]">
-            Comida, café, botellas y regalos de cumpleaños. GPS para no ir de balde.
+            Oficiales, publicadas por la cadena y validadas en piso. Opina, gana puntos, canjea
+            cupones.
           </p>
           <HomeCtas />
         </div>
@@ -36,27 +37,32 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pb-14">
-        <h2 className="font-display text-3xl text-[var(--foam)]">Quién mueve la vigencia</h2>
+        <h2 className="font-display text-3xl text-[var(--foam)]">Tres motores, una verdad</h2>
         <p className="mt-3 max-w-2xl text-[var(--muted)]">
-          Lalo dejó abierto si las empresas cargan las promos o si los usuarios las
-          actualizan. TraGo hace las dos: la cadena publica y marca sucursales; la gente en
-          piso dice si todavía está viva.
+          El profesor pidió involucrar al usuario y a la empresa. TraGo premia la opinión en
+          sucursal y da a la cadena un canal para publicar — sin dejar de leer su web oficial.
         </p>
-        <div className="mt-8 grid gap-8 md:grid-cols-2">
+        <div className="mt-8 grid gap-8 md:grid-cols-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold)]">Cadena</p>
-            <p className="mt-2 font-display text-2xl text-[var(--foam)]">Publica la promo</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold)]">Oficial</p>
+            <p className="mt-2 font-display text-2xl text-[var(--foam)]">Página de la cadena</p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Fechas, sucursales participantes y términos. Perfil Pro destaca; Premium abre
-              API.
+              Sync de promociones públicas (OXXO, La Europea…). Fuente verificable.
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold)]">Empresa</p>
+            <p className="mt-2 font-display text-2xl text-[var(--foam)]">Se registra y publica</p>
+            <p className="mt-2 text-sm text-[var(--muted)]">
+              Alta en TraGo, panel propio y ofertas con fechas. La reputación mide si cumplen.
             </p>
           </div>
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold)]">Usuario</p>
-            <p className="mt-2 font-display text-2xl text-[var(--foam)]">Confirma en sucursal</p>
+            <p className="mt-2 font-display text-2xl text-[var(--foam)]">Opina y gana</p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              “Sigue vigente” o “ya no aplica”. Si se acumulan reportes en contra, la promo
-              pasa a duda o se oculta en esa sucursal.
+              Vigencia con GPS, experiencia en local, puntos y cupones. Incentivo a la calle y
+              a la caja.
             </p>
           </div>
         </div>

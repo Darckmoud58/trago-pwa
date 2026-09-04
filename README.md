@@ -8,18 +8,25 @@ PWA de **promociones vigentes de cadenas** en **Guadalajara**: comida, café, al
 
 No basta con “hay 2x1 en la cadena”. TraGo responde: **¿en esta sucursal, ahora, todavía aplica?**
 
-### Modelo híbrido (lo que Lalo dejó abierto)
+### Modelo (tesis del profesor)
 
-| Quién | Qué hace |
-|--------|----------|
-| **Cadena** | Publica la promo, fechas y sucursales participantes |
-| **Usuario** | Reporta *sigue vigente* o *ya no aplica* en esa sucursal |
+| Actor | Qué hace | Incentivo |
+|--------|----------|-----------|
+| **Página oficial** | TraGo lee promociones públicas | Fuente verificable |
+| **Empresa** | Se registra, publica ofertas en el panel | Reputación + pies en puerta |
+| **Usuario** | Vota vigencia (GPS), opina en sucursal | Puntos → cupones TraGo |
 
-Si se acumulan reportes **recientes** (14 días) en contra, la promo pasa a **en duda** o se oculta en ese local. El voto exige GPS cerca de la sucursal.
+Las opiniones y reportes son el incentivo para que la cadena **cumpla** lo anunciado.
 
-## PWA
+## PWA (requisitos)
 
-Instalable en el teléfono (standalone). Service worker en `/sw.js`: precache del shell, no cachea `/api/*`, navegación siempre a red.
+| Característica | En TraGo |
+|----------------|----------|
+| Instalación directa | Manifest + banner Instalar (sin tienda) |
+| Sin conexión | Service worker precachea shell (`/`, `/promos`, iconos); APIs van a red |
+| Notificaciones push | Cumpleaños (VAPID) + permiso opt-in |
+| Actualización automática | `skipWaiting` + navegación siempre a red |
+| HTTPS | Obligatorio en producción (Netlify / hosting) |
 
 ## Rutas
 
@@ -32,8 +39,11 @@ Instalable en el teléfono (standalone). Service worker en `/sw.js`: precache de
 | `/cumple` | Promos y regalos de cumpleaños |
 | `/cadenas` | Perfiles de empresa |
 | `/sucursales/[slug]` | Promos de un local |
-| `/panel` | Operador de cadena (`CHAIN_PANEL_EMAILS`) |
+| `/panel` | Operador / dueño de cadena |
+| `/empresa/registro` | Alta de cadena para publicar ofertas |
 | `/api/cerca` | Promos cerca (`$geoNear` / fallback Haversine) |
+| `/api/opiniones` | Experiencia en sucursal + puntos |
+| `/api/recompensas` | Saldo y canje de cupones |
 | `/api/push/subscribe` | Suscripción Web Push (cuenta 18+) |
 | `/api/push/birthday` | Dispara avisos de cumple (panel o `CRON_SECRET`) |
 | `/api/cadenas/la-europea/promos` | API Premium (`x-api-key` si hay `TRAGO_API_KEY`) |

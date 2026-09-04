@@ -1,5 +1,13 @@
-const CACHE = "trago-v5";
-const PRECACHE = ["/", "/icon.svg", "/icon-192.png", "/icon-512.png"];
+const CACHE = "trago-v6";
+const PRECACHE = [
+  "/",
+  "/promos",
+  "/cadenas",
+  "/cumple",
+  "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

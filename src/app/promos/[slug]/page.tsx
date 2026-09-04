@@ -4,8 +4,9 @@ import { BranchPromoList } from "@/components/BranchPromoList";
 import { AdBanner } from "@/components/AdBanner";
 import { DemoNotice } from "@/components/DemoNotice";
 import { ChainMark } from "@/components/ChainMark";
+import { ExperienceReviews } from "@/components/ExperienceReviews";
 import { branchesForPromo, getChain, getPromoBySlug } from "@/lib/catalog";
-import { getCatalog } from "@/lib/queries";
+import { chainReputation, getCatalog } from "@/lib/queries";
 import { KIND_LABELS } from "@/lib/types";
 
 interface PageProps {
@@ -20,6 +21,15 @@ export default async function PromoDetailPage({ params }: PageProps) {
 
   const chain = getChain(catalog, promo.chainId);
   const rows = branchesForPromo(catalog, promo.id);
+  const originLabel =
+    promo.origin === "official" || promo.sourceUrl
+      ? "página oficial"
+      : promo.origin === "chain"
+        ? "publicada por la cadena"
+        : promo.isDemo
+          ? "folio demo"
+          : "";
+  const reputation = chain ? await chainReputation(chain.id) : { avg: null, count: 0 };
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -41,9 +51,14 @@ export default async function PromoDetailPage({ params }: PageProps) {
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold)]">
             {KIND_LABELS[promo.kind]}
-            {promo.sourceUrl ? " · página oficial" : promo.isDemo ? " · folio demo" : ""}
+            {originLabel ? ` · ${originLabel}` : ""}
           </p>
           <p className="font-display text-2xl text-[var(--foam)]">{chain?.name}</p>
+          {reputation.count > 0 && reputation.avg != null && (
+            <p className="text-xs text-[var(--muted)]">
+              Reputación TraGo: {reputation.avg} ★ · {reputation.count} opiniones
+            </p>
+          )}
         </div>
       </div>
       <h1 className="mt-4 font-display text-4xl text-[var(--foam)]">{promo.title}</h1>
@@ -68,9 +83,11 @@ export default async function PromoDetailPage({ params }: PageProps) {
 
       <h2 className="mt-10 font-display text-2xl text-[var(--foam)]">En estas tiendas</h2>
       <p className="mt-2 mb-4 text-sm text-[var(--muted)]">
-        Nombre real de sucursal. Reporta si el folio (demo) todavía aplicaría en ese local.
+        Reporta vigencia con GPS. Opina y gana puntos canjeables por cupones.
       </p>
       <BranchPromoList promo={promo} rows={rows} />
+
+      <ExperienceReviews promoId={promo.id} branches={rows.map((r) => r.branch)} />
 
       {chain?.showAds && (
         <div className="mt-10">

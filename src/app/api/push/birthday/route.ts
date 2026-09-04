@@ -12,7 +12,7 @@ import { sendPush, vapidConfigured } from "@/lib/push";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function authorized(request: Request, session: Awaited<ReturnType<typeof getSession>>) {
+async function authorized(request: Request, session: Awaited<ReturnType<typeof getSession>>) {
   const cron = process.env.CRON_SECRET;
   if (cron && request.headers.get("x-cron-secret") === cron) return true;
   return canOperatePanel(session);
@@ -20,7 +20,7 @@ function authorized(request: Request, session: Awaited<ReturnType<typeof getSess
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!authorized(request, session)) {
+  if (!(await authorized(request, session))) {
     return NextResponse.json({ error: "Sin permiso." }, { status: 403 });
   }
   if (!vapidConfigured()) {

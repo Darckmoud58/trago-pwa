@@ -39,6 +39,7 @@ export interface Chain {
   publishesPromos: boolean;
   hasApiAccess: boolean;
   showAds: boolean;
+  ownerUserId?: string;
 }
 
 export interface Branch {
@@ -73,6 +74,8 @@ export interface Promo {
   isDemo: boolean;
   sourceUrl?: string;
   sourceLabel?: string;
+  /** official = web de la cadena; chain = publicada en TraGo; demo = prototipo */
+  origin?: "official" | "chain" | "demo";
 }
 
 export interface BranchPromo {

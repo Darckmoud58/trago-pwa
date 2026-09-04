@@ -12,7 +12,8 @@ export interface UserDoc extends Document {
     confirmed18: true;
     confirmedAt: Date;
   };
-  role: "user";
+  role: "user" | "chain";
+  points?: number;
   createdAt: Date;
 }
 
@@ -29,6 +30,7 @@ export interface ChainDoc extends Document {
   publishesPromos: boolean;
   hasApiAccess: boolean;
   showAds: boolean;
+  ownerUserId?: string;
 }
 
 export interface BranchDoc extends Document {
@@ -65,6 +67,29 @@ export interface PromoDoc extends Document {
   isDemo: boolean;
   sourceUrl?: string;
   sourceLabel?: string;
+  origin?: "official" | "chain" | "demo";
+}
+
+export interface ReviewDoc extends Document {
+  userId: string;
+  userName: string;
+  promoId: string;
+  branchId: string;
+  rating: number;
+  text: string;
+  nearStore: boolean;
+  createdAt: Date;
+  lat?: number;
+  lng?: number;
+}
+
+export interface CouponDoc extends Document {
+  userId: string;
+  code: string;
+  label: string;
+  costPoints: number;
+  createdAt: Date;
+  redeemedAt?: Date | null;
 }
 
 export interface BranchPromoDoc extends Document {
@@ -108,6 +133,7 @@ export function chainFromDoc(d: ChainDoc): Chain {
     publishesPromos: d.publishesPromos,
     hasApiAccess: d.hasApiAccess,
     showAds: d.showAds,
+    ownerUserId: d.ownerUserId,
   };
 }
 
@@ -147,6 +173,7 @@ export function promoFromDoc(d: PromoDoc): Promo {
     isDemo: d.isDemo,
     sourceUrl: d.sourceUrl,
     sourceLabel: d.sourceLabel,
+    origin: d.origin ?? (d.sourceUrl ? "official" : d.isDemo ? "demo" : "chain"),
   };
 }
 

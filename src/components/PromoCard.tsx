@@ -45,7 +45,13 @@ export function PromoCard({
         <div className="absolute inset-0 bg-gradient-to-t from-[#08110e] via-transparent to-transparent" />
         <span className="absolute left-3 top-3 bg-[#08110e]/80 px-2 py-1 text-[11px] uppercase tracking-wider text-[var(--gold)]">
           {KIND_LABELS[promo.kind]}
-          {promo.sourceUrl ? " · página oficial" : promo.isDemo ? " · demo" : ""}
+          {promo.sourceUrl || promo.origin === "official"
+            ? " · página oficial"
+            : promo.origin === "chain"
+              ? " · la cadena"
+              : promo.isDemo
+                ? " · demo"
+                : ""}
         </span>
       </div>
       <div className="space-y-2 p-4">

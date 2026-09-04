@@ -7,7 +7,16 @@ function secret() {
   return new TextEncoder().encode(raw);
 }
 
-const PROTECTED = ["/cuenta", "/panel", "/api/reportes", "/api/fuentes", "/api/panel"];
+const PROTECTED = [
+  "/cuenta",
+  "/panel",
+  "/empresa",
+  "/api/reportes",
+  "/api/fuentes",
+  "/api/panel",
+  "/api/recompensas",
+  "/api/empresa",
+];
 
 function isNightInMexico() {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -63,8 +72,12 @@ export const config = {
     "/nocturno",
     "/cuenta",
     "/panel",
+    "/empresa",
+    "/empresa/:path*",
     "/api/reportes/:path*",
     "/api/fuentes/:path*",
     "/api/panel/:path*",
+    "/api/recompensas/:path*",
+    "/api/empresa/:path*",
   ],
 };

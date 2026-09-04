@@ -15,7 +15,7 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!canOperatePanel(session)) {
+  if (!(await canOperatePanel(session))) {
     return NextResponse.json({ error: "Sin permiso de operador." }, { status: 403 });
   }
   if (!hasMongoUri()) {
