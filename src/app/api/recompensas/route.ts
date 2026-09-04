@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await getSession();
-    if (!session?.isAdult) {
+    if (!session) {
       return NextResponse.json({ error: "Inicia sesión." }, { status: 401 });
     }
     const limited = hitRateLimit(`redeem:${session.id}:${clientIp(request)}`, 5, 60 * 60 * 1000);

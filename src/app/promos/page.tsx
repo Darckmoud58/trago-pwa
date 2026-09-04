@@ -2,6 +2,8 @@ import { PromoCard } from "@/components/PromoCard";
 import { GeoChip } from "@/components/GeoChip";
 import { DemoNotice } from "@/components/DemoNotice";
 import { getCatalog } from "@/lib/queries";
+import { getSession } from "@/lib/auth";
+import { filterPromosForViewer } from "@/lib/audience";
 import { KIND_LABELS, type PromoKind } from "@/lib/types";
 import { isWithinDates } from "@/lib/validity";
 import Link from "next/link";
@@ -12,7 +14,8 @@ interface PageProps {
 
 export default async function PromosPage({ searchParams }: PageProps) {
   const { tipo } = await searchParams;
-  const { promos } = await getCatalog();
+  const [catalog, user] = await Promise.all([getCatalog(), getSession().catch(() => null)]);
+  const promos = filterPromosForViewer(catalog.promos, user);
   const list = promos.filter((p) => isWithinDates(p)).filter((p) => (tipo ? p.kind === tipo : true));
   const kinds = Object.entries(KIND_LABELS) as [PromoKind, string][];
 
@@ -22,6 +25,11 @@ export default async function PromosPage({ searchParams }: PageProps) {
         <div>
           <h1 className="font-display text-4xl text-[var(--foam)]">Promociones vigentes</h1>
           <p className="mt-2 max-w-xl text-[var(--muted)]">
+            {user?.isAdult
+              ? "Catálogo completo, incluido alcohol."
+              : user
+                ? "Perfil joven: sin alcohol. Comida, café y coleccionables."
+                : "Sin cuenta ves lo general. Entra para personalizar por edad."}{" "}
             Filtra por tipo y entra para ver en qué sucursales sigue viva.
           </p>
         </div>

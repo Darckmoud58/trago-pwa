@@ -52,7 +52,7 @@ export function InstallBanner() {
           sessionStorage.setItem("trago-install-hide", "1");
         }
       } catch {
-        setNote("Chrome no abrió el diálogo. Usa el menú ⋮ → Instalar TraGo.");
+        setNote("Chrome no abrió el diálogo. Mira la barra de dirección o el menú ⋮.");
         setHelp(true);
       }
       return;
@@ -60,8 +60,8 @@ export function InstallBanner() {
     setHelp(true);
     setNote(
       isIos()
-        ? "En iPhone: toca Compartir y luego “Añadir a pantalla de inicio”."
-        : "Abre TraGo en Chrome o Edge (no en la vista de Cursor). Menú ⋮ → Instalar TraGo.",
+        ? "En iPhone usa Safari (no Chrome): Compartir → Añadir a pantalla de inicio."
+        : "En Chrome el ítem no siempre dice “Instalar TraGo”. Busca el icono ⊕ en la barra de dirección o Cast, save and share.",
     );
   }
 
@@ -72,14 +72,24 @@ export function InstallBanner() {
     >
       <p className="font-display text-lg text-[var(--foam)]">Instala TraGo</p>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        App en el inicio del celular, sin tienda. Funciona mejor en Chrome, Edge o Safari.
+        App en el inicio del celular, sin tienda. Mejor en Chrome, Edge o Safari (iPhone).
       </p>
       {note && <p className="mt-2 text-sm text-[var(--gold)]">{note}</p>}
       {help && !isIos() && (
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
-          <li>Abre http://localhost:3000 en Chrome (ventana normal, no Cursor).</li>
-          <li>Menú ⋮ de la esquina → Instalar TraGo / Instalar aplicación.</li>
-          <li>En iPhone: Safari → Compartir → Añadir a pantalla de inicio.</li>
+          <li>Abre http://localhost:3000 en Chrome de escritorio o Android (ventana normal, no Cursor).</li>
+          <li>
+            Mira la barra de dirección: icono de instalar (monitor/⊕). Si no, menú ⋮ →{" "}
+            <em>Cast, save and share</em> / <em>Guardar y compartir</em> → Instalar página / Instalar TraGo.
+          </li>
+          <li>No uses modo incógnito. Recarga una vez para que el service worker quede activo.</li>
+          <li>iPhone: solo Safari → Compartir → Añadir a pantalla de inicio.</li>
+        </ol>
+      )}
+      {help && isIos() && (
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-[var(--muted)]">
+          <li>Abre TraGo en Safari (Chrome en iOS no instala PWA bien).</li>
+          <li>Botón Compartir → Añadir a pantalla de inicio.</li>
         </ol>
       )}
       <div className="mt-3 flex gap-3">

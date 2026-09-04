@@ -56,6 +56,8 @@ export interface Branch {
   imageUrl: string;
 }
 
+export type PromoAudience = "all" | "adult";
+
 export interface Promo {
   id: string;
   slug: string;
@@ -65,6 +67,8 @@ export interface Promo {
   kind: PromoKind;
   isNocturno: boolean;
   alcohol: boolean;
+  /** all = visible a todos; adult = solo cuentas 18+ (alcohol siempre adult) */
+  audience?: PromoAudience;
   isBirthday: boolean;
   startsAt: string;
   endsAt: string;
@@ -93,11 +97,14 @@ export interface Catalog {
   branchPromos: BranchPromo[];
 }
 
+export type AgeBand = "teen" | "adult";
+
 export interface SessionUser {
   id: string;
   email: string;
   name: string;
   isAdult: boolean;
+  ageBand: AgeBand;
   birthDate: string;
 }
 

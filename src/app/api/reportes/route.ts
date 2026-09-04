@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { getUserVote, saveVote } from "@/lib/queries";
+import { getUserVote, saveVote, getCatalog } from "@/lib/queries";
+import { canViewPromo } from "@/lib/audience";
 import { VoteError, parseGeo, presenceMaxKm } from "@/lib/presence";
 import {
   assertSameOrigin,
@@ -27,8 +28,8 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await getSession();
-    if (!session?.isAdult) {
-      return NextResponse.json({ error: "Inicia sesión. TraGo es 18+." }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: "Inicia sesión para reportar vigencia." }, { status: 401 });
     }
     const limited = hitRateLimit(`vote:${session.id}:${clientIp(request)}`, 30, 60 * 60 * 1000);
     if (!limited.ok) {
@@ -41,6 +42,15 @@ export async function POST(request: Request) {
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "Datos inválidos" }, { status: 400 });
+    }
+
+    const catalog = await getCatalog();
+    const promo = catalog.promos.find((p) => p.id === parsed.data.promoId);
+    if (!promo || !canViewPromo(promo, session)) {
+      return NextResponse.json(
+        { error: "No puedes reportar esta promo con tu perfil de edad." },
+        { status: 403 },
+      );
     }
 
     const geo = parseGeo(parsed.data.lat, parsed.data.lng);

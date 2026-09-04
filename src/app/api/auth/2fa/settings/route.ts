@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await getSession();
-    if (!session?.isAdult) {
+    if (!session) {
       return NextResponse.json({ error: "Inicia sesión." }, { status: 401 });
     }
     const parsed = schema.safeParse(await request.json());

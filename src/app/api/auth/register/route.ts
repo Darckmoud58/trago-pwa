@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
-import { ageFromBirthDate } from "@/lib/age";
-import { birthDateIso } from "@/lib/night";
-import { getSession, setSessionCookie, signSession } from "@/lib/auth";
-import { assertAdult, hashPassword, parseBirthDate, registerSchema } from "@/lib/auth-validate";
+import { ageFromBirthDate, isAdult } from "@/lib/age";
+import { sessionFromBirth, setSessionCookie, signSession } from "@/lib/auth";
+import {
+  ageFieldsForSignup,
+  assertEligibleAccount,
+  hashPassword,
+  parseBirthDate,
+  registerSchema,
+} from "@/lib/auth-validate";
 import { ensureIndexesAndSeed, findUserByEmail, insertUser } from "@/lib/queries";
 import {
   assertSameOrigin,
@@ -35,9 +40,17 @@ export async function POST(request: Request) {
     }
 
     await ensureIndexesAndSeed();
-    const { name, email, password, birthDate } = parsed.data;
+    const { name, email, password, birthDate, confirm18 } = parsed.data;
     const birth = parseBirthDate(birthDate);
-    assertAdult(birth);
+    assertEligibleAccount(birth);
+
+    const adult = isAdult(birth);
+    if (adult && confirm18 !== true) {
+      return NextResponse.json(
+        { error: "Si eres 18+, confirma la mayoría de edad para ver alcohol." },
+        { status: 400 },
+      );
+    }
 
     const existing = await findUserByEmail(email);
     if (existing) {
@@ -46,30 +59,30 @@ export async function POST(request: Request) {
 
     const passwordHash = await hashPassword(password);
     const now = new Date();
+    const age = ageFieldsForSignup(birth, now);
     const id = await insertUser({
       email: email.toLowerCase().trim(),
       passwordHash,
       profile: { name },
-      age: {
-        birthDate: birth,
-        yearsAtSignup: ageFromBirthDate(birth, now),
-        confirmed18: true,
-        confirmedAt: now,
-      },
+      age,
       role: "user",
       points: 0,
       createdAt: now,
     });
 
-    const token = await signSession({
+    const session = sessionFromBirth({
       id: String(id),
       email: email.toLowerCase().trim(),
       name,
-      isAdult: true,
-      birthDate: birthDateIso(birth),
+      birth,
     });
+    const token = await signSession(session);
     await setSessionCookie(token);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({
+      ok: true,
+      ageBand: session.ageBand,
+      years: ageFromBirthDate(birth, now),
+    });
   } catch (err) {
     if (err instanceof SecurityError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -80,6 +93,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  const session = await getSession();
-  return NextResponse.json({ user: session });
+  const { getSession } = await import("@/lib/auth");
+  const user = await getSession();
+  return NextResponse.json({ user });
 }

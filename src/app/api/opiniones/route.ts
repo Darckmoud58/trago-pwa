@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { listReviewsForPromo, saveReview } from "@/lib/queries";
+import { listReviewsForPromo, saveReview, getCatalog } from "@/lib/queries";
+import { canViewPromo } from "@/lib/audience";
 import { VoteError, parseGeo } from "@/lib/presence";
 import {
   assertSameOrigin,
@@ -43,8 +44,8 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const session = await getSession();
-    if (!session?.isAdult) {
-      return NextResponse.json({ error: "Inicia sesión. TraGo es 18+." }, { status: 401 });
+    if (!session) {
+      return NextResponse.json({ error: "Inicia sesión para opinar." }, { status: 401 });
     }
     const ip = clientIp(request);
     const limited = hitRateLimit(`review:${session.id}:${ip}`, 8, 60 * 60 * 1000);
@@ -60,6 +61,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Datos inválidos (GPS + rating 1–5 + texto ≥12)." },
         { status: 400 },
+      );
+    }
+    const catalog = await getCatalog();
+    const promo = catalog.promos.find((p) => p.id === parsed.data.promoId);
+    if (!promo || !canViewPromo(promo, session)) {
+      return NextResponse.json(
+        { error: "No puedes opinar sobre esta promo con tu perfil de edad." },
+        { status: 403 },
       );
     }
     const geo = parseGeo(parsed.data.lat, parsed.data.lng);

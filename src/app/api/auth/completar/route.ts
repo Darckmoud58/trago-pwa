@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ageFromBirthDate } from "@/lib/age";
-import { birthDateIso } from "@/lib/night";
-import { setSessionCookie, signSession } from "@/lib/auth";
-import { assertAdult, parseBirthDate } from "@/lib/auth-validate";
+import { isAdult } from "@/lib/age";
+import { sessionFromBirth, setSessionCookie, signSession } from "@/lib/auth";
+import { ageFieldsForSignup, assertEligibleAccount, parseBirthDate } from "@/lib/auth-validate";
 import { PENDING_COOKIE, readPending } from "@/lib/google-oauth";
 import {
   ensureIndexesAndSeed,
@@ -17,7 +16,8 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   birthDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  confirm18: z.literal(true),
+  confirmAge: z.literal(true),
+  confirm18: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -33,11 +33,18 @@ export async function POST(request: Request) {
 
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Confirma fecha y mayoría de edad." }, { status: 400 });
+      return NextResponse.json({ error: "Confirma fecha y edad." }, { status: 400 });
     }
 
     const birth = parseBirthDate(parsed.data.birthDate);
-    assertAdult(birth);
+    assertEligibleAccount(birth);
+    if (isAdult(birth) && parsed.data.confirm18 !== true) {
+      return NextResponse.json(
+        { error: "Si eres 18+, confirma mayoría de edad." },
+        { status: 400 },
+      );
+    }
+
     await ensureIndexesAndSeed();
 
     const existing =
@@ -51,26 +58,21 @@ export async function POST(request: Request) {
       email: pending.email,
       googleId: pending.googleId,
       profile: { name: pending.name, picture: pending.picture },
-      age: {
-        birthDate: birth,
-        yearsAtSignup: ageFromBirthDate(birth, now),
-        confirmed18: true,
-        confirmedAt: now,
-      },
+      age: ageFieldsForSignup(birth, now),
       role: "user",
       createdAt: now,
     });
 
-    const token = await signSession({
+    const session = sessionFromBirth({
       id: String(id),
       email: pending.email,
       name: pending.name,
-      isAdult: true,
-      birthDate: birthDateIso(birth),
+      birth,
     });
+    const token = await signSession(session);
     await setSessionCookie(token);
     jar.delete(PENDING_COOKIE);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ageBand: session.ageBand });
   } catch (err) {
     const message = err instanceof Error ? err.message : "No se pudo completar";
     return NextResponse.json({ error: message }, { status: 400 });

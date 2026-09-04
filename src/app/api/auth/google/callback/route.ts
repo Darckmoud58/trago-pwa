@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, SESSION_COOKIE_OPTS, signSession } from "@/lib/auth";
-import { isAdult } from "@/lib/age";
-import { birthDateIso } from "@/lib/night";
+import { SESSION_COOKIE, SESSION_COOKIE_OPTS, sessionFromBirth, signSession } from "@/lib/auth";
+import { canOpenAccount } from "@/lib/age";
 import {
   appOrigin,
   cookieBase,
@@ -52,17 +51,17 @@ export async function GET(request: NextRequest) {
     const existing =
       (await findUserByGoogleId(google.googleId)) || (await findUserByEmail(google.email));
 
-    if (existing?.age?.confirmed18 && isAdult(new Date(existing.age.birthDate))) {
+    if (existing?.age?.birthDate && canOpenAccount(new Date(existing.age.birthDate))) {
       if (!existing.googleId) {
         await linkGoogleAccount(String(existing._id), google.googleId, google.picture);
       }
-      const token = await signSession({
+      const session = sessionFromBirth({
         id: String(existing._id),
         email: existing.email,
         name: existing.profile.name,
-        isAdult: true,
-        birthDate: birthDateIso(new Date(existing.age.birthDate)),
+        birth: new Date(existing.age.birthDate),
       });
+      const token = await signSession(session);
       const dest = new URL(safeNext(next), appOrigin(request));
       const res = NextResponse.redirect(dest);
       res.cookies.delete(OAUTH_STATE_COOKIE);
@@ -78,7 +77,7 @@ export async function GET(request: NextRequest) {
     res.cookies.set(PENDING_COOKIE, pending, { ...cookieBase(), maxAge: 60 * 30 });
     return res;
   } catch (err) {
-    const message = err instanceof Error ? err.message : "google-fail";
-    return fail(request, message, next);
+    console.error(err);
+    return fail(request, "google-auth", next);
   }
 }

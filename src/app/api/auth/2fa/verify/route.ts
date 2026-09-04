@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import {
   clearTwoFactorPendingCookie,
   getTwoFactorPendingCookie,
+  sessionFromBirth,
   setSessionCookie,
   signSession,
 } from "@/lib/auth";
 import { findUserById, verifyTwoFactorChallenge } from "@/lib/queries";
-import { isAdult } from "@/lib/age";
-import { birthDateIso } from "@/lib/night";
+import { canOpenAccount } from "@/lib/age";
 import { VoteError } from "@/lib/presence";
 import {
   assertSameOrigin,
@@ -16,6 +15,7 @@ import {
   hitRateLimit,
   SecurityError,
 } from "@/lib/security";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,20 +52,24 @@ export async function POST(request: Request) {
     }
 
     const user = await findUserById(verified.userId);
-    if (!user?.age?.confirmed18 || !isAdult(new Date(user.age.birthDate))) {
+    if (!user?.age?.birthDate) {
+      return NextResponse.json({ error: "Cuenta no válida." }, { status: 403 });
+    }
+    const birth = new Date(user.age.birthDate);
+    if (!canOpenAccount(birth)) {
       return NextResponse.json({ error: "Cuenta no válida." }, { status: 403 });
     }
 
-    const token = await signSession({
+    const session = sessionFromBirth({
       id: String(user._id),
       email: user.email,
       name: user.profile.name,
-      isAdult: true,
-      birthDate: birthDateIso(new Date(user.age.birthDate)),
+      birth,
     });
+    const token = await signSession(session);
     await clearTwoFactorPendingCookie();
     await setSessionCookie(token);
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, ageBand: session.ageBand });
   } catch (err) {
     if (err instanceof SecurityError || err instanceof VoteError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

@@ -12,16 +12,25 @@ export function NavBar() {
   const links = [
     { href: "/", label: "Cerca" },
     { href: "/promos", label: "Promos" },
-    ...(night ? [{ href: "/nocturno", label: "Noche" }] : []),
+    ...(night && user?.isAdult ? [{ href: "/nocturno", label: "Noche" }] : []),
     { href: "/cumple", label: birthday ? "Hoy cumple" : "Cumple" },
     { href: "/cadenas", label: "Cadenas" },
   ];
 
+  const accountLinks = user
+    ? [{ href: "/cuenta", label: "Cuenta" }]
+    : [
+        { href: "/entrar", label: "Entrar" },
+        { href: "/registro", label: "Registro" },
+      ];
+
+  const mobileCols = links.length + 1;
+
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-white/8 bg-[#08110e]/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link href="/" className="group flex items-baseline gap-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <Link href="/" className="group flex min-w-0 items-baseline gap-2">
             <span className="font-display text-3xl tracking-tight text-[var(--foam)]">
               Tra<span className="text-[var(--copper)]">G</span>o
             </span>
@@ -44,16 +53,43 @@ export function NavBar() {
                 {user.name}
               </Link>
             ) : (
-              <Link href="/registro" className="px-3 py-2 text-sm text-[var(--gold)]">
-                Registro
-              </Link>
+              <>
+                <Link
+                  href="/entrar"
+                  className="px-3 py-2 text-sm text-[var(--muted)] transition hover:text-[var(--foam)]"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  href="/registro"
+                  className="ml-1 border border-[var(--copper)]/50 px-3 py-1.5 text-sm text-[var(--gold)] transition hover:border-[var(--copper)]"
+                >
+                  Registro
+                </Link>
+              </>
             )}
           </nav>
+          <div className="flex items-center gap-2 md:hidden">
+            {user ? (
+              <Link href="/cuenta" className="text-sm text-[var(--gold)]">
+                Cuenta
+              </Link>
+            ) : (
+              <>
+                <Link href="/entrar" className="text-sm text-[var(--muted)]">
+                  Entrar
+                </Link>
+                <Link href="/registro" className="text-sm text-[var(--gold)]">
+                  Registro
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </header>
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 grid border-t border-white/10 bg-[#08110e]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden"
-        style={{ gridTemplateColumns: `repeat(${links.length}, minmax(0, 1fr))` }}
+        style={{ gridTemplateColumns: `repeat(${mobileCols}, minmax(0, 1fr))` }}
       >
         {links.map((link) => (
           <Link
@@ -64,6 +100,12 @@ export function NavBar() {
             {link.label}
           </Link>
         ))}
+        <Link
+          href={accountLinks[0].href}
+          className="py-3 text-center text-[11px] uppercase tracking-wider text-[var(--gold)]"
+        >
+          {user ? "Cuenta" : "Entrar"}
+        </Link>
       </nav>
     </>
   );

@@ -24,8 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session?.isAdult) {
-    return NextResponse.json({ error: "Inicia sesión. TraGo es 18+." }, { status: 401 });
+  if (!session) {
+    return NextResponse.json({ error: "Inicia sesión." }, { status: 401 });
   }
   if (!vapidConfigured()) {
     return NextResponse.json(

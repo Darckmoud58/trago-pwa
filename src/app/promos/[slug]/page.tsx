@@ -7,6 +7,8 @@ import { ChainMark } from "@/components/ChainMark";
 import { ExperienceReviews } from "@/components/ExperienceReviews";
 import { branchesForPromo, getChain, getPromoBySlug } from "@/lib/catalog";
 import { chainReputation, getCatalog } from "@/lib/queries";
+import { getSession } from "@/lib/auth";
+import { canViewPromo } from "@/lib/audience";
 import { KIND_LABELS } from "@/lib/types";
 
 interface PageProps {
@@ -15,9 +17,9 @@ interface PageProps {
 
 export default async function PromoDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const catalog = await getCatalog();
+  const [catalog, user] = await Promise.all([getCatalog(), getSession().catch(() => null)]);
   const promo = getPromoBySlug(catalog, slug);
-  if (!promo) notFound();
+  if (!promo || !canViewPromo(promo, user)) notFound();
 
   const chain = getChain(catalog, promo.chainId);
   const rows = branchesForPromo(catalog, promo.id);

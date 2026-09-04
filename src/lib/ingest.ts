@@ -293,6 +293,7 @@ export async function refreshOfficialSources(opts?: { ifStaleHours?: number; for
       kind: PromoKind;
       isNocturno: boolean;
       alcohol: boolean;
+      audience?: "all" | "adult";
       isBirthday: boolean;
       startsAt: Date;
       endsAt: Date;
@@ -327,6 +328,7 @@ export async function refreshOfficialSources(opts?: { ifStaleHours?: number; for
             kind: hit.kind,
             isNocturno: hit.isNocturno,
             alcohol: hit.alcohol,
+            audience: hit.alcohol ? ("adult" as const) : ("all" as const),
             isBirthday: hit.isBirthday,
             startsAt: hit.startsAt,
             endsAt: hit.endsAt,

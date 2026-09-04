@@ -6,7 +6,9 @@ export default function EntrarPage() {
   return (
     <div className="mx-auto max-w-xl px-4 py-12">
       <h1 className="font-display text-4xl text-[var(--foam)]">Entrar</h1>
-      <p className="mt-2 text-[var(--muted)]">Sesión 18+. Los votos de vigencia quedan en tu cuenta.</p>
+      <p className="mt-2 text-[var(--muted)]">
+        Cuenta joven o adulta. Los votos y puntos quedan en tu perfil.
+      </p>
       <div className="mt-8">
         <Suspense>
           <LoginForm />

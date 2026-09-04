@@ -9,8 +9,10 @@ export interface UserDoc extends Document {
   age: {
     birthDate: Date;
     yearsAtSignup: number;
-    confirmed18: true;
+    /** true solo si al registrar/completar era (o es) 18+ */
+    confirmed18: boolean;
     confirmedAt: Date;
+    band?: "teen" | "adult";
   };
   role: "user" | "chain";
   points?: number;
@@ -60,6 +62,7 @@ export interface PromoDoc extends Document {
   kind: Promo["kind"];
   isNocturno: boolean;
   alcohol: boolean;
+  audience?: "all" | "adult";
   isBirthday: boolean;
   startsAt: Date;
   endsAt: Date;
@@ -201,6 +204,7 @@ export function promoFromDoc(d: PromoDoc): Promo {
     kind: d.kind,
     isNocturno: d.isNocturno,
     alcohol: d.alcohol,
+    audience: d.alcohol ? "adult" : d.audience ?? "all",
     isBirthday: Boolean(d.isBirthday),
     startsAt: d.startsAt.toISOString(),
     endsAt: d.endsAt.toISOString(),

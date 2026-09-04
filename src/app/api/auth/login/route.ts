@@ -8,9 +8,9 @@ import {
   recordLoginFailure,
 } from "@/lib/queries";
 import { loginSchema, verifyPassword } from "@/lib/auth-validate";
-import { isAdult } from "@/lib/age";
-import { birthDateIso } from "@/lib/night";
+import { canOpenAccount } from "@/lib/age";
 import {
+  sessionFromBirth,
   setSessionCookie,
   setTwoFactorPendingCookie,
   signSession,
@@ -71,9 +71,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Correo o contraseña incorrectos." }, { status: 401 });
     }
 
-    if (!user.age?.confirmed18 || !isAdult(new Date(user.age.birthDate))) {
+    const birth = new Date(user.age.birthDate);
+    if (!user.age?.birthDate || !canOpenAccount(birth)) {
       return NextResponse.json(
-        { error: "Esta cuenta no cumple la mayoría de edad (18+)." },
+        { error: "Esta cuenta no cumple la edad mínima (13+)." },
         { status: 403 },
       );
     }
@@ -102,15 +103,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const token = await signSession({
+    const session = sessionFromBirth({
       id: userId,
       email: user.email,
       name: user.profile.name,
-      isAdult: true,
-      birthDate: birthDateIso(new Date(user.age.birthDate)),
+      birth,
     });
+    const token = await signSession(session);
     await setSessionCookie(token);
-    return NextResponse.json({ ok: true, needs2fa: false });
+    return NextResponse.json({ ok: true, needs2fa: false, ageBand: session.ageBand });
   } catch (err) {
     if (err instanceof SecurityError || err instanceof VoteError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

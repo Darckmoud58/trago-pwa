@@ -2,6 +2,8 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { SessionUser } from "./types";
 import { SESSION_COOKIE } from "./auth-cookie";
+import { ageBandFromBirth, canOpenAccount, isAdult } from "./age";
+import { birthDateIso } from "./night";
 
 export { SESSION_COOKIE };
 
@@ -15,11 +17,35 @@ function secret() {
   return new TextEncoder().encode(raw);
 }
 
+export function sessionFromBirth(opts: {
+  id: string;
+  email: string;
+  name: string;
+  birth: Date;
+}): SessionUser {
+  const adult = isAdult(opts.birth);
+  return {
+    id: opts.id,
+    email: opts.email,
+    name: opts.name,
+    isAdult: adult,
+    ageBand: ageBandFromBirth(opts.birth),
+    birthDate: birthDateIso(opts.birth),
+  };
+}
+
+export function assertAccountAge(birth: Date) {
+  if (!canOpenAccount(birth)) {
+    throw new Error("Necesitas al menos 13 años para crear una cuenta TraGo.");
+  }
+}
+
 export async function signSession(user: SessionUser) {
   return new SignJWT({
     email: user.email,
     name: user.name,
     isAdult: user.isAdult,
+    ageBand: user.ageBand,
     birthDate: user.birthDate,
   })
     .setProtectedHeader({ alg: "HS256" })
@@ -65,13 +91,20 @@ export async function readTwoFactorPending(
 export async function readSessionFromToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, secret());
-    if (!payload.sub || payload.isAdult !== true) return null;
-    if (payload.kind === "2fa") return null;
+    if (!payload.sub || payload.kind === "2fa") return null;
+    const isAdult = payload.isAdult === true;
+    const ageBand =
+      payload.ageBand === "teen" || payload.ageBand === "adult"
+        ? payload.ageBand
+        : isAdult
+          ? "adult"
+          : "teen";
     return {
       id: payload.sub,
       email: String(payload.email ?? ""),
       name: String(payload.name ?? ""),
-      isAdult: true,
+      isAdult,
+      ageBand,
       birthDate: String(payload.birthDate ?? ""),
     };
   } catch {

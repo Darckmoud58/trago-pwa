@@ -6,6 +6,7 @@ import { RewardsPanel } from "@/components/RewardsPanel";
 import { TwoFactorSettings } from "@/components/TwoFactorSettings";
 import { canOperatePanel } from "@/lib/panel-auth";
 import { isBirthdayToday } from "@/lib/night";
+import { MIN_AGE } from "@/lib/age";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,11 @@ export default async function CuentaPage() {
       <h1 className="font-display text-4xl text-[var(--foam)]">Tu cuenta</h1>
       <p className="mt-4 text-[var(--foam)]">{user.name}</p>
       <p className="text-sm text-[var(--muted)]">{user.email}</p>
-      <p className="mt-4 text-sm text-[var(--gold)]">Mayoría de edad confirmada (18+).</p>
+      <p className="mt-4 text-sm text-[var(--gold)]">
+        {user.isAdult
+          ? `Perfil adulto (${MIN_AGE}+): catálogo completo, incluido alcohol.`
+          : `Perfil joven: sin alcohol. Comida, café, juguetes y coleccionables.`}
+      </p>
       {user.birthDate && isBirthdayToday(user.birthDate) && (
         <p className="mt-3 text-sm text-[var(--foam)]">
           Hoy es tu cumpleaños.{" "}
@@ -40,13 +45,13 @@ export default async function CuentaPage() {
               Panel de cadenas
             </Link>
           </p>
-        ) : (
+        ) : user.isAdult ? (
           <p>
             <Link href="/empresa/registro" className="text-[var(--gold)]">
               Registrar mi cadena / negocio
             </Link>
           </p>
-        )}
+        ) : null}
       </div>
       <div className="mt-8">
         <LogoutButton />

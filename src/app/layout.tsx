@@ -9,6 +9,7 @@ import { CatalogProvider } from "@/components/CatalogProvider";
 import { SessionProvider } from "@/components/SessionProvider";
 import { getCatalog, seedCatalog } from "@/lib/queries";
 import { getSession } from "@/lib/auth";
+import { filterCatalogForViewer } from "@/lib/audience";
 import "./globals.css";
 
 const body = Figtree({
@@ -55,10 +56,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [catalog, user] = await Promise.all([
+  const [catalogRaw, user] = await Promise.all([
     getCatalog().catch(() => seedCatalog()),
     getSession().catch(() => null),
   ]);
+  const catalog = filterCatalogForViewer(catalogRaw, user);
 
   return (
     <html lang="es">
@@ -71,7 +73,7 @@ export default async function RootLayout({
               <NavBar />
               <main className="pb-24 md:pb-10">{children}</main>
               <footer className="mx-auto max-w-6xl px-4 pb-8 text-center text-xs text-[var(--muted)]">
-                TraGo · Guadalajara · 18+ en alcohol · promos sujetas a existencias
+                TraGo · Guadalajara · perfiles 13+ y 18+ · alcohol solo adultos · promos sujetas a existencias
               </footer>
               <InstallBanner />
             </GeoProvider>

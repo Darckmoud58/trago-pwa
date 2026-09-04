@@ -14,8 +14,7 @@ export default async function CompletarPage() {
     <div className="mx-auto max-w-xl px-4 py-12">
       <h1 className="font-display text-4xl text-[var(--foam)]">Último paso</h1>
       <p className="mt-2 text-[var(--muted)]">
-        TraGo es 18+. Google confirma el correo; tú confirmas la edad para alcohol y
-        cumpleaños.
+        TraGo pide tu fecha: perfil joven (13–17) sin alcohol, o adulto (18+) con catálogo completo.
       </p>
       <div className="mt-8">
         <Suspense>
