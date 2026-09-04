@@ -49,7 +49,7 @@ export async function sendMail(payload: MailPayload): Promise<{ ok: boolean; mod
 }
 
 export function appBaseUrl() {
-  return (process.env.APP_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
+  return (process.env.URL || process.env.APP_ORIGIN || "http://localhost:3000").replace(/\/$/, "");
 }
 
 export function allowDevMailPreview() {

@@ -1,5 +1,7 @@
 /** Límites y helpers sin APIs de Node (seguro en cliente). */
 
+import { trustedOrigins } from "./google-oauth";
+
 /** Tope diario de puntos ganados (no cuenta canjes negativos). */
 export const MAX_POINTS_PER_DAY = 40;
 
@@ -13,6 +15,15 @@ export const REGISTER_MAX_PER_HOUR = 5;
 /** Opiniones nuevas por usuario / hora (aunque fallen). */
 export const REVIEW_MAX_PER_HOUR = 3;
 
+export class SecurityError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "SecurityError";
+    this.status = status;
+  }
+}
+
 export function clientIp(request: Request): string {
   const xf = request.headers.get("x-forwarded-for");
   if (xf) return xf.split(",")[0]?.trim() || "unknown";
@@ -21,20 +32,22 @@ export function clientIp(request: Request): string {
   return "unknown";
 }
 
-/** Bloquea POSTs cross-site obvios cuando hay APP_ORIGIN. */
+/** Bloquea POSTs cross-site. Acepta APP_ORIGIN + URL de Netlify + host del request. */
 export function assertSameOrigin(request: Request): void {
-  const allowed = process.env.APP_ORIGIN?.replace(/\/$/, "");
-  if (!allowed) return;
+  const allowed = trustedOrigins(request);
+  if (allowed.length === 0) return;
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
   if (origin) {
-    if (origin.replace(/\/$/, "") !== allowed) {
+    const o = origin.replace(/\/$/, "");
+    if (!allowed.includes(o)) {
       throw new SecurityError(403, "Origen no permitido.");
     }
     return;
   }
-  if (referer && !referer.startsWith(allowed)) {
-    throw new SecurityError(403, "Referer no permitido.");
+  if (referer) {
+    const ok = allowed.some((a) => referer.startsWith(a));
+    if (!ok) throw new SecurityError(403, "Referer no permitido.");
   }
 }
 
@@ -44,15 +57,6 @@ export function sanitizeText(raw: string, max = 500): string {
     .replace(/<[^>]*>/g, "")
     .trim()
     .slice(0, max);
-}
-
-export class SecurityError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.name = "SecurityError";
-    this.status = status;
-  }
 }
 
 type Bucket = { count: number; resetAt: number };

@@ -108,13 +108,33 @@ Folios de promo **de demostración** (aún no hay API de las cadenas). El protot
 npm test
 ```
 
+## Netlify + MongoDB Atlas
+
+La BD **no** vive en Netlify: va en **Atlas**. Netlify solo corre Next y lee `MONGODB_URI`.
+
+1. Crea cluster gratis en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) → Database User + Network Access `0.0.0.0/0` (o IPs de Netlify).
+2. Connect → Drivers → copia `mongodb+srv://USER:PASS@CLUSTER/.../?retryWrites=true&w=majority`.
+3. En Netlify → Site configuration → Environment variables:
+   - `MONGODB_URI` = esa URI
+   - `MONGODB_DB` = `trago`
+   - `APP_ORIGIN` = `https://TU-SITIO.netlify.app` (**no** localhost)
+   - `AUTH_SECRET`, `AUTH_COOKIE_SECURE=true`
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+4. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → tu OAuth client:
+   - Orígenes autorizados: `https://TU-SITIO.netlify.app`
+   - Redirect URI: `https://TU-SITIO.netlify.app/api/auth/google/callback`
+   - (Local: deja también `http://localhost:3000` y su callback)
+5. Redeploy. El seed de TraGo crea el catálogo demo en Atlas al primer hit.
+
+Si `APP_ORIGIN` sigue en localhost, Google redirige al host local: ya se corrige priorizando la URL pública / Netlify.
+
 ### Web Push (cumpleaños)
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-Copia la clave pública a `VAPID_PUBLIC_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, la privada a `VAPID_PRIVATE_KEY`, y un `VAPID_SUBJECT=mailto:...`. El usuario activa el aviso en Cuenta/Cumple; el panel o un cron con `CRON_SECRET` llama a `POST /api/push/birthday`.
+Copia la pública a `VAPID_PUBLIC_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, la privada a `VAPID_PRIVATE_KEY`, y `VAPID_SUBJECT=mailto:...`.
 
 ## Stack
 
