@@ -1,141 +1,79 @@
 # TraGo
 
-PWA de **promociones vigentes de cadenas** en **Guadalajara**: comida, café, alcohol y regalos de cumpleaños. Vigencia **por sucursal** y **GPS**.
+PWA / app de **promociones vigentes** en Guadalajara.
 
-> Contenido de alcohol: 18+.
+> Alcohol: 18+.
 
-## Qué resuelve
+## Estructura (igual que Todo_pwa)
 
-No basta con “hay 2x1 en la cadena”. TraGo responde: **¿en esta sucursal, ahora, todavía aplica?**
+| Todo_pwa | TraGo | Arranque |
+|----------|-------|----------|
+| `todo_pwaa/` (Vite + React + TS + axios) | `trago_web/` | `npm run dev` |
+| `server/` (Express + Mongoose) | `server/` | `npm start` |
 
-### Modelo (tesis del profesor)
-
-| Actor | Qué hace | Incentivo |
-|--------|----------|-----------|
-| **Página oficial** | TraGo lee promociones públicas | Fuente verificable |
-| **Empresa** | Se registra, publica ofertas en el panel | Reputación + pies en puerta |
-| **Usuario** | Vota vigencia (GPS), opina en sucursal | Puntos → cupones TraGo |
-
-Las opiniones y reportes son el incentivo para que la cadena **cumpla** lo anunciado.
-
-## Seguridad (anti-abuso)
-
-- Opinión: **una por promo+sucursal**; puntos solo la 1.ª vez y **solo con GPS cerca**
-- Voto: puntos solo el **primer** reporte de ese par promo/local
-- Tope **40 pts / 24 h**; ledger único por `refKey`
-- Login: bloqueo tras 5 fallos, rate limit por IP/correo; password ≥10 con letra y número
-- **Recuperar contraseña** por correo (`/recuperar`, token 30 min, un solo uso)
-- **2FA por correo** (opcional en Cuenta): tras password, código de 6 dígitos
-- Cabeceras: CSP, `X-Frame-Options`, `nosniff`; POSTs validan `Origin` vs `APP_ORIGIN`
-- Canje de cupón atómico (`points >= costo`)
-
-## PWA (requisitos)
-
-| Característica | En TraGo |
-|----------------|----------|
-| Instalación directa | Manifest + banner Instalar (sin tienda) |
-| Sin conexión | Service worker precachea shell (`/`, `/promos`, iconos); APIs van a red |
-| Notificaciones push | Cumpleaños (VAPID) + permiso opt-in |
-| Actualización automática | `skipWaiting` + navegación siempre a red |
-| HTTPS | Obligatorio en producción (Netlify / hosting) |
-
-## Rutas
-
-| Ruta | Uso |
-|------|-----|
-| `/` | Cerca de ti (GPS; si lo niegas, Centro Histórico GDL y se etiqueta) |
-| `/promos` | Catálogo vigente (público) |
-| `/promos/[slug]` | Sucursales + votos de vigencia (GPS a ~400 m) |
-| `/nocturno` | 19:00–06:00 y sucursal abierta |
-| `/cumple` | Promos y regalos de cumpleaños |
-| `/cadenas` | Perfiles de empresa |
-| `/sucursales/[slug]` | Promos de un local |
-| `/panel` | Operador / dueño de cadena |
-| `/empresa/registro` | Alta de cadena para publicar ofertas |
-| `/api/cerca` | Promos cerca (`$geoNear` / fallback Haversine) |
-| `/api/opiniones` | Experiencia en sucursal + puntos |
-| `/api/recompensas` | Saldo y canje de cupones |
-| `/api/push/subscribe` | Suscripción Web Push (cuenta 18+) |
-| `/api/push/birthday` | Dispara avisos de cumple (panel o `CRON_SECRET`) |
-| `/api/cadenas/la-europea/promos` | API Premium (`x-api-key` si hay `TRAGO_API_KEY`) |
-
-## Planes
-
-| Plan | Anuncios | Destacadas | API |
-|------|----------|------------|-----|
-| Freemium | Sí | No | No |
-| Pro | No | Sí | No |
-| Premium | No | Sí | Sí |
-
-## Pitch comercial
-
-- Markdown: [`docs/PITCH-TRAGO.md`](docs/PITCH-TRAGO.md)
-- Word: [`docs/TraGo-Pitch-Comercial.docx`](docs/TraGo-Pitch-Comercial.docx)
-
-## Arrancar
-
-### Docker (recomendado)
-
-```bash
-cd PW/trago
-docker compose up --build
+```
+trago/
+├── server/      → API Express :4000   →  npm start
+└── trago_web/   → Front Vite :5173   →  npm run dev
 ```
 
-[http://localhost:3000](http://localhost:3000)
+Creado con:
 
 ```bash
-docker compose down
+npm create vite@latest trago_web -- --template react-ts
+npm install axios react-router-dom
 ```
 
-### Local (npm)
+`VITE_API_URL=http://localhost:4000` (mismo patrón que Todo_pwa).
+
+## Arranque local (2 terminales)
 
 ```bash
-cd PW/trago
+# Terminal 1 — API
+cd PW/trago/server
+npm install
+npm start
+
+# Terminal 2 — Front
+cd PW/trago/trago_web
+npm install
 npm run dev
 ```
 
-Chrome pedirá ubicación.
+- API: http://localhost:4000  
+- Front: http://localhost:5173  
 
-## Datos
-
-Tiendas **reales de Guadalajara / Zapopan** (La Europea Andares y Chapalita, OXXO Chapultepec, Karne Garibaldi, Italianni's Centro Magno, VIPS Plaza del Sol, El Gallo Altanero, Las 9 Esquinas, Starbucks Chapultepec). El GPS ordena por distancia; si lo niegas, usa el Centro de GDL **sin fingir que estás ahí**.
-
-Para votar vigencia hay que estar a ~400 m del local (`NEXT_PUBLIC_TRAGO_PRESENCE_MAX_KM`). En el piloto desde casa puedes subir el radio, p. ej. `25`.
-
-Folios de promo **de demostración** (aún no hay API de las cadenas). El prototipo no afirma que el 2x1 esté vigente en caja.
+Desde la raíz:
 
 ```bash
-npm test
+npm run start:server
+npm run dev:web
 ```
 
-## Netlify + MongoDB Atlas
+## Rutas del front
 
-La BD **no** vive en Netlify: va en **Atlas**. Netlify solo corre Next y lee `MONGODB_URI`.
+| Ruta | Qué hace |
+|------|----------|
+| `/` | Home TraGo |
+| `/entrar` / `/registro` | Auth JWT (axios → Express) |
+| `/promos` | `GET /api/promociones` |
+| `/cerca` | GPS + `GET /api/sucursales/cerca` |
+| `/negocios` | `GET /api/negocios` |
+| `/cuenta` | `GET /api/auth/me` |
 
-1. Crea cluster gratis en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) → Database User + Network Access `0.0.0.0/0` (o IPs de Netlify).
-2. Connect → Drivers → copia `mongodb+srv://USER:PASS@CLUSTER/.../?retryWrites=true&w=majority`.
-3. En Netlify → Site configuration → Environment variables:
-   - `MONGODB_URI` = esa URI
-   - `MONGODB_DB` = `trago`
-   - `APP_ORIGIN` = `https://TU-SITIO.netlify.app` (**no** localhost)
-   - `AUTH_SECRET`, `AUTH_COOKIE_SECURE=true`
-   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-4. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → tu OAuth client:
-   - Orígenes autorizados: `https://TU-SITIO.netlify.app`
-   - Redirect URI: `https://TU-SITIO.netlify.app/api/auth/google/callback`
-   - (Local: deja también `http://localhost:3000` y su callback)
-5. Redeploy. El seed de TraGo crea el catálogo demo en Atlas al primer hit.
-
-Si `APP_ORIGIN` sigue en localhost, Google redirige al host local: ya se corrige priorizando la URL pública / Netlify.
-
-### Web Push (cumpleaños)
+## Docker (Mongo + API)
 
 ```bash
-npx web-push generate-vapid-keys
+docker compose up -d
 ```
 
-Copia la pública a `VAPID_PUBLIC_KEY` y `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, la privada a `VAPID_PRIVATE_KEY`, y `VAPID_SUBJECT=mailto:...`.
+Front sigue en local con `npm run dev` en `trago_web`.
+
+## Legacy Next
+
+El monolitico Next quedó en `web_next_legacy/` solo como referencia. El flujo de clase es **Vite + Express**, como Todo_pwa.
 
 ## Stack
 
-Next.js 15 · React 19 · TypeScript · Tailwind 4 · MongoDB · PWA · Web Push
+**trago_web:** Vite · React 19 · TypeScript · axios · React Router  
+**server:** Express 5 · Mongoose · JWT · CORS

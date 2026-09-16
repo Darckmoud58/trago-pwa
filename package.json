@@ -1,35 +1,15 @@
 {
   "name": "trago",
-  "version": "0.1.0",
   "private": true,
+  "version": "0.1.0",
+  "description": "TraGo monorepo — trago_web (Vite+React+axios) + server (Express), mismo patrón que Todo_pwa",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "tsx --test src/lib/validity.test.ts src/lib/presence.test.ts src/lib/hours.test.ts src/lib/security.test.ts src/lib/audience.test.ts src/lib/google-oauth.test.ts"
-  },
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "jose": "^6.2.10",
-    "mongodb": "^6.21.0",
-    "next": "15.5.23",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "web-push": "^3.6.7",
-    "zod": "^4.5.4"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/web-push": "^3.6.4",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.23",
-    "tailwindcss": "^4",
-    "tsx": "^4.23.13",
-    "typescript": "^5"
+    "dev": "npm run dev --prefix trago_web",
+    "dev:web": "npm run dev --prefix trago_web",
+    "dev:server": "npm run dev --prefix server",
+    "start": "npm start --prefix server",
+    "start:server": "npm start --prefix server",
+    "build": "npm run build --prefix trago_web",
+    "install:all": "npm install --prefix trago_web && npm install --prefix server"
   }
 }

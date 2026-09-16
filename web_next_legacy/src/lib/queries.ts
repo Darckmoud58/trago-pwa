@@ -2,6 +2,7 @@ import { cache } from "react";
 import { after } from "next/server";
 import type { OptionalId } from "mongodb";
 import { catalogFrom, nearbyPromos } from "./catalog";
+import { COLLECTIONS } from "./collections";
 import {
   branchFromDoc,
   chainFromDoc,
@@ -9,17 +10,28 @@ import {
   promoFromDoc,
   type BranchDoc,
   type BranchPromoDoc,
+  type CategoriaDoc,
   type ChainDoc,
   type CouponDoc,
+  type FavoritoDoc,
+  type FuentePromocionDoc,
+  type InsigniaDoc,
+  type NivelDoc,
+  type NotificacionDoc,
+  type PagoSuscripcionDoc,
   type PointLedgerDoc,
   type AuthLockDoc,
   type PasswordResetDoc,
   type TwoFactorChallengeDoc,
   type PromoDoc,
   type PushSubDoc,
+  type ReferidoDoc,
   type ReportDoc,
   type ReviewDoc,
+  type RolDoc,
+  type SuscripcionNegocioDoc,
   type UserDoc,
+  type UsuarioInsigniaDoc,
 } from "./docs";
 import { getMongo, hasMongoUri } from "./mongo";
 import { CATALOG_VERSION, branchPromos, branches, chains, promos } from "./mock-data";
@@ -50,25 +62,36 @@ import type { Catalog, GeoPoint, PromoKind, SessionUser } from "./types";
 async function collections() {
   const db = await getMongo();
   return {
-    users: db.collection<UserDoc>("users"),
-    chains: db.collection<ChainDoc>("chains"),
-    branches: db.collection<BranchDoc>("branches"),
-    promos: db.collection<PromoDoc>("promos"),
-    branchPromos: db.collection<BranchPromoDoc>("branchPromos"),
-    reports: db.collection<ReportDoc>("reports"),
-    reviews: db.collection<ReviewDoc>("reviews"),
-    coupons: db.collection<CouponDoc>("coupons"),
-    pointLedger: db.collection<PointLedgerDoc>("pointLedger"),
-    authLocks: db.collection<AuthLockDoc>("authLocks"),
-    passwordResets: db.collection<PasswordResetDoc>("passwordResets"),
-    twoFactorChallenges: db.collection<TwoFactorChallengeDoc>("twoFactorChallenges"),
-    pushSubs: db.collection<PushSubDoc>("pushSubs"),
+    users: db.collection<UserDoc>(COLLECTIONS.usuarios),
+    roles: db.collection<RolDoc>(COLLECTIONS.roles),
+    categorias: db.collection<CategoriaDoc>(COLLECTIONS.categorias),
+    chains: db.collection<ChainDoc>(COLLECTIONS.negocios),
+    branches: db.collection<BranchDoc>(COLLECTIONS.sucursales),
+    promos: db.collection<PromoDoc>(COLLECTIONS.promociones),
+    fuentes: db.collection<FuentePromocionDoc>(COLLECTIONS.fuentesPromociones),
+    branchPromos: db.collection<BranchPromoDoc>(COLLECTIONS.promoSucursales),
+    reports: db.collection<ReportDoc>(COLLECTIONS.reportes),
+    reviews: db.collection<ReviewDoc>(COLLECTIONS.resenas),
+    coupons: db.collection<CouponDoc>(COLLECTIONS.cupones),
+    favoritos: db.collection<FavoritoDoc>(COLLECTIONS.favoritos),
+    niveles: db.collection<NivelDoc>(COLLECTIONS.niveles),
+    pointLedger: db.collection<PointLedgerDoc>(COLLECTIONS.detallesPuntos),
+    insignias: db.collection<InsigniaDoc>(COLLECTIONS.insignias),
+    usuarioInsignias: db.collection<UsuarioInsigniaDoc>(COLLECTIONS.usuarioInsignias),
+    referidos: db.collection<ReferidoDoc>(COLLECTIONS.referidos),
+    suscripciones: db.collection<SuscripcionNegocioDoc>(COLLECTIONS.suscripcionesNegocio),
+    pagos: db.collection<PagoSuscripcionDoc>(COLLECTIONS.pagosSuscripcion),
+    notificaciones: db.collection<NotificacionDoc>(COLLECTIONS.notificaciones),
+    authLocks: db.collection<AuthLockDoc>(COLLECTIONS.authLocks),
+    passwordResets: db.collection<PasswordResetDoc>(COLLECTIONS.passwordResets),
+    twoFactorChallenges: db.collection<TwoFactorChallengeDoc>(COLLECTIONS.twoFactorChallenges),
+    pushSubs: db.collection<PushSubDoc>(COLLECTIONS.pushSubs),
     meta: db.collection<{
       _id: string;
       version?: number;
       at?: Date;
       sources?: Record<string, { ok: boolean; count: number; error?: string }>;
-    }>("meta"),
+    }>(COLLECTIONS.meta),
   };
 }
 
@@ -78,12 +101,20 @@ export async function ensureIndexesAndSeed() {
   const col = await collections();
   await col.users.createIndex({ email: 1 }, { unique: true });
   await col.users.createIndex({ googleId: 1 }, { unique: true, sparse: true });
+  await col.users.createIndex({ referralCode: 1 }, { unique: true, sparse: true });
+  await col.users.createIndex({ roleId: 1 }, { sparse: true });
+  await col.roles.createIndex({ code: 1 }, { unique: true });
+  await col.categorias.createIndex({ code: 1, scope: 1 }, { unique: true });
   await col.chains.createIndex({ slug: 1 }, { unique: true });
+  await col.chains.createIndex({ ownerUserId: 1 }, { sparse: true });
+  await col.chains.createIndex({ categoriaId: 1 }, { sparse: true });
   await col.branches.createIndex({ slug: 1 }, { unique: true });
   await col.branches.createIndex({ chainId: 1 });
   await col.branches.createIndex({ location: "2dsphere" });
   await col.promos.createIndex({ slug: 1 }, { unique: true });
   await col.promos.createIndex({ chainId: 1 });
+  await col.promos.createIndex({ fuenteId: 1 }, { sparse: true });
+  await col.fuentes.createIndex({ type: 1, name: 1 }, { unique: true });
   await col.branchPromos.createIndex({ promoId: 1, branchId: 1 }, { unique: true });
   await col.reports.createIndex({ userId: 1, promoId: 1, branchId: 1 }, { unique: true });
   await col.reports.createIndex({ userId: 1, updatedAt: -1 });
@@ -95,9 +126,22 @@ export async function ensureIndexesAndSeed() {
   await col.reviews.createIndex({ userId: 1, createdAt: -1 });
   await col.coupons.createIndex({ userId: 1, createdAt: -1 });
   await col.coupons.createIndex({ code: 1 }, { unique: true });
-  await col.chains.createIndex({ ownerUserId: 1 }, { sparse: true });
+  await col.favoritos.createIndex(
+    { userId: 1, targetType: 1, targetId: 1 },
+    { unique: true },
+  );
+  await col.niveles.createIndex({ code: 1 }, { unique: true });
+  await col.niveles.createIndex({ minPoints: 1 });
   await col.pointLedger.createIndex({ refKey: 1 }, { unique: true });
   await col.pointLedger.createIndex({ userId: 1, createdAt: -1 });
+  await col.insignias.createIndex({ code: 1 }, { unique: true });
+  await col.usuarioInsignias.createIndex({ userId: 1, insigniaId: 1 }, { unique: true });
+  await col.referidos.createIndex({ code: 1 }, { unique: true });
+  await col.referidos.createIndex({ referrerUserId: 1 });
+  await col.suscripciones.createIndex({ negocioId: 1, active: 1 });
+  await col.pagos.createIndex({ suscripcionId: 1, createdAt: -1 });
+  await col.notificaciones.createIndex({ userId: 1, createdAt: -1 });
+  await col.notificaciones.createIndex({ userId: 1, read: 1 });
   await col.authLocks.createIndex({ updatedAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 });
   await col.passwordResets.createIndex({ tokenHash: 1 }, { unique: true });
   await col.passwordResets.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
@@ -116,9 +160,12 @@ export async function ensureIndexesAndSeed() {
       $or: [{ origin: { $ne: "chain" } }, { origin: { $exists: false } }],
     });
     await col.branchPromos.deleteMany({});
+    await seedCatalogLookups(col);
   } else if ((await col.chains.countDocuments()) > 0) {
     seeded = true;
     return;
+  } else {
+    await seedCatalogLookups(col);
   }
 
   const chainById = new Map(chains.map((c) => [c.id, c]));
@@ -142,6 +189,7 @@ export async function ensureIndexesAndSeed() {
       location: { type: "Point" as const, coordinates: [b.geo.lng, b.geo.lat] as [number, number] },
       hours: b.hours,
       imageUrl: b.imageUrl,
+      active: true,
     })),
   );
   await col.promos.insertMany(
@@ -163,15 +211,261 @@ export async function ensureIndexesAndSeed() {
       imageUrl: p.imageUrl,
       featured: p.featured,
       isDemo: p.isDemo,
+      fuenteId: p.isDemo ? "fuente-demo" : "fuente-chain",
+      active: true,
     })),
   );
   await col.branchPromos.insertMany(branchPromos.map((l) => ({ ...l })));
+
+  // Suscripciones demo según tier del negocio
+  const tierPlan = { free: "free", pro: "pro", premium: "premium" } as const;
+  await col.suscripciones.deleteMany({ negocioId: { $in: chains.map((c) => c.id) } });
+  await col.suscripciones.insertMany(
+    chains.map((c) => ({
+      negocioId: c.id,
+      plan: tierPlan[c.tier],
+      startsAt: new Date(),
+      endsAt: null,
+      active: true,
+      autoRenew: c.tier !== "free",
+      createdAt: new Date(),
+    })),
+  );
+
   await col.meta.updateOne(
     { _id: "catalog" },
     { $set: { version: CATALOG_VERSION } },
     { upsert: true },
   );
   seeded = true;
+}
+
+type Cols = Awaited<ReturnType<typeof collections>>;
+
+async function seedCatalogLookups(col: Cols) {
+  await col.roles.deleteMany({});
+  await col.roles.insertMany([
+    {
+      _id: "rol-user",
+      code: "user",
+      name: "Usuario",
+      description: "Consumidor TraGo (teen o adult)",
+      permissions: ["promos:read", "vote", "review", "favorites", "redeem"],
+      active: true,
+    },
+    {
+      _id: "rol-chain",
+      code: "chain",
+      name: "Negocio",
+      description: "Dueño u operador de cadena / sucursal",
+      permissions: ["promos:read", "promos:write", "panel", "subscription"],
+      active: true,
+    },
+    {
+      _id: "rol-admin",
+      code: "admin",
+      name: "Administrador",
+      description: "Administración TraGo",
+      permissions: ["*"],
+      active: true,
+    },
+  ]);
+
+  await col.categorias.deleteMany({});
+  await col.categorias.insertMany([
+    { _id: "cat-v-bar", code: "bar", name: "Bar", scope: "venue", alcoholAllowed: true, active: true },
+    {
+      _id: "cat-v-rest",
+      code: "restaurante",
+      name: "Restaurante",
+      scope: "venue",
+      alcoholAllowed: true,
+      active: true,
+    },
+    { _id: "cat-v-cafe", code: "cafe", name: "Café", scope: "venue", alcoholAllowed: false, active: true },
+    {
+      _id: "cat-v-tienda",
+      code: "tienda",
+      name: "Tienda",
+      scope: "venue",
+      alcoholAllowed: false,
+      active: true,
+    },
+    {
+      _id: "cat-v-lic",
+      code: "licoreria",
+      name: "Licorería",
+      scope: "venue",
+      alcoholAllowed: true,
+      active: true,
+    },
+    { _id: "cat-p-2x1", code: "2x1", name: "2x1", scope: "promo", alcoholAllowed: true, active: true },
+    {
+      _id: "cat-p-comida",
+      code: "comida",
+      name: "Comida",
+      scope: "promo",
+      alcoholAllowed: false,
+      active: true,
+    },
+    {
+      _id: "cat-p-botella",
+      code: "botella",
+      name: "Botella",
+      scope: "promo",
+      alcoholAllowed: true,
+      active: true,
+    },
+    {
+      _id: "cat-p-cumple",
+      code: "cumple",
+      name: "Cumpleaños",
+      scope: "promo",
+      alcoholAllowed: false,
+      active: true,
+    },
+    {
+      _id: "cat-p-regalo",
+      code: "regalo",
+      name: "Regalo",
+      scope: "promo",
+      alcoholAllowed: false,
+      active: true,
+    },
+    {
+      _id: "cat-p-happy",
+      code: "happy-hour",
+      name: "Happy hour",
+      scope: "promo",
+      alcoholAllowed: true,
+      active: true,
+    },
+    {
+      _id: "cat-p-desc",
+      code: "descuento",
+      name: "Descuento",
+      scope: "promo",
+      alcoholAllowed: false,
+      active: true,
+    },
+  ]);
+
+  await col.niveles.deleteMany({});
+  await col.niveles.insertMany([
+    {
+      _id: "nivel-novato",
+      code: "novato",
+      name: "Novato",
+      minPoints: 0,
+      maxPoints: 49,
+      benefits: ["Votar vigencia", "Guardar favoritos"],
+      sortOrder: 1,
+    },
+    {
+      _id: "nivel-explorador",
+      code: "explorador",
+      name: "Explorador",
+      minPoints: 50,
+      maxPoints: 149,
+      benefits: ["Cupones básicos", "Insignias"],
+      sortOrder: 2,
+    },
+    {
+      _id: "nivel-local",
+      code: "local",
+      name: "Local de confianza",
+      minPoints: 150,
+      maxPoints: 399,
+      benefits: ["Cupones mejores", "Prioridad en reseñas"],
+      sortOrder: 3,
+    },
+    {
+      _id: "nivel-leyenda",
+      code: "leyenda",
+      name: "Leyenda GDL",
+      minPoints: 400,
+      maxPoints: null,
+      benefits: ["Cupones premium", "Badge destacado"],
+      sortOrder: 4,
+    },
+  ]);
+
+  await col.insignias.deleteMany({});
+  await col.insignias.insertMany([
+    {
+      _id: "ins-primer-voto",
+      code: "primer_voto",
+      name: "Primer voto",
+      description: "Reportaste vigencia por primera vez",
+      icon: "check",
+      criteria: "1 reporte de vigencia",
+      pointsBonus: 5,
+      active: true,
+    },
+    {
+      _id: "ins-cerca",
+      code: "cerca_del_local",
+      name: "Cerca del local",
+      description: "Opinaste con GPS cerca de la sucursal",
+      icon: "pin",
+      criteria: "1 reseña nearStore",
+      pointsBonus: 10,
+      active: true,
+    },
+    {
+      _id: "ins-nocturno",
+      code: "buzo_nocturno",
+      name: "Búho nocturno",
+      description: "Usaste el modo nocturno",
+      icon: "moon",
+      criteria: "1 visita /nocturno autenticada",
+      pointsBonus: 5,
+      active: true,
+    },
+    {
+      _id: "ins-referido",
+      code: "invita_amigo",
+      name: "Trae a un amigo",
+      description: "Referiste a otro usuario",
+      icon: "users",
+      criteria: "1 referido completado",
+      pointsBonus: 20,
+      active: true,
+    },
+  ]);
+
+  await col.fuentes.deleteMany({});
+  await col.fuentes.insertMany([
+    {
+      _id: "fuente-official",
+      name: "Página oficial",
+      type: "official",
+      baseUrl: undefined,
+      active: true,
+      notes: "Ingest de sitios públicos de la cadena",
+    },
+    {
+      _id: "fuente-chain",
+      name: "Publicada por el negocio",
+      type: "chain",
+      active: true,
+      notes: "Panel TraGo / empresa",
+    },
+    {
+      _id: "fuente-user",
+      name: "Comunidad",
+      type: "user",
+      active: true,
+      notes: "Votos y reportes de usuarios",
+    },
+    {
+      _id: "fuente-demo",
+      name: "Demo TraGo",
+      type: "demo",
+      active: true,
+      notes: "Catálogo de demostración / tesis",
+    },
+  ]);
 }
 
 export function seedCatalog(): Catalog {

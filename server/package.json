@@ -1,0 +1,26 @@
+{
+  "name": "trago-api",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "API TraGo — mismo patrón que Todo PWA (Express + Mongoose + MongoDB)",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed": "node src/seed/catalogo.js"
+  },
+  "author": "Equipo TraGo",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.5",
+    "morgan": "^1.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

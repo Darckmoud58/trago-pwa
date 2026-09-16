@@ -14,28 +14,24 @@ services:
       retries: 12
       start_period: 15s
 
-  trago:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: trago:latest
-    container_name: trago
+  # API Express (equivalente a Todo_pwa/server)
+  api:
+    image: node:20-alpine
+    container_name: trago-api
+    working_dir: /app
+    command: sh -c "npm install && npm start"
+    volumes:
+      - ./server:/app
     depends_on:
       mongo:
         condition: service_healthy
     ports:
-      - "3000:3000"
-    env_file:
-      - .env
+      - "4000:4000"
     environment:
-      NODE_ENV: production
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
-      # Dentro de la red Docker el host es "mongo", no el de .env local
+      PORT: "4000"
       MONGODB_URI: mongodb://mongo:27017/trago
       MONGODB_DB: trago
-      AUTH_COOKIE_SECURE: "false"
-      APP_ORIGIN: http://localhost:3000
+      JWT_SECRET: trago-docker-jwt-dev
     restart: unless-stopped
 
 volumes:

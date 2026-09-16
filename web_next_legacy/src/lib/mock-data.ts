@@ -3,7 +3,8 @@ import type { Branch, BranchPromo, Chain, Promo } from "./types";
 const DEMO_TERMS =
   "Folio ilustrativo de TraGo. La sucursal sí existe en Guadalajara; el precio y la vigencia se confirman en el local. No es una promoción oficial de la cadena.";
 
-export const CATALOG_VERSION = 4;
+/** Bump al cambiar nombres de colecciones / look-ups (roles, categorías, etc.). */
+export const CATALOG_VERSION = 5;
 
 export const chains: Chain[] = [
   {

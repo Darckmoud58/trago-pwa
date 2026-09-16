@@ -1,0 +1,241 @@
+================================================================================
+TraGo — Guía de base de datos MongoDB (alineada con clase PWA + equipo BD)
+Para el compañero de BD
+================================================================================
+
+DB name:  trago
+Stack:    MongoDB Atlas (o local) + Mongoose models en PW/trago/server
+          (mismo patrón que Todo_pwa/server: models / controllers / routes)
+PWA Next: usa las MISMAS colecciones vía src/lib/collections.ts
+
+
+1. INFRA ATLAS
+--------------------------------------------------------------------------------
+1) Cluster free (M0)
+2) Database User
+3) Network Access → 0.0.0.0/0
+4) URI:
+
+   mongodb+srv://USUARIO:PASSWORD@cluster0.xxxxx.mongodb.net/trago?retryWrites=true&w=majority
+
+Env:
+   MONGODB_URI = URI de arriba
+   MONGODB_DB  = trago
+
+NO hace falta crear colecciones a mano: al abrir la PWA o al correr la API,
+se crean índices + seed (roles, categorías, niveles, insignias, fuentes,
+negocios, sucursales, promociones, promoSucursales, suscripciones).
+
+
+2. COLECCIONES (las que identificó el equipo + extras por objetivo TraGo)
+--------------------------------------------------------------------------------
+Colección              | Para qué
+-----------------------+--------------------------------------------------------
+usuarios               | Cuentas (correo/Google, edad teen/adult, puntos, 2FA)
+roles                  | user | chain | admin + permisos
+categorias             | Tipos de venue y de promo (bar, 2x1, cumple…)
+negocios               | Cadenas / empresas (antes "chains")
+sucursales             | Locales con GPS 2dsphere (antes "branches")
+promociones            | Ofertas vigentes (antes "promos")
+fuentesPromociones     | official | chain | user | demo
+cupones                | Canjes por puntos
+favoritos              | Promo / sucursal / negocio favorito del usuario
+resenas                | Opiniones en sucursal (+ puntos si GPS cerca)
+reportes               | Votos "sigue / ya no" por promo+sucursal
+niveles                | Gamificación por puntos (Novato → Leyenda GDL)
+detallesPuntos         | Ledger anti-farmeo (antes "pointLedger")
+insignias              | Catálogo de badges
+usuarioInsignias       | Insignias ganadas por usuario
+referidos              | Códigos de invitación
+suscripcionesNegocio   | Plan free / pro / premium del negocio
+pagosSuscripcion       | Pagos de la suscripción (sub)
+notificaciones         | In-app / push / email / cumple
+promoSucursales        | Promo ↔ sucursal + contadores vigencia (NÚCLEO GPS)
+authLocks              | Bloqueo login (seguridad)
+passwordResets         | Tokens recuperar clave
+twoFactorChallenges    | Códigos 2FA
+pushSubs               | Suscripciones Web Push
+meta                   | Versión de catálogo (_id: "catalog")
+
+
+3. CAMPOS PRINCIPALES (por colección)
+--------------------------------------------------------------------------------
+
+--- roles ---
+code: "user"|"chain"|"admin"
+name, description, permissions[], active
+
+--- categorias ---
+code, name
+scope: "venue"|"promo"
+alcoholAllowed, active
+
+--- usuarios ---
+email (unique), passwordHash?, googleId?
+profile: { name, picture? }
+age: { birthDate, yearsAtSignup, confirmed18, confirmedAt, band?: "teen"|"adult" }
+role: "user"|"chain"          (legado)
+roleId?, nivelId?
+points?, referralCode?, referredByUserId?
+twoFactorEmail?, createdAt / updatedAt
+
+--- negocios ---
+slug (unique), name, tagline, description
+mark, markColor, website
+tier: "free"|"pro"|"premium"
+publishesPromos, hasApiAccess, showAds
+ownerUserId?, categoriaId?, suscripcionId?
+
+--- sucursales ---
+slug (unique), chainId, chainName, name, kind, categoriaId?
+address, colonia, city
+location: { type: "Point", coordinates: [lng, lat] }   ← lng PRIMERO
+hours, imageUrl, active
+
+--- promociones ---
+slug (unique), chainId, chainName, title, subtitle, kind
+categoriaId?, fuenteId?
+isNocturno, alcohol, audience?: "all"|"adult", isBirthday
+startsAt, endsAt, terms, imageUrl
+featured, isDemo, sourceUrl?, sourceLabel?
+origin?: "official"|"chain"|"demo", active
+Regla: alcohol:true → solo perfiles 18+ (audience adult)
+
+--- fuentesPromociones ---
+name, type: "official"|"chain"|"user"|"demo", baseUrl?, active, notes?
+
+--- cupones ---
+userId, code (unique), label, costPoints, promocionId?
+redeemedAt?, expiresAt?, status?: "active"|"redeemed"|"expired"
+
+--- favoritos ---
+userId, targetType: "promocion"|"sucursal"|"negocio", targetId
+unique(userId + targetType + targetId)
+
+--- resenas ---
+userId, userName, promoId, branchId, rating (1-5), text, textHash
+nearStore, pointsAwarded, lat?, lng?
+unique(userId + promoId + branchId)
+
+--- reportes ---
+userId, promoId, branchId, stillValid, motivo?, lat?, lng?
+unique(userId + promoId + branchId)
+
+--- niveles ---
+code, name, minPoints, maxPoints?, benefits[], sortOrder
+Seed: novato (0-49), explorador (50-149), local (150-399), leyenda (400+)
+
+--- detallesPuntos ---
+userId, delta, reason: vote|review|redeem|referral|badge|signup
+refKey (unique anti-farmeo), meta?, createdAt
+
+--- insignias ---
+code, name, description, icon, criteria, pointsBonus, active
+
+--- usuarioInsignias ---
+userId, insigniaId, earnedAt, pointsAwarded
+unique(userId + insigniaId)
+
+--- referidos ---
+referrerUserId, referredUserId?, code (unique)
+status: pending|completed|rewarded, pointsAwarded, completedAt?
+
+--- suscripcionesNegocio ---
+negocioId, plan: free|pro|premium, startsAt, endsAt?, active, autoRenew
+
+--- pagosSuscripcion ---
+suscripcionId, negocioId, amount, currency (MXN)
+status: pending|paid|failed|refunded
+provider?, providerRef?, paidAt?
+
+--- notificaciones ---
+userId, type: push|email|in_app|birthday|promo|system
+title, body, read, data?, createdAt
+
+--- promoSucursales ---
+promoId, branchId, officialActive, reportsVigente, reportsCaduco
+unique(promoId + branchId)
+
+
+4. ÍNDICES CRÍTICOS
+--------------------------------------------------------------------------------
+usuarios.email unique
+usuarios.googleId unique sparse
+sucursales.location 2dsphere          ← obligatorio para "cerca"
+promoSucursales {promoId, branchId} unique
+reportes / resenas {userId, promoId, branchId} unique
+detallesPuntos.refKey unique
+cupones.code unique
+
+
+5. CÓMO VERIFICAR (Compass / mongosh)
+--------------------------------------------------------------------------------
+use trago
+show collections
+
+db.roles.countDocuments()
+db.categorias.countDocuments()
+db.negocios.countDocuments()
+db.sucursales.countDocuments()
+db.promociones.countDocuments()
+db.promoSucursales.countDocuments()
+db.niveles.find().sort({ sortOrder: 1 })
+db.meta.findOne({ _id: "catalog" })
+
+// Geo check
+db.sucursales.findOne({}, { name: 1, location: 1 })
+
+
+6. CÓDIGO DE REFERENCIA
+--------------------------------------------------------------------------------
+PWA (Next, driver nativo):
+  src/lib/collections.ts     → nombres canónicos
+  src/lib/docs.ts            → tipos / campos
+  src/lib/queries.ts         → índices + seed
+  src/lib/mock-data.ts       → catálogo demo GDL
+
+API estilo profe (Express + Mongoose):
+  server/src/models/*.js
+  server/src/controllers/
+  server/src/routes/
+  server/README.md
+
+Arranque API:
+  cd PW/trago/server && cp .env.example .env && npm i && npm run dev
+
+
+7. CHECKLIST COMPAÑERO BD
+--------------------------------------------------------------------------------
+[ ] Atlas + usuario + 0.0.0.0/0
+[ ] URI con DB trago → entregar MONGODB_URI / MONGODB_DB
+[ ] Abrir PWA o API una vez → seed + índices
+[ ] En Compass: ver las colecciones de la sección 2
+[ ] Verificar sucursales.location = Point [lng, lat]
+[ ] (Opcional) Documentar ER / diccionario de datos con esta guía
+
+NOTA MIGRACIÓN:
+Si ya existían colecciones viejas (users, chains, branches, promos…),
+quedan obsoletas. Las nuevas son las de la sección 2 (nombres en español).
+Se puede dropear las antiguas tras confirmar el seed en las nuevas.
+
+
+8. RELACIÓN CON EL OBJETIVO DEL PROYECTO
+--------------------------------------------------------------------------------
+Problema: ¿sigue viva la promo EN ESTA SUCURSAL ahora?
+→ promoSucursales + reportes + GPS en sucursales
+
+Público teen / adult:
+→ usuarios.age.band + promociones.alcohol / audience + categorias.alcoholAllowed
+
+Negocios pagan plan:
+→ suscripcionesNegocio + pagosSuscripcion + negocios.tier
+
+Engagement:
+→ detallesPuntos + niveles + insignias + referidos + cupones + favoritos
+
+Fuentes confiables:
+→ fuentesPromociones (official / chain / user / demo)
+
+================================================================================
+Fin — Equipo TraGo / Gestión de Proyectos II + PWA
+================================================================================

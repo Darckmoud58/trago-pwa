@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+  AUTH_COOKIE_SECURE = "true"
+  # Mongo/Atlas: define en Site settings → Environment variables (no aquí):
+  #   MONGODB_URI=mongodb+srv://...
+  #   MONGODB_DB=trago
+  #   APP_ORIGIN=https://TU-SITIO.netlify.app
+  #   AUTH_SECRET=... (mín. 16 chars)
+  #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+  # No uses TRAGO_SKIP_MONGO ni NEXT_PUBLIC_DEMO=true en producción con login.

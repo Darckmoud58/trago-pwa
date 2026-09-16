@@ -38,7 +38,8 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self'",
+              // 'self' = APIs Next; localhost:4000 = Express (server/) estilo Todo_pwa
+              "connect-src 'self' http://localhost:4000 http://127.0.0.1:4000",
               "frame-ancestors 'none'",
               "base-uri 'self'",
               "form-action 'self'",
