@@ -1,28 +1,35 @@
 import mongoose from 'mongoose';
 
+/**
+ * Entidad ER: usuarios
+ * Relaciones: tiene roles, niveles, insignias, ubicaciones; canjea promociones; genera reseñas
+ */
 const schema = new mongoose.Schema(
   {
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String },
-    googleId: { type: String, sparse: true },
-    profile: {
-      name: { type: String, required: true, trim: true },
-      picture: String,
+    nombre: { type: String, required: true, trim: true },
+    ape_paterno: { type: String, default: '', trim: true },
+    ape_materno: { type: String, default: '', trim: true },
+    correo: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-    age: {
-      birthDate: { type: Date, required: true },
-      yearsAtSignup: { type: Number, required: true },
-      confirmed18: { type: Boolean, required: true },
-      confirmedAt: { type: Date, required: true },
-      band: { type: String, enum: ['teen', 'adult'] },
+    password: { type: String, required: true },
+    edad: { type: Number, required: true, min: 13 },
+    puntos: { type: Number, default: 0 },
+    estatus: {
+      type: String,
+      enum: ['activo', 'inactivo', 'bloqueado'],
+      default: 'activo',
     },
-    role: { type: String, enum: ['user', 'chain'], default: 'user' },
-    roleId: { type: String },
-    nivelId: { type: String },
-    points: { type: Number, default: 0 },
-    referralCode: { type: String, sparse: true },
-    referredByUserId: { type: String },
-    twoFactorEmail: { type: Boolean, default: false },
+    token_login: { type: String, default: null },
+    // FKs del diagrama
+    id_rol: { type: mongoose.Schema.Types.ObjectId, ref: 'Rol', default: null },
+    id_nivel: { type: mongoose.Schema.Types.ObjectId, ref: 'Nivel', default: null },
+    // Extra clase TraGo (18+)
+    fecha_nacimiento: { type: Date, default: null },
   },
   { timestamps: true, collection: 'usuarios' }
 );

@@ -1,22 +1,35 @@
 import mongoose from 'mongoose';
 
+/**
+ * Entidad ER: resenas
+ * Relaciones: usuarios genera reseñas; reseñas tiene ubicaciones
+ */
 const schema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },
-    userName: { type: String, required: true },
-    promoId: { type: String, required: true },
-    branchId: { type: String, required: true },
-    rating: { type: Number, min: 1, max: 5, required: true },
-    text: { type: String, required: true },
-    textHash: { type: String, required: true },
-    nearStore: { type: Boolean, default: false },
-    pointsAwarded: { type: Number, default: 0 },
-    lat: Number,
-    lng: Number,
+    calificacion: { type: Number, required: true, min: 1, max: 5 },
+    comentario: { type: String, required: true, trim: true },
+    id_usuario: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: true,
+      index: true,
+    },
+    id_ubicacion: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ubicacion',
+      required: true,
+      index: true,
+    },
+    id_promo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Promocion',
+      default: null,
+    },
+    puntos_otorgados: { type: Number, default: 0 },
   },
   { timestamps: true, collection: 'resenas' }
 );
 
-schema.index({ userId: 1, promoId: 1, branchId: 1 }, { unique: true });
+schema.index({ id_usuario: 1, id_ubicacion: 1, id_promo: 1 }, { unique: true });
 
 export default mongoose.model('Resena', schema);

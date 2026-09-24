@@ -1,12 +1,16 @@
 import mongoose from 'mongoose';
 
+/** Entidad ER: roles — usuarios tiene roles */
 const schema = new mongoose.Schema(
   {
-    code: { type: String, required: true, unique: true, enum: ['user', 'chain', 'admin'] },
-    name: { type: String, required: true },
-    description: { type: String, default: '' },
-    permissions: [{ type: String }],
-    active: { type: Boolean, default: true },
+    nombre: { type: String, required: true, trim: true },
+    descripcion: { type: String, default: '' },
+    codigo: { type: String, required: true, unique: true },
+    estatus: {
+      type: String,
+      enum: ['activo', 'inactivo'],
+      default: 'activo',
+    },
   },
   { timestamps: true, collection: 'roles' }
 );

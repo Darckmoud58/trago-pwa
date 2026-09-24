@@ -1,14 +1,17 @@
 import mongoose from 'mongoose';
 
+/** Entidad ER: insignias — usuarios tiene insignias (N:M vía usuario_insignias) */
 const schema = new mongoose.Schema(
   {
-    code: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
-    description: { type: String, default: '' },
-    icon: { type: String, default: 'star' },
-    criteria: { type: String, default: '' },
-    pointsBonus: { type: Number, default: 0 },
-    active: { type: Boolean, default: true },
+    nombre: { type: String, required: true, trim: true },
+    descripcion: { type: String, default: '' },
+    imagen: { type: String, default: '' },
+    puntos: { type: Number, default: 0 },
+    estatus: {
+      type: String,
+      enum: ['activo', 'inactivo'],
+      default: 'activo',
+    },
   },
   { timestamps: true, collection: 'insignias' }
 );

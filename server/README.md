@@ -9,6 +9,8 @@ cd server
 cp .env.example .env
 npm install
 npm start
+# catálogo demo (promos + GPS):
+npm run seed
 ```
 
 → http://localhost:4000

@@ -61,13 +61,26 @@ npm run dev:web
 | `/negocios` | `GET /api/negocios` |
 | `/cuenta` | `GET /api/auth/me` |
 
-## Docker (Mongo + API)
+## Identidad (B1 / B3 Excel)
+
+| Token | Hex | Uso |
+|-------|-----|-----|
+| Rojo | `#D81A1C` | CTA, labels, acentos |
+| Tinto | `#3B0B13` | Fondo / marca |
+| Beige | `#F7E5B5` | Texto y superficies claras |
+
+Legal en footer: `/terminos` y `/aviso-de-privacidad` · cuenta 13+ · alcohol 18+.
+
+
+Misma Atlas de clase que Todo_pwa (`BackPWA`), base propia **`trago`**.
+
+Colecciones ER: `usuarios`, `roles`, `niveles`, `insignias`, `usuario_insignias`, `empresas`, `ubicaciones`, `categorias`, `promociones`, `cupones`, `canjes`, `resenas`, `promo_ubicaciones`.
 
 ```bash
-docker compose up -d
+cd server
+# .env con MONGODB_URI (Atlas) + MONGODB_DB=trago
+npm run seed
 ```
-
-Front sigue en local con `npm run dev` en `trago_web`.
 
 ## Legacy Next
 

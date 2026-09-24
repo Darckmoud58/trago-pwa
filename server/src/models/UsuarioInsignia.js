@@ -1,15 +1,24 @@
 import mongoose from 'mongoose';
 
+/** Relación ER N:M: usuarios —tiene— insignias */
 const schema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },
-    insigniaId: { type: String, required: true },
-    earnedAt: { type: Date, default: Date.now },
-    pointsAwarded: { type: Number, default: 0 },
+    id_usuario: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      required: true,
+    },
+    id_insignia: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Insignia',
+      required: true,
+    },
+    obtenida_en: { type: Date, default: Date.now },
+    puntos_otorgados: { type: Number, default: 0 },
   },
-  { timestamps: true, collection: 'usuarioInsignias' }
+  { timestamps: true, collection: 'usuario_insignias' }
 );
 
-schema.index({ userId: 1, insigniaId: 1 }, { unique: true });
+schema.index({ id_usuario: 1, id_insignia: 1 }, { unique: true });
 
 export default mongoose.model('UsuarioInsignia', schema);

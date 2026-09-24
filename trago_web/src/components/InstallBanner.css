@@ -1,0 +1,42 @@
+.install-banner {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.85rem 1.15rem;
+  background: #3b0b13;
+  color: #f7e5b5;
+  border-top: 1px solid rgba(247, 229, 181, 0.2);
+}
+
+.install-copy strong {
+  display: block;
+  font-family: var(--display);
+  font-size: 1rem;
+}
+
+.install-copy p {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(247, 229, 181, 0.8);
+}
+
+.install-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.install-banner .btn.ghost {
+  border-color: rgba(247, 229, 181, 0.4);
+  color: #f7e5b5;
+}
+
+.install-banner .btn.ghost:hover {
+  background: rgba(247, 229, 181, 0.1);
+  color: #f7e5b5;
+}

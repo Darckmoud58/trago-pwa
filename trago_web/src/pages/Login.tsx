@@ -16,6 +16,7 @@ export default function Login() {
     try {
       const { data } = await api.post('/api/auth/login', { email, password });
       localStorage.setItem('token', data.token);
+      if (data.user?.band) localStorage.setItem('trago_band', data.user.band);
       setAuth(data.token);
       navigate('/cuenta', { replace: true });
     } catch (err: unknown) {
@@ -31,7 +32,10 @@ export default function Login() {
   return (
     <section className="auth">
       <h1>Entrar</h1>
-      <p className="lead">Sesión TraGo · JWT contra el server Express (:4000)</p>
+      <p className="lead">
+        Accede a tu cuenta TraGo. Demo:{' '}
+        <code>demo@trago.app</code> / <code>TraGo123!</code>
+      </p>
       <form className="card-form" onSubmit={onSubmit}>
         <label>
           Correo

@@ -1,29 +1,47 @@
 import mongoose from 'mongoose';
 
+/**
+ * Entidad ER: promociones
+ * Relaciones: empresas genera; contiene cupones; tiene categorias; usuarios canjea
+ */
 const schema = new mongoose.Schema(
   {
-    slug: { type: String, required: true, unique: true },
-    chainId: { type: String, required: true, index: true },
-    chainName: { type: String, default: '' },
-    title: { type: String, required: true },
-    subtitle: { type: String, default: '' },
-    kind: { type: String, required: true },
-    categoriaId: { type: String },
-    fuenteId: { type: String },
-    isNocturno: { type: Boolean, default: false },
+    nombre: { type: String, required: true, trim: true },
+    descripcion: { type: String, default: '' },
+    politicas: { type: String, default: '' },
+    imagen: { type: String, default: '' },
+    origen: {
+      type: String,
+      enum: ['oficial', 'empresa', 'demo', 'usuario'],
+      default: 'demo',
+    },
+    url_fuente: { type: String, default: '' },
+    puntos: { type: Number, default: 0 },
+    id_empresa: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Empresa',
+      required: true,
+      index: true,
+    },
+    id_categoria: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Categoria',
+      default: null,
+    },
+    // extras PWA
+    slug: { type: String, sparse: true, unique: true },
+    inicia_en: { type: Date, default: null },
+    termina_en: { type: Date, default: null },
     alcohol: { type: Boolean, default: false },
-    audience: { type: String, enum: ['all', 'adult'], default: 'all' },
-    isBirthday: { type: Boolean, default: false },
-    startsAt: { type: Date, required: true },
-    endsAt: { type: Date, required: true },
-    terms: { type: String, default: '' },
-    imageUrl: { type: String, default: '' },
-    featured: { type: Boolean, default: false },
-    isDemo: { type: Boolean, default: false },
-    sourceUrl: String,
-    sourceLabel: String,
-    origin: { type: String, enum: ['official', 'chain', 'demo'], default: 'demo' },
-    active: { type: Boolean, default: true },
+    nocturno: { type: Boolean, default: false },
+    cumpleanos: { type: Boolean, default: false },
+    audiencia: { type: String, enum: ['todos', 'adulto'], default: 'todos' },
+    destacada: { type: Boolean, default: false },
+    estatus: {
+      type: String,
+      enum: ['activo', 'inactivo', 'caduco'],
+      default: 'activo',
+    },
   },
   { timestamps: true, collection: 'promociones' }
 );
