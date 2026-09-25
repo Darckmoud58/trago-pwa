@@ -50,12 +50,22 @@
 
 .promos-filters {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.45rem;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.1rem;
+}
+
+.promos-filters::-webkit-scrollbar {
+  display: none;
 }
 
 .filter-chip {
+  flex: 0 0 auto;
+  min-height: 2.2rem;
   border: 1px solid rgba(59, 11, 19, 0.18);
   background: #fbf3de;
   color: #3b0b13;

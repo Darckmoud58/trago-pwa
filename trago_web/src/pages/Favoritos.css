@@ -1,0 +1,13 @@
+.favs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.favs-list {
+  margin-top: 0;
+}
+
+.empty-state .btn {
+  margin-top: 0.75rem;
+}

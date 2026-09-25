@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: ['favicon.svg', 'icon-192.svg', 'icon-512.svg'],
@@ -14,11 +17,14 @@ export default defineConfig({
         short_name: 'TraGo',
         description:
           'Promociones vigentes cerca de ti en Guadalajara. Favoritos offline.',
-        theme_color: '#F7E5B5',
+        theme_color: '#3B0B13',
         background_color: '#F7E5B5',
         display: 'standalone',
+        orientation: 'portrait-primary',
         lang: 'es-MX',
         start_url: '/',
+        scope: '/',
+        categories: ['lifestyle', 'shopping', 'food'],
         icons: [
           {
             src: '/favicon.svg',
@@ -40,8 +46,7 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        navigateFallback: '/index.html',
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
       },
       devOptions: {

@@ -1,7 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" fill="none">
   <symbol id="trago-mark" viewBox="0 0 32 32">
     <rect width="32" height="32" rx="6" fill="#3B0B13"/>
-    <path fill="#F7E5B5" d="M10 7h12v3c0 4-2.5 7-6 8v4h4v3H12v-3h4v-4c-3.5-1-6-4-6-8V7z"/>
-    <path fill="#D81A1C" d="M14 9h4v2.2c0 1.8-.9 3.1-2 3.6-1.1-.5-2-1.8-2-3.6V9z"/>
+    <text
+      x="16"
+      y="21"
+      text-anchor="middle"
+      font-family="Segoe UI, Helvetica Neue, Arial, sans-serif"
+      font-weight="700"
+      font-size="9"
+      letter-spacing="-0.04em"
+      fill="#F7E5B5"
+    >TraGo</text>
   </symbol>
 </svg>

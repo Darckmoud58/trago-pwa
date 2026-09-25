@@ -1,0 +1,29 @@
+.offline-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  padding: 0.55rem 1rem;
+  background: rgba(59, 11, 19, 0.92);
+  color: #f7e5b5;
+  font-size: 0.82rem;
+  border-bottom: 1px solid rgba(247, 229, 181, 0.15);
+}
+
+.offline-banner strong {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.offline-banner a {
+  color: #f7e5b5 !important;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+@media (min-width: 900px) {
+  .offline-banner {
+    margin-left: 5.25rem;
+  }
+}

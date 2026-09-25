@@ -5,6 +5,7 @@ import {
   removeFavorite,
   type FavoritePlace,
 } from '../lib/favorites';
+import './Favoritos.css';
 
 export default function Favoritos() {
   const [items, setItems] = useState<FavoritePlace[]>([]);
@@ -34,27 +35,24 @@ export default function Favoritos() {
   }
 
   return (
-    <section>
-      <h1>Mis favoritos</h1>
-      <p className="lead">
-        Guardados en este dispositivo. Funcionan{' '}
-        <strong>sin internet</strong>.
-      </p>
+    <section className="favs-page">
       <p className={`status-pill ${online ? 'on' : 'off'}`}>
-        {online ? 'En línea' : 'Sin conexión · viendo caché local'}
+        {online ? 'En línea' : 'Sin conexión · caché local'}
       </p>
 
       {items.length === 0 ? (
         <div className="empty-state">
           <p>Aún no tienes favoritos.</p>
           <p className="muted">
-            En <Link to="/cerca">Cerca</Link> o{' '}
-            <Link to="/negocios">Negocios</Link> toca el corazón para guardar
-            un lugar.
+            En <Link to="/cerca">Cerca</Link> toca el corazón para guardar un
+            lugar offline.
           </p>
+          <Link className="btn primary" to="/cerca">
+            Buscar cerca
+          </Link>
         </div>
       ) : (
-        <ul className="branch-list">
+        <ul className="branch-list favs-list">
           {items.map((f) => (
             <li key={f.id} className="promo-card fav-card">
               <div className="fav-card-body">

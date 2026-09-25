@@ -1,41 +1,44 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import AppHeader from './components/AppHeader';
+import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
+import OfflineBanner from './components/OfflineBanner';
 import './Layout.css';
 
 export default function Layout() {
-  const token = localStorage.getItem('token');
+  const { pathname } = useLocation();
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [online, setOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  useEffect(() => {
+    setToken(localStorage.getItem('token'));
+  }, [pathname]);
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  const hideHeader =
+    pathname.startsWith('/entrar') || pathname.startsWith('/registro');
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <NavLink to="/" className="brand" end>
-          TraGo
-        </NavLink>
-        <nav className="nav" aria-label="Principal">
-          <NavLink to="/promos">Promos</NavLink>
-          <NavLink to="/cerca">Cerca</NavLink>
-          <NavLink to="/negocios">Negocios</NavLink>
-          <NavLink to="/favoritos">Favoritos</NavLink>
-          {token ? (
-            <NavLink to="/cuenta">Cuenta</NavLink>
-          ) : (
-            <NavLink to="/entrar">Entrar</NavLink>
-          )}
-        </nav>
-      </header>
-      <main className="main page-enter">
+    <div className={`app-shell${hideHeader ? ' is-auth' : ''}`}>
+      {!hideHeader && <AppHeader online={online} />}
+      {!online && <OfflineBanner />}
+      <main className="app-main page-enter" id="main">
         <Outlet />
       </main>
-      <footer className="foot">
-        <div className="foot-links">
-          <NavLink to="/terminos">Términos y condiciones</NavLink>
-          <NavLink to="/aviso-de-privacidad">Aviso de privacidad</NavLink>
-        </div>
-        <p className="foot-note">
-          TraGo · promociones en Guadalajara · cuenta desde 13 años · alcohol
-          solo 18+ · la vigencia la confirma el local
-        </p>
-      </footer>
+      <BottomNav hasSession={!!token} />
       <InstallBanner />
     </div>
   );

@@ -1,0 +1,108 @@
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: rgba(59, 11, 19, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(247, 229, 181, 0.14);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bottom-nav-inner {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: 3.65rem;
+}
+
+.bottom-nav-item,
+.bottom-nav-item:link,
+.bottom-nav-item:visited {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 3.35rem;
+  padding: 0.35rem 0.2rem;
+  color: #f7e5b5 !important;
+  opacity: 0.72;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, opacity 0.15s ease, transform 0.12s ease,
+    background 0.15s ease;
+}
+
+.bottom-nav-item:hover,
+.bottom-nav-item:focus-visible {
+  opacity: 1;
+  outline: none;
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.94);
+}
+
+.bottom-nav-item.is-active,
+.bottom-nav-item.is-active:link,
+.bottom-nav-item.is-active:visited {
+  color: #f7e5b5 !important;
+  opacity: 1;
+}
+
+.bottom-nav-ico {
+  display: inline-flex;
+  width: 1.5rem;
+  height: 1.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+@media (min-width: 900px) {
+  .bottom-nav {
+    left: 0;
+    right: auto;
+    top: 0;
+    bottom: 0;
+    width: 5.25rem;
+    border-top: none;
+    border-right: 1px solid rgba(247, 229, 181, 0.14);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottom-nav-inner {
+    grid-template-columns: 1fr;
+    max-width: none;
+    min-height: 100%;
+    padding: 4.5rem 0 1rem;
+    align-content: start;
+    gap: 0.35rem;
+  }
+
+  .bottom-nav-item {
+    min-height: 4rem;
+    border-radius: 0.75rem;
+    margin: 0 0.4rem;
+  }
+
+  .bottom-nav-item.is-active {
+    background: rgba(247, 229, 181, 0.16);
+  }
+
+  .bottom-nav-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+}

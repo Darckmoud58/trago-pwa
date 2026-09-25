@@ -1,38 +1,68 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import {
+  CACHE_KEYS,
+  cacheGet,
+  cacheSet,
+  filterActivePromos,
+} from '../lib/offlineCache';
 import type { Promo } from '../types';
-import './Legal.css';
 import './Home.css';
 
 const AGE_KEY = 'trago_age_ack';
 
-const ZONAS = [
-  { name: 'Americana', hint: 'Chapultepec' },
-  { name: 'Providencia', hint: 'Andares' },
-  { name: 'Centro', hint: 'Histórico' },
-  { name: 'Chapalita', hint: 'Zapopan' },
-  { name: 'Plaza del Sol', hint: 'Sur' },
+const CATEGORIES = [
+  { id: 'todas', label: 'Todas', to: '/promos' },
+  { id: 'comida', label: 'Comida', to: '/promos?f=comida' },
+  { id: 'cumple', label: 'Cumple', to: '/promos?f=cumple' },
+  { id: 'cafe', label: 'Café', to: '/promos?f=cafe' },
+  { id: 'alcohol', label: '18+', to: '/promos?f=alcohol' },
 ];
 
 export default function Home() {
   const [showAge, setShowAge] = useState(false);
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [fromCache, setFromCache] = useState(false);
   const [promosError, setPromosError] = useState(false);
+  const token = localStorage.getItem('token');
 
   useEffect(() => {
     if (!localStorage.getItem(AGE_KEY)) setShowAge(true);
   }, []);
 
   useEffect(() => {
-    api
-      .get('/api/promociones')
-      .then((res) => {
-        const list = (res.data.promos ?? []) as Promo[];
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await api.get('/api/promociones');
+        if (cancelled) return;
+        const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
+        await cacheSet(CACHE_KEYS.promos, list);
         const destacadas = list.filter((p) => p.featured || p.destacada);
-        setPromos((destacadas.length ? destacadas : list).slice(0, 4));
-      })
-      .catch(() => setPromosError(true));
+        setPromos((destacadas.length ? destacadas : list).slice(0, 6));
+        setFromCache(false);
+        setPromosError(false);
+      } catch {
+        const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
+        if (cancelled) return;
+        if (cached?.data?.length) {
+          const active = filterActivePromos(cached.data);
+          const destacadas = active.filter((p) => p.featured || p.destacada);
+          setPromos((destacadas.length ? destacadas : active).slice(0, 6));
+          setFromCache(true);
+          setPromosError(false);
+        } else {
+          setPromosError(true);
+        }
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function ackAge() {
@@ -41,13 +71,12 @@ export default function Home() {
   }
 
   return (
-    <div className="home">
+    <div className="home-app">
       {showAge && (
-        <div className="age-banner" role="dialog" aria-label="Aviso de edad">
+        <div className="age-sheet" role="dialog" aria-label="Aviso de edad">
           <p>
-            Hay promociones con <strong>alcohol solo para 18+</strong>. Al
-            continuar confirmas haber leído los{' '}
-            <Link to="/terminos">términos</Link> y el{' '}
+            Hay promos con <strong>alcohol solo 18+</strong>. Al continuar
+            aceptas los <Link to="/terminos">términos</Link> y el{' '}
             <Link to="/aviso-de-privacidad">aviso de privacidad</Link>.
           </p>
           <button type="button" className="btn primary" onClick={ackAge}>
@@ -56,179 +85,105 @@ export default function Home() {
         </div>
       )}
 
-      <section className="hero">
-        <div className="hero-bg" aria-hidden />
-        <div className="hero-copy rise">
-          <p className="brand-hero">TraGo</p>
-          <h1>Promos vigentes, cerca de ti.</h1>
-          <p className="lead">
-            Ofertas reales en la ZMG. Guarda tus lugares y ábrelos aunque no
-            tengas señal.
-          </p>
-          <div className="cta-row">
-            <Link className="btn primary" to="/promos">
-              Ver promos
+      <section className="home-greet rise">
+        <p className="home-hello">Hola{token ? '' : ' 👋'}</p>
+        <h2 className="home-headline">¿Qué se te antoja hoy?</h2>
+        <div className="quick-actions" aria-label="Acciones rápidas">
+          <Link className="quick-chip primary" to="/cerca">
+            ⌖ Cerca de mí
+          </Link>
+          <Link className="quick-chip" to="/promos">
+            ★ Promos
+          </Link>
+          <Link className="quick-chip" to="/favoritos">
+            ♥ Favoritos
+          </Link>
+          {!token && (
+            <Link className="quick-chip" to="/entrar">
+              Entrar
             </Link>
-            <Link className="btn ghost" to="/cerca">
-              Cerca de mí
-            </Link>
-          </div>
+          )}
         </div>
       </section>
 
-      <section className="home-section zonas rise" style={{ animationDelay: '0.08s' }}>
-        <div className="section-head">
-          <p className="label">Zona Metropolitana</p>
-          <h2>Explora por zona</h2>
+      <section className="home-block">
+        <div className="block-head">
+          <h3>Categorías</h3>
         </div>
-        <div className="zona-row">
-          {ZONAS.map((z) => (
-            <Link key={z.name} className="zona-chip" to="/cerca">
-              <span className="zona-name">{z.name}</span>
-              <span className="zona-hint">{z.hint}</span>
+        <div className="cat-scroll" role="list">
+          {CATEGORIES.map((c) => (
+            <Link key={c.id} className="cat-chip" to={c.to} role="listitem">
+              {c.label}
             </Link>
           ))}
         </div>
       </section>
 
-      <section className="home-section">
-        <div className="section-head row-between">
-          <div>
-            <p className="label">Ahora mismo</p>
-            <h2>Destacadas</h2>
-          </div>
+      <section className="home-block">
+        <div className="block-head">
+          <h3>Destacadas</h3>
           <Link className="text-link" to="/promos">
-            Ver todas →
+            Ver todas
           </Link>
         </div>
+        {fromCache && (
+          <p className="cache-hint">Mostrando última consulta guardada</p>
+        )}
         {promosError && (
           <p className="muted">
-            No pudimos cargar promos. Revisa que la API esté en marcha o entra
-            más tarde.
+            Sin conexión a la API. Revisa favoritos o vuelve más tarde.
           </p>
         )}
         {!promosError && promos.length === 0 && (
-          <p className="muted">Cargando promos…</p>
+          <p className="muted">Cargando…</p>
         )}
-        <div className="promo-grid home-promos">
+        <div className="feed-list">
           {promos.map((p, i) => (
             <Link
               key={p._id}
               to={`/promos/${p.slug || p._id}`}
-              className="promo-card home-promo-card rise"
-              style={{ animationDelay: `${0.05 + i * 0.06}s` }}
+              className="feed-card rise"
+              style={{ animationDelay: `${Math.min(i, 6) * 0.04}s` }}
             >
-              <p className="label">{p.chainName || 'Cadena'}</p>
-              <h3>{p.nombre || p.title}</h3>
-              {(p.descripcion || p.subtitle) && (
-                <p className="meta">{p.descripcion || p.subtitle}</p>
-              )}
-              <p className="meta">
-                {p.alcohol ? '18+ · ' : ''}
-                {(p.termina_en || p.endsAt) &&
-                  `hasta ${new Date(
-                    p.termina_en || p.endsAt!
-                  ).toLocaleDateString()}`}
-              </p>
+              <div
+                className="feed-thumb"
+                style={
+                  p.imagen || p.imageUrl
+                    ? {
+                        backgroundImage: `url(${p.imagen || p.imageUrl})`,
+                      }
+                    : undefined
+                }
+                aria-hidden
+              >
+                {!(p.imagen || p.imageUrl) &&
+                  (p.chainName || 'TG').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="feed-body">
+                <p className="feed-chain">{p.chainName || 'Cadena'}</p>
+                <h4>{p.nombre || p.title}</h4>
+                <p className="meta">
+                  {p.alcohol ? '18+ · ' : ''}
+                  {(p.termina_en || p.endsAt) &&
+                    `hasta ${new Date(
+                      p.termina_en || p.endsAt!
+                    ).toLocaleDateString()}`}
+                </p>
+              </div>
             </Link>
           ))}
         </div>
       </section>
 
-      <section className="home-section">
-        <div className="section-head">
-          <p className="label">En tres pasos</p>
-          <h2>Cómo funciona</h2>
-        </div>
-        <div className="grid3">
-          <article className="feature-card">
-            <p className="step-num">01</p>
-            <h3>Descubre</h3>
-            <p>
-              Catálogo de promociones vigentes. Alcohol y nocturno filtrados
-              para mayores de 18.
-            </p>
-            <Link className="text-link" to="/promos">
-              Ir a promos →
-            </Link>
-          </article>
-          <article className="feature-card">
-            <p className="step-num">02</p>
-            <h3>Ubica</h3>
-            <p>
-              Activa tu GPS y encuentra sucursales a pocos kilómetros en
-              Guadalajara y Zapopan.
-            </p>
-            <Link className="text-link" to="/cerca">
-              Abrir cerca →
-            </Link>
-          </article>
-          <article className="feature-card">
-            <p className="step-num">03</p>
-            <h3>Guarda offline</h3>
-            <p>
-              Marca favoritos en el corazón. Quedan en tu teléfono sin
-              internet.
-            </p>
-            <Link className="text-link" to="/favoritos">
-              Mis favoritos →
-            </Link>
-          </article>
-        </div>
-      </section>
-
-      <section className="offline-band rise">
-        <div className="offline-copy">
-          <p className="label light">Sin señal</p>
-          <h2>Tus favoritos viajan contigo</h2>
-          <p>
-            Guarda sucursales y negocios desde Cerca o Negocios. Cuando el
-            centro comercial te deje sin datos, ábrelos igual desde Favoritos.
-          </p>
-          <div className="cta-row">
-            <Link className="btn primary" to="/favoritos">
-              Ver favoritos
-            </Link>
-            <Link className="btn ghost light" to="/cerca">
-              Empezar a guardar
-            </Link>
-          </div>
-        </div>
-        <div className="offline-visual" aria-hidden>
-          <div className="offline-card">
-            <span>♥</span>
-            <strong>Guardado aquí</strong>
-            <em>Disponible offline</em>
-          </div>
-        </div>
-      </section>
-
-      <section className="biz-band">
-        <div className="biz-copy">
-          <p className="label">Para negocios</p>
-          <h2>Publica tu promo donde la gente ya está buscando</h2>
-          <p className="lead">
-            TraGo es el canal para que tu cadena o local llegue a quien anda
-            cerca, con fechas claras y reputación en piso.
-          </p>
-          <div className="cta-row">
-            <Link className="btn primary" to="/registro">
-              Crear cuenta
-            </Link>
-            <Link className="btn ghost" to="/negocios">
-              Ver negocios
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="trust-strip">
-        <p>
-          Cuenta desde 13 años · Contenido con alcohol solo 18+ · La vigencia
-          la confirma el local ·{' '}
-          <Link to="/terminos">Términos</Link> ·{' '}
-          <Link to="/aviso-de-privacidad">Privacidad</Link>
+      <section className="home-cta-card">
+        <p className="label">GPS</p>
+        <h3>Qué hay a tu alrededor</h3>
+        <p className="meta">
+          Sucursales reales en GDL y Zapopan. Guárdalas para verlas offline.
         </p>
+        <Link className="btn primary" to="/cerca">
+          Abrir cerca
+        </Link>
       </section>
     </div>
   );

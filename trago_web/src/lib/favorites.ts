@@ -18,6 +18,7 @@ export type FavoritePlace = {
 };
 
 const DB_NAME = 'trago-offline';
+const DB_VERSION = 2;
 const STORE = 'favoritos';
 const LS_KEY = 'trago_favoritos_v1';
 
@@ -27,11 +28,14 @@ function openDb(): Promise<IDBDatabase> {
       reject(new Error('no-idb'));
       return;
     }
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('cache')) {
+        db.createObjectStore('cache', { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
