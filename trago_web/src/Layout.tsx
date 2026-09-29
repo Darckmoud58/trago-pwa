@@ -28,11 +28,13 @@ export default function Layout() {
     };
   }, []);
 
-  const hideHeader =
+  const isHome = pathname === '/';
+  const isAuth =
     pathname.startsWith('/entrar') || pathname.startsWith('/registro');
+  const hideHeader = isHome || isAuth;
 
   return (
-    <div className={`app-shell${hideHeader ? ' is-auth' : ''}`}>
+    <div className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}`}>
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}
       <main className="app-main page-enter" id="main">

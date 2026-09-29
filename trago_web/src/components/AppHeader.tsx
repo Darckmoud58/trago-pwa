@@ -1,8 +1,8 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './AppHeader.css';
 
 const TITLES: { match: RegExp; title: string; showBack?: boolean }[] = [
-  { match: /^\/$/, title: 'TraGo' },
+  { match: /^\/$/, title: '' },
   { match: /^\/promos\/[^/]+$/, title: 'Detalle', showBack: true },
   { match: /^\/promos/, title: 'Promociones' },
   { match: /^\/cerca/, title: 'Cerca de ti' },
@@ -25,15 +25,14 @@ export default function AppHeader({ online, subtitle }: Props) {
   const navigate = useNavigate();
   const conf =
     TITLES.find((t) => t.match.test(pathname)) ?? {
-      title: 'TraGo',
+      title: '',
       showBack: false,
     };
+  const isHome = pathname === '/';
 
   return (
     <header className="app-header" role="banner">
-      <div
-        className={`app-header-inner${pathname === '/' ? ' is-home' : ''}`}
-      >
+      <div className={`app-header-inner${isHome ? ' is-home' : ''}`}>
         {conf.showBack ? (
           <button
             type="button"
@@ -44,15 +43,13 @@ export default function AppHeader({ online, subtitle }: Props) {
             ‹
           </button>
         ) : (
-          <Link to="/" className="app-header-brand" aria-label="Inicio TraGo">
-            TraGo
-          </Link>
+          <span className="app-header-spacer" aria-hidden />
         )}
 
         <div className="app-header-titles">
-          {conf.title !== 'TraGo' && (
+          {conf.title ? (
             <h1 className="app-header-title">{conf.title}</h1>
-          )}
+          ) : null}
           {subtitle && <p className="app-header-sub">{subtitle}</p>}
         </div>
 

@@ -19,20 +19,13 @@
   margin: 0 auto;
 }
 
-.app-header-brand {
-  font-family: var(--display);
-  font-size: 1.35rem;
-  letter-spacing: -0.03em;
-  color: #f7e5b5 !important;
-  text-decoration: none;
+.app-header-spacer {
+  width: 2.4rem;
+  height: 2.4rem;
 }
 
 .app-header-inner.is-home .app-header-titles {
   display: none;
-}
-
-.app-header-inner.is-home .app-header-brand {
-  grid-column: auto;
 }
 
 .app-header-back {
