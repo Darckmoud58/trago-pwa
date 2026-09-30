@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import logoUrl from '../assets/logo.png';
 import pageloadUrl from '../assets/pageload.mp4';
 import './PageLoadOverlay.css';
 
@@ -130,7 +129,6 @@ export default function PageLoadOverlay() {
       role="presentation"
       aria-hidden={phase === 'exit'}
       onClick={finish}
-      style={{ ['--pageload-logo' as string]: `url(${logoUrl})` }}
     >
       <video
         ref={videoRef}
