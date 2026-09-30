@@ -87,7 +87,7 @@ export default function InstallBanner() {
       <div className="install-sheet-card">
         <img
           className="install-logo"
-          src="/icon-192.png"
+          src="/icon-192-v2.png"
           width={48}
           height={48}
           alt="TraGo"

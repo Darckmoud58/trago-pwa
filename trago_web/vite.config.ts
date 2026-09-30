@@ -14,8 +14,11 @@ export default defineConfig({
       includeAssets: [
         'favicon.png',
         'favicon.svg',
+        'apple-touch-icon.png',
         'icon-192.png',
         'icon-512.png',
+        'icon-192-v2.png',
+        'icon-512-v2.png',
       ],
       manifest: {
         name: 'TraGo',
@@ -23,7 +26,7 @@ export default defineConfig({
         description:
           'Promociones vigentes cerca de ti en Guadalajara. Favoritos offline.',
         theme_color: '#3B0B13',
-        background_color: '#000000',
+        background_color: '#3B0B13',
         display: 'standalone',
         orientation: 'portrait-primary',
         lang: 'es-MX',
@@ -32,16 +35,22 @@ export default defineConfig({
         categories: ['lifestyle', 'shopping', 'food'],
         icons: [
           {
-            src: '/icon-192.png',
+            src: '/icon-192-v2.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/icon-512.png',
+            src: '/icon-512-v2.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable',
+            purpose: 'any',
+          },
+          {
+            src: '/icon-512-v2.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
