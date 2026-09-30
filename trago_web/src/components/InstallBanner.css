@@ -32,7 +32,8 @@
   height: 2.75rem;
   border-radius: 0.65rem;
   border: 1px solid rgba(247, 229, 181, 0.25);
-  object-fit: cover;
+  object-fit: contain;
+  background: #000;
 }
 
 .install-copy {

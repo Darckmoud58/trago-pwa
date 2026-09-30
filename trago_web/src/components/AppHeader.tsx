@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import logoUrl from '../assets/logo.png';
 import './AppHeader.css';
 
 const TITLES: { match: RegExp; title: string; showBack?: boolean }[] = [
@@ -43,7 +44,14 @@ export default function AppHeader({ online, subtitle }: Props) {
             ‹
           </button>
         ) : (
-          <span className="app-header-spacer" aria-hidden />
+          <img
+            className="app-header-logo"
+            src={logoUrl}
+            alt="TraGo"
+            width={36}
+            height={39}
+            decoding="async"
+          />
         )}
 
         <div className="app-header-titles">

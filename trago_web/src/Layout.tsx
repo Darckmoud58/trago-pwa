@@ -4,6 +4,7 @@ import AppHeader from './components/AppHeader';
 import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
 import OfflineBanner from './components/OfflineBanner';
+import PageLoadOverlay from './components/PageLoadOverlay';
 import './Layout.css';
 
 export default function Layout() {
@@ -35,6 +36,7 @@ export default function Layout() {
 
   return (
     <div className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}`}>
+      <PageLoadOverlay />
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}
       <main className="app-main page-enter" id="main">
