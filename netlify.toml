@@ -1,13 +1,24 @@
-# Base = front Vite (como Todo_pwa/todo_pwaa)
+# Front Vite + API Express vía Netlify Function (mismo origen /api/*)
 [build]
-  base = "trago_web"
-  command = "npm run build"
-  publish = "dist"
+  command = "npm install --prefix server && npm install --prefix trago_web && npm run build --prefix trago_web"
+  publish = "trago_web/dist"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "20"
-  # Define en Site settings:
-  #   VITE_API_URL=https://TU-API-PUBLICA
+  # Mismo origen: el front llama /api/* → Function (no localhost)
+  VITE_API_URL = ""
+
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["server/src/**"]
+
+# API antes que el SPA fallback
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
 
 # SPA React Router
 [[redirects]]

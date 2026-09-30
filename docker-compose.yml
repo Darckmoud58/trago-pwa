@@ -26,7 +26,8 @@ services:
       mongo:
         condition: service_healthy
     ports:
-      - "4000:4000"
+      # Host 4001: en Mac el 4000 suele estar ocupado por Todo_pwa
+      - "4001:4000"
     environment:
       PORT: "4000"
       MONGODB_URI: mongodb://mongo:27017/trago

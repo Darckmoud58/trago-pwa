@@ -2,6 +2,7 @@
   "name": "trago",
   "private": true,
   "version": "0.1.0",
+  "type": "module",
   "description": "TraGo monorepo — trago_web (Vite+React+axios) + server (Express), mismo patrón que Todo_pwa",
   "scripts": {
     "dev": "npm run dev --prefix trago_web",
@@ -11,5 +12,15 @@
     "start:server": "npm start --prefix server",
     "build": "npm run build --prefix trago_web",
     "install:all": "npm install --prefix trago_web && npm install --prefix server"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.5",
+    "morgan": "^1.12.0",
+    "serverless-http": "^3.2.0"
   }
 }
