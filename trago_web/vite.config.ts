@@ -46,7 +46,10 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2,mp4}'],
+        globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+        // El video de marca (~2.2 MB) se sirve bajo demanda; no va al precache del SW.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+        globIgnores: ['**/pageload-*.mp4', '**/*.mp4'],
       },
       devOptions: {
         enabled: false,
