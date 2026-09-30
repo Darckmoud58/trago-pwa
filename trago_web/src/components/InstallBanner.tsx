@@ -6,7 +6,7 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
-const DISMISS_KEY = 'trago_install_dismissed_v3';
+const DISMISS_KEY = 'trago_install_dismissed_v4';
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 días
 
 function isStandalone() {
@@ -19,6 +19,10 @@ function isStandalone() {
 
 function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isAndroid() {
+  return /android/i.test(navigator.userAgent);
 }
 
 function wasDismissedRecently() {
@@ -38,6 +42,8 @@ export default function InstallBanner() {
     null
   );
   const [visible, setVisible] = useState(false);
+  const ios = typeof navigator !== 'undefined' && isIos();
+  const android = typeof navigator !== 'undefined' && isAndroid();
 
   useEffect(() => {
     if (isStandalone() || wasDismissedRecently()) return;
@@ -50,7 +56,6 @@ export default function InstallBanner() {
 
     window.addEventListener('beforeinstallprompt', onBip);
 
-    // Siempre mostrar tip de instalación (Chrome BIP o guía manual / iOS)
     const timer = window.setTimeout(() => {
       if (!isStandalone() && !wasDismissedRecently()) setVisible(true);
     }, 1200);
@@ -76,14 +81,19 @@ export default function InstallBanner() {
     setVisible(false);
   }
 
-  const tip = deferred
-    ? 'Ábrela como app: acceso rápido y favoritos a la mano.'
-    : isIos()
-      ? 'En iPhone: Compartir → “Añadir a pantalla de inicio”.'
-      : 'En el menú del navegador elige “Instalar TraGo” o “Añadir a la pantalla de inicio”.';
+  const title = ios ? 'Añadir a pantalla de inicio' : 'Instalar TraGo';
+  const tip = ios
+    ? 'Toca Compartir (□↑) y elige “Añadir a pantalla de inicio”.'
+    : deferred
+      ? 'Instálala como app: acceso rápido y favoritos a la mano.'
+      : android
+        ? 'Menú ⋮ del navegador → “Instalar app” o “Añadir a la pantalla de inicio”.'
+        : 'En el menú del navegador elige “Instalar TraGo”.';
+
+  const showInstallBtn = Boolean(deferred) && !ios;
 
   return (
-    <div className="install-sheet" role="dialog" aria-label="Instalar TraGo">
+    <div className="install-sheet" role="dialog" aria-label={title}>
       <div className="install-sheet-card">
         <img
           className="install-logo"
@@ -93,11 +103,18 @@ export default function InstallBanner() {
           alt="TraGo"
         />
         <div className="install-copy">
-          <strong>Instalar TraGo</strong>
+          <strong>{title}</strong>
           <p>{tip}</p>
+          {ios && (
+            <ol className="install-steps">
+              <li>Compartir</li>
+              <li>Añadir a pantalla de inicio</li>
+              <li>Añadir</li>
+            </ol>
+          )}
         </div>
         <div className="install-actions">
-          {deferred && (
+          {showInstallBtn && (
             <button
               type="button"
               className="btn primary btn-sm"
@@ -107,7 +124,7 @@ export default function InstallBanner() {
             </button>
           )}
           <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
-            Ahora no
+            {ios ? 'Entendido' : 'Ahora no'}
           </button>
         </div>
       </div>
