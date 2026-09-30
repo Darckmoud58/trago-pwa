@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
-import logoUrl from '../assets/logo.png';
 import {
   CACHE_KEYS,
   cacheGet,
@@ -87,14 +86,6 @@ export default function Home() {
       )}
 
       <section className="home-greet rise">
-        <img
-          className="home-brand"
-          src={logoUrl}
-          alt="TraGo"
-          width={180}
-          height={193}
-          decoding="async"
-        />
         <p className="home-hello">Hola{token ? '' : ' 👋'}</p>
         <h2 className="home-headline">¿Qué se te antoja hoy?</h2>
         <div className="quick-actions" aria-label="Acciones rápidas">

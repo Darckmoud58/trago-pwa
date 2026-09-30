@@ -34,5 +34,19 @@ services:
       JWT_SECRET: trago-docker-jwt-dev
     restart: unless-stopped
 
+  # Front Vite (build local → dist). Antes: imagen Next legacy.
+  # Actualizar: cd trago_web && npm run build && docker compose up -d trago
+  trago:
+    image: nginx:1.27-alpine
+    container_name: trago
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+    volumes:
+      - ./trago_web/dist:/usr/share/nginx/html:ro
+      - ./trago_web/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
 volumes:
   trago_mongo:

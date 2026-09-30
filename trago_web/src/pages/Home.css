@@ -8,16 +8,6 @@
   padding-top: 0.15rem;
 }
 
-.home-brand {
-  display: block;
-  width: min(42vw, 11.5rem);
-  height: auto;
-  margin: 0.15rem 0 0.85rem;
-  border-radius: 1rem;
-  background: #000;
-  box-shadow: 0 10px 28px rgba(59, 11, 19, 0.18);
-}
-
 .home-hello {
   margin: 0;
   font-size: 0.85rem;
