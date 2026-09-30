@@ -1,9 +1,6 @@
-import dotenv from 'dotenv';
 import serverless from 'serverless-http';
 import { createApp } from '../../server/src/app.js';
 import { connectDB } from '../../server/src/db/connect.js';
-
-dotenv.config({ path: new URL('../../server/.env', import.meta.url).pathname });
 
 const app = createApp();
 const awsHandler = serverless(app);

@@ -17,12 +17,19 @@ upsert() {
     "https://api.netlify.com/api/v1/accounts/$ACCOUNT/env/$KEY?site_id=$SITE" || true
   BODY=$(KEY="$KEY" VAL="$VAL" SECRET="$SECRET" python3 - <<'PY'
 import json, os
-print(json.dumps({
+secret = os.environ.get("SECRET") == "1"
+scopes = ["builds", "functions", "runtime"] if secret else ["builds", "functions", "runtime", "post_processing"]
+val = os.environ["VAL"]
+if secret:
+  values = [{"value": val, "context": c} for c in ("production", "deploy-preview", "branch-deploy", "dev")]
+else:
+  values = [{"value": val, "context": "all"}]
+print(json.dumps([{
   "key": os.environ["KEY"],
-  "scopes": ["builds", "functions", "runtime", "post_processing"],
-  "values": [{"value": os.environ["VAL"], "context": "all"}],
-  "is_secret": os.environ.get("SECRET") == "1",
-}))
+  "scopes": scopes,
+  "values": values,
+  "is_secret": secret,
+}]))
 PY
 )
   CODE=$(curl -sS -o /tmp/ntl_set.json -w "%{http_code}" -X POST \
