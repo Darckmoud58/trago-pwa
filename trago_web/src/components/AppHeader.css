@@ -2,10 +2,11 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: #3b0b13;
-  color: #f7e5b5;
+  background: var(--chrome);
+  color: var(--chrome-fg);
   padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid rgba(247, 229, 181, 0.12);
+  transition: background-color 0.45s ease;
 }
 
 .app-header-inner {

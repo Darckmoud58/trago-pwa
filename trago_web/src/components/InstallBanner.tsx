@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../lib/i18n';
 import {
   clearDeferredInstall,
+  getDeferredInstall,
   subscribeInstallPrompt,
   type BeforeInstallPromptEvent,
 } from '../lib/installPrompt';
 import './InstallBanner.css';
 
-const DISMISS_KEY = 'trago_install_dismissed_v8';
-const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 5;
+const DISMISS_KEY = 'trago_install_dismissed_v10';
+const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 3;
 
 type Kind = 'ios' | 'windows' | 'android' | 'desktop-chrome' | 'safari-mac' | 'other';
 
@@ -46,6 +47,22 @@ function wasDismissedRecently() {
   }
 }
 
+/** Limpia dismiss viejos del bug “Preparando…” para que vuelva a salir. */
+function clearLegacyDismiss() {
+  try {
+    [
+      'trago_install_dismissed_v4',
+      'trago_install_dismissed_v5',
+      'trago_install_dismissed_v6',
+      'trago_install_dismissed_v7',
+      'trago_install_dismissed_v8',
+      'trago_install_dismissed_v9',
+    ].forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* ignore */
+  }
+}
+
 function ShareIcon() {
   return (
     <svg className="install-share-ico" viewBox="0 0 24 24" aria-hidden>
@@ -60,23 +77,18 @@ function ShareIcon() {
 export default function InstallBanner() {
   const { t } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
-    null
+    () => (typeof window !== 'undefined' ? getDeferredInstall() : null)
   );
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [iosOpen, setIosOpen] = useState(false);
   const kind = typeof navigator !== 'undefined' ? detectKind() : 'other';
 
   useEffect(() => {
+    clearLegacyDismiss();
+
     const unsub = subscribeInstallPrompt((ev) => {
       setDeferred(ev);
-      // En Windows/Android/Chrome: solo mostramos cuando YA se puede instalar
-      if (
-        ev &&
-        !isStandalone() &&
-        !wasDismissedRecently() &&
-        (kind === 'windows' || kind === 'android' || kind === 'desktop-chrome')
-      ) {
+      if (ev && !isStandalone() && !wasDismissedRecently()) {
         setVisible(true);
       }
     });
@@ -84,49 +96,37 @@ export default function InstallBanner() {
     const onShow = () => {
       if (isStandalone()) return;
       setVisible(true);
-      if (kind === 'ios') setIosOpen(true);
     };
     window.addEventListener('trago-show-install', onShow);
 
-    // iOS / Safari Mac: sí mostramos guía (Apple no da API de instalar)
+    // Siempre mostrar (salvo ya instalada / dismiss reciente)
     const timer = window.setTimeout(() => {
-      if (isStandalone() || wasDismissedRecently()) return;
-      if (kind === 'ios' || kind === 'safari-mac') {
-        setVisible(true);
-        if (kind === 'ios') setIosOpen(true);
-      }
-      // Chromium: si aún no hay evento, igual mostramos tras espera larga
-      // pero el CTA principal solo instala si hay deferred
-      if (
-        (kind === 'windows' || kind === 'android' || kind === 'desktop-chrome') &&
-        !deferred
-      ) {
-        // si ya llegó deferred, subscribe lo mostró
+      if (!isStandalone() && !wasDismissedRecently()) {
         setVisible(true);
       }
-    }, kind === 'ios' ? 2800 : 5000);
+    }, 2200);
 
     return () => {
       unsub();
       window.removeEventListener('trago-show-install', onShow);
       window.clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
+  }, []);
 
   if (!visible || isStandalone()) return null;
 
   async function installApp() {
-    if (!deferred || busy) return false;
+    const ev = deferred || getDeferredInstall();
+    if (!ev || busy) return;
     setBusy(true);
     try {
-      await deferred.prompt();
-      const choice = await deferred.userChoice;
+      await ev.prompt();
+      const choice = await ev.userChoice;
       clearDeferredInstall();
+      setDeferred(null);
       if (choice.outcome === 'accepted') setVisible(false);
-      return choice.outcome === 'accepted';
     } catch {
-      return false;
+      /* ignore */
     } finally {
       setBusy(false);
     }
@@ -135,15 +135,18 @@ export default function InstallBanner() {
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
-    setIosOpen(false);
   }
 
   const canNative = Boolean(deferred);
 
-  // —— iOS: hoja dedicada “Agregar a inicio” ——
+  // iOS — agregar a inicio
   if (kind === 'ios') {
     return (
-      <div className="install-sheet install-sheet-ios" role="dialog" aria-label={t('installTitleIos')}>
+      <div
+        className="install-sheet install-sheet-ios is-expanded"
+        role="dialog"
+        aria-label={t('installTitleIos')}
+      >
         <div className="install-sheet-card">
           <div className="install-sheet-top">
             <img
@@ -158,67 +161,24 @@ export default function InstallBanner() {
               <p>{t('installTipIos')}</p>
             </div>
           </div>
-
-          {!iosOpen ? (
-            <div className="install-actions">
-              <button
-                type="button"
-                className="btn primary install-cta"
-                onClick={() => setIosOpen(true)}
-              >
-                {t('installAddHome')}
-              </button>
-              <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
-                {t('notNow')}
-              </button>
+          <div className="install-ios-panel">
+            <p className="install-ios-note">{t('installIosNeedSafari')}</p>
+            <div className="install-ios-share" aria-hidden>
+              <ShareIcon />
+              <span>{t('installStepShare')}</span>
             </div>
-          ) : (
-            <div className="install-ios-panel">
-              <p className="install-ios-note">{t('installIosNeedSafari')}</p>
-              <div className="install-ios-share" aria-hidden>
-                <ShareIcon />
-                <span>{t('installStepShare')}</span>
-              </div>
-              <ol className="install-steps">
-                <li>{t('installStepIos1')}</li>
-                <li>{t('installStepIos2')}</li>
-                <li>{t('installStepIos3')}</li>
-              </ol>
-              <div className="install-actions">
-                <button
-                  type="button"
-                  className="btn primary install-cta"
-                  onClick={dismiss}
-                >
-                  {t('understood')}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // —— Safari Mac ——
-  if (kind === 'safari-mac') {
-    return (
-      <div className="install-sheet is-expanded" role="dialog" aria-label={t('installTitleSafari')}>
-        <div className="install-sheet-card">
-          <div className="install-sheet-top">
-            <img className="install-logo" src="/icon-192-v2.png" width={48} height={48} alt="TraGo" />
-            <div className="install-copy">
-              <strong>{t('installTitleSafari')}</strong>
-              <p>{t('installTipSafari')}</p>
-            </div>
+            <ol className="install-steps">
+              <li>{t('installStepIos1')}</li>
+              <li>{t('installStepIos2')}</li>
+              <li>{t('installStepIos3')}</li>
+            </ol>
           </div>
-          <ol className="install-steps">
-            <li>{t('installStepSafari1')}</li>
-            <li>{t('installStepSafari2')}</li>
-            <li>{t('installStepSafari3')}</li>
-          </ol>
           <div className="install-actions">
-            <button type="button" className="btn primary install-cta" onClick={dismiss}>
+            <button
+              type="button"
+              className="btn primary install-cta"
+              onClick={dismiss}
+            >
               {t('understood')}
             </button>
             <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
@@ -230,12 +190,59 @@ export default function InstallBanner() {
     );
   }
 
-  // —— Windows / Android / Chrome: instalar nativo ——
+  if (kind === 'safari-mac') {
+    return (
+      <div
+        className="install-sheet is-expanded"
+        role="dialog"
+        aria-label={t('installTitleSafari')}
+      >
+        <div className="install-sheet-card">
+          <div className="install-sheet-top">
+            <img
+              className="install-logo"
+              src="/icon-192-v2.png"
+              width={48}
+              height={48}
+              alt="TraGo"
+            />
+            <div className="install-copy">
+              <strong>{t('installTitleSafari')}</strong>
+              <p>{t('installTipSafari')}</p>
+            </div>
+          </div>
+          <ol className="install-steps">
+            <li>{t('installStepSafari1')}</li>
+            <li>{t('installStepSafari2')}</li>
+            <li>{t('installStepSafari3')}</li>
+          </ol>
+          <div className="install-actions">
+            <button
+              type="button"
+              className="btn primary install-cta"
+              onClick={dismiss}
+            >
+              {t('understood')}
+            </button>
+            <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
+              {t('notNow')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Windows / Android / Chrome / Edge
   const title =
     kind === 'windows' ? t('installTitleWindows') : t('installTitle');
 
   return (
-    <div className="install-sheet" role="dialog" aria-label={title}>
+    <div
+      className={`install-sheet${canNative ? '' : ' is-expanded'}`}
+      role="dialog"
+      aria-label={title}
+    >
       <div className="install-sheet-card">
         <div className="install-sheet-top">
           <img
@@ -252,24 +259,46 @@ export default function InstallBanner() {
                 ? kind === 'windows'
                   ? t('installTipWindowsReady')
                   : t('installTipReady')
-                : t('installWaitingBrowser')}
+                : kind === 'windows'
+                  ? t('installTipWindows')
+                  : kind === 'android'
+                    ? t('installTipAndroid')
+                    : t('installTipOther')}
             </p>
           </div>
         </div>
 
+        {!canNative && (
+          <ol className="install-steps">
+            <li>
+              {kind === 'windows'
+                ? t('installTipWindows')
+                : kind === 'android'
+                  ? t('installTipAndroid')
+                  : t('installTipOther')}
+            </li>
+          </ol>
+        )}
+
         <div className="install-actions">
-          <button
-            type="button"
-            className="btn primary install-cta"
-            disabled={!canNative || busy}
-            onClick={() => void installApp()}
-          >
-            {busy
-              ? t('loading')
-              : canNative
-                ? t('installNow')
-                : t('installPreparing')}
-          </button>
+          {canNative ? (
+            <button
+              type="button"
+              className="btn primary install-cta"
+              disabled={busy}
+              onClick={() => void installApp()}
+            >
+              {busy ? t('loading') : t('installNow')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn primary install-cta"
+              onClick={dismiss}
+            >
+              {t('understood')}
+            </button>
+          )}
           <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
             {t('notNow')}
           </button>

@@ -3,7 +3,8 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--beige);
+  background: var(--bg);
+  transition: background-color 0.45s ease;
 }
 
 .app-main {

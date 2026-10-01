@@ -63,7 +63,8 @@ export default defineConfig({
         globIgnores: ['**/pageload-*.mp4', '**/*.mp4'],
       },
       devOptions: {
-        enabled: false,
+        enabled: true,
+        type: 'module',
       },
     }),
   ],

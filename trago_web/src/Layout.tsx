@@ -5,10 +5,12 @@ import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
+import { useNightTheme } from './hooks/useNightTheme';
 import './Layout.css';
 
 export default function Layout() {
   const { pathname } = useLocation();
+  const night = useNightTheme();
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -35,7 +37,9 @@ export default function Layout() {
   const hideHeader = isHome || isAuth;
 
   return (
-    <div className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}`}>
+    <div
+      className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}${night ? ' is-night' : ''}`}
+    >
       <PageLoadOverlay />
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}

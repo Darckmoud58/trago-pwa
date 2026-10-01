@@ -118,6 +118,8 @@ export default function Cuenta() {
               className="settings-row"
               onClick={() => {
                 try {
+                  localStorage.removeItem('trago_install_dismissed_v10');
+                  localStorage.removeItem('trago_install_dismissed_v9');
                   localStorage.removeItem('trago_install_dismissed_v8');
                   localStorage.removeItem('trago_install_dismissed_v7');
                   localStorage.removeItem('trago_install_dismissed_v6');
