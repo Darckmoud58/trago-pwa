@@ -8,8 +8,8 @@ import {
 } from '../lib/installPrompt';
 import './InstallBanner.css';
 
-const DISMISS_KEY = 'trago_install_dismissed_v10';
-const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 3;
+const DISMISS_KEY = 'trago_install_dismissed_v11';
+const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 2;
 
 type Kind = 'ios' | 'windows' | 'android' | 'desktop-chrome' | 'safari-mac' | 'other';
 
@@ -26,11 +26,9 @@ function detectKind(): Kind {
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
   if (/android/i.test(ua)) return 'android';
   if (/windows|win64|win32|wow64/i.test(ua)) return 'windows';
-
   const safari =
     /safari/i.test(ua) && !/chrome|crios|fxios|edg|opr|android/i.test(ua);
   if (safari && /macintosh|mac os x/i.test(ua)) return 'safari-mac';
-
   if (/chrome|edg|chromium|opr/i.test(ua)) return 'desktop-chrome';
   return 'other';
 }
@@ -47,17 +45,11 @@ function wasDismissedRecently() {
   }
 }
 
-/** Limpia dismiss viejos del bug “Preparando…” para que vuelva a salir. */
 function clearLegacyDismiss() {
   try {
-    [
-      'trago_install_dismissed_v4',
-      'trago_install_dismissed_v5',
-      'trago_install_dismissed_v6',
-      'trago_install_dismissed_v7',
-      'trago_install_dismissed_v8',
-      'trago_install_dismissed_v9',
-    ].forEach((k) => localStorage.removeItem(k));
+    for (let v = 4; v <= 10; v++) {
+      localStorage.removeItem(`trago_install_dismissed_v${v}`);
+    }
   } catch {
     /* ignore */
   }
@@ -74,6 +66,16 @@ function ShareIcon() {
   );
 }
 
+async function waitForDeferred(ms = 2500): Promise<BeforeInstallPromptEvent | null> {
+  const start = Date.now();
+  while (Date.now() - start < ms) {
+    const ev = getDeferredInstall();
+    if (ev) return ev;
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return getDeferredInstall();
+}
+
 export default function InstallBanner() {
   const { t } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
@@ -81,6 +83,7 @@ export default function InstallBanner() {
   );
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [manualHint, setManualHint] = useState(false);
   const kind = typeof navigator !== 'undefined' ? detectKind() : 'other';
 
   useEffect(() => {
@@ -88,23 +91,17 @@ export default function InstallBanner() {
 
     const unsub = subscribeInstallPrompt((ev) => {
       setDeferred(ev);
-      if (ev && !isStandalone() && !wasDismissedRecently()) {
-        setVisible(true);
-      }
+      if (ev && !isStandalone() && !wasDismissedRecently()) setVisible(true);
     });
 
     const onShow = () => {
-      if (isStandalone()) return;
-      setVisible(true);
+      if (!isStandalone()) setVisible(true);
     };
     window.addEventListener('trago-show-install', onShow);
 
-    // Siempre mostrar (salvo ya instalada / dismiss reciente)
     const timer = window.setTimeout(() => {
-      if (!isStandalone() && !wasDismissedRecently()) {
-        setVisible(true);
-      }
-    }, 2200);
+      if (!isStandalone() && !wasDismissedRecently()) setVisible(true);
+    }, 1800);
 
     return () => {
       unsub();
@@ -115,31 +112,60 @@ export default function InstallBanner() {
 
   if (!visible || isStandalone()) return null;
 
-  async function installApp() {
-    const ev = deferred || getDeferredInstall();
-    if (!ev || busy) return;
-    setBusy(true);
-    try {
-      await ev.prompt();
-      const choice = await ev.userChoice;
-      clearDeferredInstall();
-      setDeferred(null);
-      if (choice.outcome === 'accepted') setVisible(false);
-    } catch {
-      /* ignore */
-    } finally {
-      setBusy(false);
-    }
-  }
-
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, String(Date.now()));
     setVisible(false);
   }
 
-  const canNative = Boolean(deferred);
+  /** Windows / Android / Chrome: instalar nativo desde ESTE botón. */
+  async function onInstallClick() {
+    if (busy) return;
+    setBusy(true);
+    setManualHint(false);
+    try {
+      let ev = deferred || getDeferredInstall();
+      if (!ev) ev = await waitForDeferred(2800);
+      if (ev) {
+        setDeferred(ev);
+        await ev.prompt();
+        const choice = await ev.userChoice;
+        clearDeferredInstall();
+        setDeferred(null);
+        if (choice.outcome === 'accepted') setVisible(false);
+        return;
+      }
+      // Navegador no dio el evento: mostrar pasos en el mismo banner
+      setManualHint(true);
+    } catch {
+      setManualHint(true);
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  // iOS — agregar a inicio
+  /**
+   * iOS: abre el sheet de Compartir de Safari desde este botón.
+   * Ahí el usuario elige “Añadir a pantalla de inicio”.
+   */
+  async function onAddHomeClick() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({
+          title: 'TraGo',
+          text: t('installTitleIos'),
+          url: window.location.origin + '/',
+        });
+      }
+    } catch {
+      /* canceló o no disponible: los pasos ya están visibles */
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ——— iOS ———
   if (kind === 'ios') {
     return (
       <div
@@ -177,9 +203,10 @@ export default function InstallBanner() {
             <button
               type="button"
               className="btn primary install-cta"
-              onClick={dismiss}
+              disabled={busy}
+              onClick={() => void onAddHomeClick()}
             >
-              {t('understood')}
+              {busy ? t('loading') : t('installAddHome')}
             </button>
             <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
               {t('notNow')}
@@ -190,6 +217,7 @@ export default function InstallBanner() {
     );
   }
 
+  // ——— Safari Mac ———
   if (kind === 'safari-mac') {
     return (
       <div
@@ -220,9 +248,10 @@ export default function InstallBanner() {
             <button
               type="button"
               className="btn primary install-cta"
-              onClick={dismiss}
+              disabled={busy}
+              onClick={() => void onAddHomeClick()}
             >
-              {t('understood')}
+              {busy ? t('loading') : t('installAddHome')}
             </button>
             <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
               {t('notNow')}
@@ -233,13 +262,21 @@ export default function InstallBanner() {
     );
   }
 
-  // Windows / Android / Chrome / Edge
+  // ——— Windows / Android / Chrome / Edge ———
   const title =
     kind === 'windows' ? t('installTitleWindows') : t('installTitle');
+  const readyTip =
+    kind === 'windows' ? t('installTipWindowsReady') : t('installTipReady');
+  const fallbackTip =
+    kind === 'windows'
+      ? t('installTipWindows')
+      : kind === 'android'
+        ? t('installTipAndroid')
+        : t('installTipOther');
 
   return (
     <div
-      className={`install-sheet${canNative ? '' : ' is-expanded'}`}
+      className={`install-sheet${manualHint && !deferred ? ' is-expanded' : ''}`}
       role="dialog"
       aria-label={title}
     >
@@ -254,51 +291,25 @@ export default function InstallBanner() {
           />
           <div className="install-copy">
             <strong>{title}</strong>
-            <p>
-              {canNative
-                ? kind === 'windows'
-                  ? t('installTipWindowsReady')
-                  : t('installTipReady')
-                : kind === 'windows'
-                  ? t('installTipWindows')
-                  : kind === 'android'
-                    ? t('installTipAndroid')
-                    : t('installTipOther')}
-            </p>
+            <p>{deferred || !manualHint ? readyTip : fallbackTip}</p>
           </div>
         </div>
 
-        {!canNative && (
+        {manualHint && !deferred && (
           <ol className="install-steps">
-            <li>
-              {kind === 'windows'
-                ? t('installTipWindows')
-                : kind === 'android'
-                  ? t('installTipAndroid')
-                  : t('installTipOther')}
-            </li>
+            <li>{fallbackTip}</li>
           </ol>
         )}
 
         <div className="install-actions">
-          {canNative ? (
-            <button
-              type="button"
-              className="btn primary install-cta"
-              disabled={busy}
-              onClick={() => void installApp()}
-            >
-              {busy ? t('loading') : t('installNow')}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn primary install-cta"
-              onClick={dismiss}
-            >
-              {t('understood')}
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn primary install-cta"
+            disabled={busy}
+            onClick={() => void onInstallClick()}
+          >
+            {busy ? t('loading') : t('installNow')}
+          </button>
           <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
             {t('notNow')}
           </button>

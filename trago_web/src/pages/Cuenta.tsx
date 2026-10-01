@@ -113,27 +113,10 @@ export default function Cuenta() {
                 {langLabel} ›
               </em>
             </Link>
-            <button
-              type="button"
-              className="settings-row"
-              onClick={() => {
-                try {
-                  localStorage.removeItem('trago_install_dismissed_v10');
-                  localStorage.removeItem('trago_install_dismissed_v9');
-                  localStorage.removeItem('trago_install_dismissed_v8');
-                  localStorage.removeItem('trago_install_dismissed_v7');
-                  localStorage.removeItem('trago_install_dismissed_v6');
-                  localStorage.removeItem('trago_install_dismissed_v5');
-                  localStorage.removeItem('trago_install_dismissed_v4');
-                } catch {
-                  /* ignore */
-                }
-                window.dispatchEvent(new Event('trago-show-install'));
-              }}
-            >
+            <Link className="settings-row" to="/instalar">
               <span>{t('installTitle')}</span>
               <em>›</em>
-            </button>
+            </Link>
             <Link className="settings-row" to="/favoritos">
               <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>

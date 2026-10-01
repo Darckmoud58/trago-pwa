@@ -15,6 +15,7 @@ import Negocios from './pages/Negocios';
 import Favoritos from './pages/Favoritos';
 import Cuenta from './pages/Cuenta';
 import Idioma from './pages/Idioma';
+import Instalar from './pages/Instalar';
 import Terminos from './pages/Terminos';
 import AvisoPrivacidad from './pages/AvisoPrivacidad';
 
@@ -36,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/favoritos" element={<Favoritos />} />
             <Route path="/cuenta" element={<Cuenta />} />
             <Route path="/idioma" element={<Idioma />} />
+            <Route path="/instalar" element={<Instalar />} />
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/aviso-de-privacidad" element={<AvisoPrivacidad />} />
             <Route path="*" element={<Navigate to="/" replace />} />

@@ -14,6 +14,7 @@ const TITLE_KEYS: { match: RegExp; titleKey: MessageKey | ''; showBack?: boolean
     { match: /^\/registro/, titleKey: 'titleRegister' },
     { match: /^\/negocios/, titleKey: 'titleBusinesses' },
     { match: /^\/idioma/, titleKey: 'titleLanguage', showBack: true },
+    { match: /^\/instalar/, titleKey: 'installTitle', showBack: true },
     { match: /^\/terminos/, titleKey: 'titleTerms', showBack: true },
     { match: /^\/aviso-de-privacidad/, titleKey: 'titlePrivacy', showBack: true },
   ];
