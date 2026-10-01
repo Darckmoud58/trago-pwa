@@ -21,6 +21,7 @@ export default defineConfig({
         'icon-512-v2.png',
       ],
       manifest: {
+        id: '/',
         name: 'TraGo',
         short_name: 'TraGo',
         description:
@@ -28,6 +29,7 @@ export default defineConfig({
         theme_color: '#3B0B13',
         background_color: '#3B0B13',
         display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
         orientation: 'portrait-primary',
         lang: 'es-MX',
         start_url: '/',

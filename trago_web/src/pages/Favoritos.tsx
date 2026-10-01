@@ -5,9 +5,11 @@ import {
   removeFavorite,
   type FavoritePlace,
 } from '../lib/favorites';
+import { useI18n } from '../lib/i18n';
 import './Favoritos.css';
 
 export default function Favoritos() {
+  const { t } = useI18n();
   const [items, setItems] = useState<FavoritePlace[]>([]);
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -37,18 +39,18 @@ export default function Favoritos() {
   return (
     <section className="favs-page">
       <p className={`status-pill ${online ? 'on' : 'off'}`}>
-        {online ? 'En línea' : 'Sin conexión · caché local'}
+        {online ? t('online') : t('offlineCache')}
       </p>
 
       {items.length === 0 ? (
         <div className="empty-state">
-          <p>Aún no tienes favoritos.</p>
+          <p>{t('favEmpty')}</p>
           <p className="muted">
-            En <Link to="/cerca">Cerca</Link> toca el corazón para guardar un
-            lugar offline.
+            {t('favEmptyHint')}{' '}
+            <Link to="/cerca">{t('navNear')}</Link>.
           </p>
           <Link className="btn primary" to="/cerca">
-            Buscar cerca
+            {t('favSearchNear')}
           </Link>
         </div>
       ) : (
@@ -57,7 +59,7 @@ export default function Favoritos() {
             <li key={f.id} className="promo-card fav-card">
               <div className="fav-card-body">
                 <p className="label">
-                  {f.type === 'empresa' ? 'Negocio' : 'Sucursal'}
+                  {f.type === 'empresa' ? t('typeBusiness') : t('typeBranch')}
                 </p>
                 <h3>{f.nombre}</h3>
                 {f.subtitulo && <p>{f.subtitulo}</p>}
@@ -73,9 +75,9 @@ export default function Favoritos() {
                 type="button"
                 className="btn ghost fav-remove"
                 onClick={() => void onRemove(f.id)}
-                aria-label={`Quitar ${f.nombre} de favoritos`}
+                aria-label={t('favRemoveAria', { name: f.nombre })}
               >
-                Quitar
+                {t('favRemove')}
               </button>
             </li>
           ))}

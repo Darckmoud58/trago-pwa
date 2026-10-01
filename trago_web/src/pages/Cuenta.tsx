@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
 import { listFavorites } from '../lib/favorites';
+import { useI18n } from '../lib/i18n';
 import type { AuthUser } from '../types';
 import './Cuenta.css';
 
@@ -14,6 +15,7 @@ function initials(name: string) {
 
 export default function Cuenta() {
   const navigate = useNavigate();
+  const { t, locale } = useI18n();
   const [token] = useState(() => localStorage.getItem('token'));
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState('');
@@ -37,9 +39,9 @@ export default function Cuenta() {
         localStorage.removeItem('token');
         localStorage.removeItem('trago_band');
         setAuth(null);
-        setError('Sesión inválida. Vuelve a entrar.');
+        setError(t('sessionInvalid'));
       });
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     void listFavorites().then((items) => setFavCount(items.length));
@@ -77,15 +79,16 @@ export default function Cuenta() {
   const points = user?.puntos ?? user?.points ?? 0;
   const bandLabel =
     band === 'adult' ? '18+' : band === 'teen' ? '13–17' : String(band);
+  const langLabel = locale === 'en' ? 'English' : 'Español';
 
   return (
     <section className="cuenta-app">
       <p className={`status-pill ${online ? 'on' : 'off'}`}>
-        {online ? 'En línea' : 'Sin conexión'}
+        {online ? t('online') : t('offline')}
       </p>
 
       {error && <p className="error">{error}</p>}
-      {!user && !error && <p className="muted">Cargando…</p>}
+      {!user && !error && <p className="muted">{t('loading')}</p>}
 
       {user && (
         <>
@@ -103,41 +106,64 @@ export default function Cuenta() {
             </div>
           </article>
 
-          <nav className="settings-list" aria-label="Ajustes">
+          <nav className="settings-list" aria-label={t('settingsAria')}>
+            <Link className="settings-row" to="/idioma">
+              <span>{t('settingsLanguage')}</span>
+              <em>
+                {langLabel} ›
+              </em>
+            </Link>
+            <button
+              type="button"
+              className="settings-row"
+              onClick={() => {
+                try {
+                  localStorage.removeItem('trago_install_dismissed_v8');
+                  localStorage.removeItem('trago_install_dismissed_v7');
+                  localStorage.removeItem('trago_install_dismissed_v6');
+                  localStorage.removeItem('trago_install_dismissed_v5');
+                  localStorage.removeItem('trago_install_dismissed_v4');
+                } catch {
+                  /* ignore */
+                }
+                window.dispatchEvent(new Event('trago-show-install'));
+              }}
+            >
+              <span>{t('installTitle')}</span>
+              <em>›</em>
+            </button>
             <Link className="settings-row" to="/favoritos">
-              <span>Favoritos</span>
+              <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>
             </Link>
             <Link className="settings-row" to="/promos">
-              <span>Promociones</span>
+              <span>{t('settingsPromos')}</span>
               <em>›</em>
             </Link>
             <Link className="settings-row" to="/cerca">
-              <span>Cerca de ti</span>
+              <span>{t('settingsNear')}</span>
               <em>›</em>
             </Link>
             <div className="settings-row is-static">
-              <span>Notificaciones</span>
-              <em className="soon">Próximamente</em>
+              <span>{t('settingsNotif')}</span>
+              <em className="soon">{t('settingsSoon')}</em>
             </div>
             <Link className="settings-row" to="/aviso-de-privacidad">
-              <span>Privacidad</span>
+              <span>{t('settingsPrivacy')}</span>
               <em>›</em>
             </Link>
             <Link className="settings-row" to="/terminos">
-              <span>Términos</span>
+              <span>{t('settingsTerms')}</span>
               <em>›</em>
             </Link>
           </nav>
 
           {band === 'teen' && (
-            <aside className="cuenta-note">
-              Perfil 13–17: ocultamos alcohol y nocturno.
-            </aside>
+            <aside className="cuenta-note">{t('teenNote')}</aside>
           )}
 
           <button type="button" className="btn ghost logout-btn" onClick={logout}>
-            Cerrar sesión
+            {t('logout')}
           </button>
         </>
       )}

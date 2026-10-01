@@ -1,19 +1,22 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useI18n, type MessageKey } from '../lib/i18n';
 import './AppHeader.css';
 
-const TITLES: { match: RegExp; title: string; showBack?: boolean }[] = [
-  { match: /^\/$/, title: '' },
-  { match: /^\/promos\/[^/]+$/, title: 'Detalle', showBack: true },
-  { match: /^\/promos/, title: 'Promociones' },
-  { match: /^\/cerca/, title: 'Cerca de ti' },
-  { match: /^\/favoritos/, title: 'Favoritos' },
-  { match: /^\/cuenta/, title: 'Mi cuenta' },
-  { match: /^\/entrar/, title: 'Entrar' },
-  { match: /^\/registro/, title: 'Registro' },
-  { match: /^\/negocios/, title: 'Negocios' },
-  { match: /^\/terminos/, title: 'Términos', showBack: true },
-  { match: /^\/aviso-de-privacidad/, title: 'Privacidad', showBack: true },
-];
+const TITLE_KEYS: { match: RegExp; titleKey: MessageKey | ''; showBack?: boolean }[] =
+  [
+    { match: /^\/$/, titleKey: '' },
+    { match: /^\/promos\/[^/]+$/, titleKey: 'titleDetail', showBack: true },
+    { match: /^\/promos/, titleKey: 'titlePromos' },
+    { match: /^\/cerca/, titleKey: 'titleNear' },
+    { match: /^\/favoritos/, titleKey: 'titleFavorites' },
+    { match: /^\/cuenta/, titleKey: 'titleAccount' },
+    { match: /^\/entrar/, titleKey: 'titleLogin' },
+    { match: /^\/registro/, titleKey: 'titleRegister' },
+    { match: /^\/negocios/, titleKey: 'titleBusinesses' },
+    { match: /^\/idioma/, titleKey: 'titleLanguage', showBack: true },
+    { match: /^\/terminos/, titleKey: 'titleTerms', showBack: true },
+    { match: /^\/aviso-de-privacidad/, titleKey: 'titlePrivacy', showBack: true },
+  ];
 
 type Props = {
   online: boolean;
@@ -23,11 +26,13 @@ type Props = {
 export default function AppHeader({ online, subtitle }: Props) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const conf =
-    TITLES.find((t) => t.match.test(pathname)) ?? {
-      title: '',
+    TITLE_KEYS.find((row) => row.match.test(pathname)) ?? {
+      titleKey: '' as const,
       showBack: false,
     };
+  const title = conf.titleKey ? t(conf.titleKey) : '';
   const isHome = pathname === '/';
 
   return (
@@ -38,7 +43,7 @@ export default function AppHeader({ online, subtitle }: Props) {
             type="button"
             className="app-header-back"
             onClick={() => navigate(-1)}
-            aria-label="Volver"
+            aria-label={t('back')}
           >
             ‹
           </button>
@@ -47,15 +52,13 @@ export default function AppHeader({ online, subtitle }: Props) {
         )}
 
         <div className="app-header-titles">
-          {conf.title ? (
-            <h1 className="app-header-title">{conf.title}</h1>
-          ) : null}
+          {title ? <h1 className="app-header-title">{title}</h1> : null}
           {subtitle && <p className="app-header-sub">{subtitle}</p>}
         </div>
 
         <span
           className={`app-header-conn ${online ? 'is-on' : 'is-off'}`}
-          title={online ? 'En línea' : 'Sin conexión'}
+          title={online ? t('online') : t('offline')}
           aria-live="polite"
         >
           {online ? '' : 'Offline'}

@@ -4,23 +4,29 @@
   z-index: 9999;
   display: grid;
   place-items: center;
-  /* Mismo blanco del video: sin caja negra alrededor */
   background: #fff;
-  cursor: pointer;
+  cursor: default;
   opacity: 1;
   transition: opacity 0.32s ease;
   -webkit-tap-highlight-color: transparent;
+  pointer-events: none;
 }
 
 .pageload.is-exit {
   opacity: 0;
-  pointer-events: none;
+}
+
+.pageload-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .pageload-video {
   width: min(92vw, 520px);
   height: auto;
-  max-height: 78dvh;
+  max-height: 72dvh;
   aspect-ratio: 1;
   object-fit: contain;
   background: transparent;
@@ -29,22 +35,34 @@
   box-shadow: none;
 }
 
-.pageload-skip {
-  position: absolute;
-  bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
-  left: 0;
-  right: 0;
+.pageload-status {
   margin: 0;
-  text-align: center;
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.55rem, 5.5vw, 2.15rem);
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(59, 11, 19, 0.45);
-  pointer-events: none;
+  color: #3b0b13;
+  animation: pageload-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pageload-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pageload-video {
     display: none;
+  }
+
+  .pageload-status {
+    animation: none;
+    opacity: 0.85;
   }
 }

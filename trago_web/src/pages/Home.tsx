@@ -7,25 +7,27 @@ import {
   cacheSet,
   filterActivePromos,
 } from '../lib/offlineCache';
+import { useI18n } from '../lib/i18n';
 import type { Promo } from '../types';
 import './Home.css';
 
 const AGE_KEY = 'trago_age_ack';
 
-const CATEGORIES = [
-  { id: 'todas', label: 'Todas', to: '/promos' },
-  { id: 'comida', label: 'Comida', to: '/promos?f=comida' },
-  { id: 'cumple', label: 'Cumple', to: '/promos?f=cumple' },
-  { id: 'cafe', label: 'Café', to: '/promos?f=cafe' },
-  { id: 'alcohol', label: '18+', to: '/promos?f=alcohol' },
-];
-
 export default function Home() {
+  const { t, locale } = useI18n();
   const [showAge, setShowAge] = useState(false);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [fromCache, setFromCache] = useState(false);
   const [promosError, setPromosError] = useState(false);
   const token = localStorage.getItem('token');
+
+  const categories = [
+    { id: 'todas', label: t('catAll'), to: '/promos' },
+    { id: 'comida', label: t('catFood'), to: '/promos?f=comida' },
+    { id: 'cumple', label: t('catBday'), to: '/promos?f=cumple' },
+    { id: 'cafe', label: t('catCafe'), to: '/promos?f=cafe' },
+    { id: 'alcohol', label: t('catAlcohol'), to: '/promos?f=alcohol' },
+  ];
 
   useEffect(() => {
     if (!localStorage.getItem(AGE_KEY)) setShowAge(true);
@@ -73,34 +75,37 @@ export default function Home() {
   return (
     <div className="home-app">
       {showAge && (
-        <div className="age-sheet" role="dialog" aria-label="Aviso de edad">
+        <div className="age-sheet" role="dialog" aria-label={t('ageDialog')}>
           <p>
-            Hay promos con <strong>alcohol solo 18+</strong>. Al continuar
-            aceptas los <Link to="/terminos">términos</Link> y el{' '}
-            <Link to="/aviso-de-privacidad">aviso de privacidad</Link>.
+            {t('ageBody')}{' '}
+            <Link to="/terminos">{t('ageTerms')}</Link> ·{' '}
+            <Link to="/aviso-de-privacidad">{t('agePrivacy')}</Link>.
           </p>
           <button type="button" className="btn primary" onClick={ackAge}>
-            Entendido
+            {t('understood')}
           </button>
         </div>
       )}
 
       <section className="home-greet rise">
-        <p className="home-hello">Hola{token ? '' : ' 👋'}</p>
-        <h2 className="home-headline">¿Qué se te antoja hoy?</h2>
-        <div className="quick-actions" aria-label="Acciones rápidas">
+        <p className="home-hello">
+          {t('hello')}
+          {token ? '' : ' 👋'}
+        </p>
+        <h2 className="home-headline">{t('homeHeadline')}</h2>
+        <div className="quick-actions" aria-label={t('navAria')}>
           <Link className="quick-chip primary" to="/cerca">
-            ⌖ Cerca de mí
+            ⌖ {t('quickNear')}
           </Link>
           <Link className="quick-chip" to="/promos">
-            ★ Promos
+            ★ {t('quickPromos')}
           </Link>
           <Link className="quick-chip" to="/favoritos">
-            ♥ Favoritos
+            ♥ {t('quickFavorites')}
           </Link>
           {!token && (
             <Link className="quick-chip" to="/entrar">
-              Entrar
+              {t('quickLogin')}
             </Link>
           )}
         </div>
@@ -108,10 +113,10 @@ export default function Home() {
 
       <section className="home-block">
         <div className="block-head">
-          <h3>Categorías</h3>
+          <h3>{t('categories')}</h3>
         </div>
         <div className="cat-scroll" role="list">
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <Link key={c.id} className="cat-chip" to={c.to} role="listitem">
               {c.label}
             </Link>
@@ -121,21 +126,15 @@ export default function Home() {
 
       <section className="home-block">
         <div className="block-head">
-          <h3>Destacadas</h3>
+          <h3>{t('featured')}</h3>
           <Link className="text-link" to="/promos">
-            Ver todas
+            {t('seeAll')}
           </Link>
         </div>
-        {fromCache && (
-          <p className="cache-hint">Mostrando última consulta guardada</p>
-        )}
-        {promosError && (
-          <p className="muted">
-            Sin conexión a la API. Revisa favoritos o vuelve más tarde.
-          </p>
-        )}
+        {fromCache && <p className="cache-hint">{t('cacheHint')}</p>}
+        {promosError && <p className="muted">{t('apiOffline')}</p>}
         {!promosError && promos.length === 0 && (
-          <p className="muted">Cargando…</p>
+          <p className="muted">{t('loading')}</p>
         )}
         <div className="feed-list">
           {promos.map((p, i) => (
@@ -160,14 +159,16 @@ export default function Home() {
                   (p.chainName || 'TG').slice(0, 2).toUpperCase()}
               </div>
               <div className="feed-body">
-                <p className="feed-chain">{p.chainName || 'Cadena'}</p>
+                <p className="feed-chain">
+                  {p.chainName || t('chainFallback')}
+                </p>
                 <h4>{p.nombre || p.title}</h4>
                 <p className="meta">
                   {p.alcohol ? '18+ · ' : ''}
                   {(p.termina_en || p.endsAt) &&
-                    `hasta ${new Date(
+                    `${t('until')} ${new Date(
                       p.termina_en || p.endsAt!
-                    ).toLocaleDateString()}`}
+                    ).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-MX')}`}
                 </p>
               </div>
             </Link>
@@ -176,13 +177,11 @@ export default function Home() {
       </section>
 
       <section className="home-cta-card">
-        <p className="label">GPS</p>
-        <h3>Qué hay a tu alrededor</h3>
-        <p className="meta">
-          Sucursales reales en GDL y Zapopan. Guárdalas para verlas offline.
-        </p>
+        <p className="label">{t('gpsLabel')}</p>
+        <h3>{t('aroundTitle')}</h3>
+        <p className="meta">{t('aroundBody')}</p>
         <Link className="btn primary" to="/cerca">
-          Abrir cerca
+          {t('openNear')}
         </Link>
       </section>
     </div>

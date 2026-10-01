@@ -7,6 +7,7 @@ import {
   cacheSet,
   filterActivePromos,
 } from '../lib/offlineCache';
+import { useI18n } from '../lib/i18n';
 import type { Promo } from '../types';
 import './Promos.css';
 
@@ -64,6 +65,7 @@ function daysLeft(iso?: string) {
 }
 
 export default function Promos() {
+  const { t, locale } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
@@ -99,9 +101,7 @@ export default function Promos() {
           setFromCache(true);
           setError('');
         } else {
-          setError(
-            'No se pudieron cargar las promos. Revisa tu conexión o vuelve más tarde.'
-          );
+          setError(t('promosLoadError'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -111,7 +111,7 @@ export default function Promos() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   function applyFilter(next: FilterId) {
     setFilter(next);
@@ -164,36 +164,41 @@ export default function Promos() {
   }, [ageSafe, filter, query]);
 
   const filters: { id: FilterId; label: string; hideForTeen?: boolean }[] = [
-    { id: 'todas', label: 'Todas' },
-    { id: 'destacadas', label: 'Destacadas' },
-    { id: 'comida', label: 'Comida' },
-    { id: 'cafe', label: 'Café' },
-    { id: 'cumple', label: 'Cumpleaños' },
-    { id: 'nocturno', label: 'Nocturno', hideForTeen: true },
-    { id: 'alcohol', label: '18+', hideForTeen: true },
+    { id: 'todas', label: t('filterAll') },
+    { id: 'destacadas', label: t('filterFeatured') },
+    { id: 'comida', label: t('filterFood') },
+    { id: 'cafe', label: t('filterCafe') },
+    { id: 'cumple', label: t('filterBday') },
+    { id: 'nocturno', label: t('filterNight'), hideForTeen: true },
+    { id: 'alcohol', label: t('filterAlcohol'), hideForTeen: true },
   ];
+
+  const countLabel =
+    visible.length === 1
+      ? t('promoCount', { n: visible.length })
+      : t('promoCountPlural', { n: visible.length });
 
   return (
     <section className="promos-page">
       {isTeen && (
         <aside className="promos-note">
-          Perfil 13–17: ocultamos alcohol y nocturno
+          {t('promosTeenNote')}
           {hiddenCount > 0 ? ` (${hiddenCount})` : ''}.
         </aside>
       )}
 
       <div className="promos-toolbar">
         <label className="promos-search">
-          <span className="sr-only">Buscar</span>
+          <span className="sr-only">{t('search')}</span>
           <input
             type="search"
-            placeholder="Buscar nombre o cadena…"
+            placeholder={t('searchPlaceholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             enterKeyHint="search"
           />
         </label>
-        <div className="promos-filters" role="tablist" aria-label="Filtros">
+        <div className="promos-filters" role="tablist" aria-label={t('filtersAria')}>
           {filters
             .filter((f) => !(isTeen && f.hideForTeen))
             .map((f) => (
@@ -213,17 +218,15 @@ export default function Promos() {
 
       <p className="promos-count meta">
         {loading
-          ? 'Cargando…'
-          : `${visible.length} promo${visible.length === 1 ? '' : 's'}${
-              fromCache ? ' · caché local' : ''
-            }`}
+          ? t('loading')
+          : `${countLabel}${fromCache ? t('localCache') : ''}`}
       </p>
 
       {error && <p className="error">{error}</p>}
 
       <div className="promo-grid promos-grid">
         {visible.map((p, i) => {
-          const title = p.nombre || p.title || 'Promoción';
+          const title = p.nombre || p.title || t('promoFallback');
           const desc = p.descripcion || p.subtitle;
           const end = p.termina_en || p.endsAt;
           const left = daysLeft(end);
@@ -248,9 +251,9 @@ export default function Promos() {
 
               <div className="promo-body">
                 <div className="promo-tags">
-                  <span className="tag">{p.chainName || 'Cadena'}</span>
+                  <span className="tag">{p.chainName || t('chainFallback')}</span>
                   {(p.featured || p.destacada) && (
-                    <span className="tag accent">Destacada</span>
+                    <span className="tag accent">{t('featuredTag')}</span>
                   )}
                   {p.alcohol && <span className="tag warn">18+</span>}
                 </div>
@@ -268,9 +271,12 @@ export default function Promos() {
                 <div className="promo-meta-row">
                   {end && (
                     <span className="meta">
-                      Hasta {new Date(end).toLocaleDateString()}
+                      {t('untilDate')}{' '}
+                      {new Date(end).toLocaleDateString(
+                        locale === 'en' ? 'en-US' : 'es-MX'
+                      )}
                       {left != null && left >= 0 ? ` · ${left}d` : ''}
-                      {left != null && left < 0 ? ' · caducada' : ''}
+                      {left != null && left < 0 ? t('expired') : ''}
                     </span>
                   )}
                 </div>
@@ -282,7 +288,7 @@ export default function Promos() {
 
       {!loading && !error && visible.length === 0 && (
         <div className="empty-state promos-empty">
-          <p>No hay promociones con ese filtro.</p>
+          <p>{t('promosEmpty')}</p>
           <button
             type="button"
             className="btn ghost"
@@ -291,7 +297,7 @@ export default function Promos() {
               setQuery('');
             }}
           >
-            Limpiar filtros
+            {t('clearFilters')}
           </button>
         </div>
       )}

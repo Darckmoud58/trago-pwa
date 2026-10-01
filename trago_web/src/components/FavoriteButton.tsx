@@ -4,12 +4,14 @@ import {
   toggleFavorite,
   type FavoritePlace,
 } from '../lib/favorites';
+import { useI18n } from '../lib/i18n';
 
 type Props = {
   place: Omit<FavoritePlace, 'savedAt'>;
 };
 
 export default function FavoriteButton({ place }: Props) {
+  const { t } = useI18n();
   const [active, setActive] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -43,8 +45,8 @@ export default function FavoriteButton({ place }: Props) {
       onClick={(e) => void onClick(e)}
       disabled={busy}
       aria-pressed={active}
-      aria-label={active ? 'Quitar de favoritos' : 'Guardar en favoritos'}
-      title={active ? 'En favoritos (offline)' : 'Guardar offline'}
+      aria-label={active ? t('favAdded') : t('favAdd')}
+      title={active ? t('favTitleOn') : t('favTitleOff')}
     >
       {active ? '♥' : '♡'}
     </button>

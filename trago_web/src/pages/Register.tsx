@@ -7,10 +7,12 @@ import {
   MIN_ACCOUNT_AGE,
   MIN_AGE,
 } from '../lib/age';
+import { useI18n } from '../lib/i18n';
 import './Legal.css';
 
 export default function Register() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,13 +28,13 @@ export default function Register() {
     setError('');
 
     if (!acceptTerms || !acceptPrivacy || !confirmAge) {
-      setError('Debes aceptar términos, aviso de privacidad y confirmar tu edad.');
+      setError(t('acceptTermsNeed'));
       return;
     }
 
     const years = ageFromBirthDate(new Date(birthDate));
     if (years < MIN_ACCOUNT_AGE) {
-      setError(`Debes tener al menos ${MIN_ACCOUNT_AGE} años para crear una cuenta.`);
+      setError(t('minAgeError', { n: MIN_ACCOUNT_AGE }));
       return;
     }
 
@@ -53,7 +55,7 @@ export default function Register() {
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Error al registrar';
+          ?.message || t('registerError');
       setError(msg);
     } finally {
       setLoading(false);
@@ -62,18 +64,17 @@ export default function Register() {
 
   return (
     <section className="auth">
-      <h1>Registro</h1>
+      <h1>{t('registerTitle')}</h1>
       <p className="lead">
-        Mínimo {MIN_ACCOUNT_AGE} años. Promos con alcohol y nocturno solo para{' '}
-        {MIN_AGE}+.
+        {t('registerLead', { minAccount: MIN_ACCOUNT_AGE, minAge: MIN_AGE })}
       </p>
       <form className="card-form" onSubmit={onSubmit}>
         <label>
-          Nombre
+          {t('name')}
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label>
-          Correo
+          {t('email')}
           <input
             type="email"
             value={email}
@@ -83,7 +84,7 @@ export default function Register() {
           />
         </label>
         <label>
-          Contraseña
+          {t('password')}
           <input
             type="password"
             value={password}
@@ -94,7 +95,7 @@ export default function Register() {
           />
         </label>
         <label>
-          Fecha de nacimiento
+          {t('birthDate')}
           <input
             type="date"
             value={birthDate}
@@ -112,9 +113,9 @@ export default function Register() {
               onChange={(e) => setAcceptTerms(e.target.checked)}
             />
             <span>
-              Acepto los{' '}
+              {t('acceptTerms')}{' '}
               <Link to="/terminos" target="_blank" rel="noreferrer">
-                Términos y condiciones
+                {t('termsLink')}
               </Link>
               .
             </span>
@@ -126,9 +127,9 @@ export default function Register() {
               onChange={(e) => setAcceptPrivacy(e.target.checked)}
             />
             <span>
-              Acepto el{' '}
+              {t('acceptPrivacy')}{' '}
               <Link to="/aviso-de-privacidad" target="_blank" rel="noreferrer">
-                Aviso de privacidad
+                {t('privacyLink')}
               </Link>{' '}
               (LFPDPPP).
             </span>
@@ -139,20 +140,20 @@ export default function Register() {
               checked={confirmAge}
               onChange={(e) => setConfirmAge(e.target.checked)}
             />
-            <span>
-              Confirmo que mi fecha de nacimiento es real. Sé que el contenido
-              con alcohol es solo para mayores de {MIN_AGE} años.
-            </span>
+            <span>{t('confirmAge', { n: MIN_AGE })}</span>
           </label>
         </div>
 
         <button className="btn primary" disabled={loading}>
-          {loading ? 'Creando…' : 'Crear cuenta'}
+          {loading ? t('creating') : t('createAccount')}
         </button>
         {error && <p className="error">{error}</p>}
       </form>
       <p className="muted">
-        ¿Ya tienes cuenta? <Link to="/entrar">Entrar</Link>
+        {t('hasAccount')} <Link to="/entrar">{t('loginSubmit')}</Link>
+      </p>
+      <p className="muted">
+        <Link to="/idioma">{t('languageLink')}</Link>
       </p>
     </section>
   );

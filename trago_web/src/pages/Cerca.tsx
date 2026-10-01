@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
+import { useI18n } from '../lib/i18n';
 import type { Branch } from '../types';
 import './Cerca.css';
 
 const GDL = { lng: -103.3496, lat: 20.6767 };
 
 export default function Cerca() {
+  const { t } = useI18n();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -20,7 +22,7 @@ export default function Cerca() {
       (cached) => {
         if (cached?.data?.branches?.length && branches.length === 0) {
           setBranches(cached.data.branches);
-          setNote(cached.data.note || 'Última búsqueda guardada');
+          setNote(cached.data.note || t('lastSearchSaved'));
           setFromCache(true);
         }
       }
@@ -46,13 +48,11 @@ export default function Cerca() {
       );
       if (cached?.data?.branches?.length) {
         setBranches(cached.data.branches);
-        setNote('Sin red · última búsqueda guardada');
+        setNote(t('offlineLastSearch'));
         setFromCache(true);
         setError('');
       } else {
-        setError(
-          'No pudimos buscar lugares. Revisa tu conexión o abre Favoritos.'
-        );
+        setError(t('nearError'));
         setBranches([]);
       }
     } finally {
@@ -62,7 +62,7 @@ export default function Cerca() {
 
   function useGps() {
     if (!navigator.geolocation) {
-      setError('Tu dispositivo no soporta geolocalización');
+      setError(t('noGeo'));
       return;
     }
     setLoading(true);
@@ -71,14 +71,9 @@ export default function Cerca() {
         void loadNear(
           pos.coords.longitude,
           pos.coords.latitude,
-          'Usando tu ubicación'
+          t('usingLocation')
         ),
-      () =>
-        void loadNear(
-          GDL.lng,
-          GDL.lat,
-          'Ubicación denegada · Centro Histórico GDL'
-        ),
+      () => void loadNear(GDL.lng, GDL.lat, t('locationDenied')),
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
@@ -86,31 +81,35 @@ export default function Cerca() {
   return (
     <section className="cerca-page">
       <div className="cerca-actions">
-        <button type="button" className="btn primary cerca-main-btn" onClick={useGps}>
-          Usar mi ubicación
+        <button
+          type="button"
+          className="btn primary cerca-main-btn"
+          onClick={useGps}
+        >
+          {t('useMyLocation')}
         </button>
         <button
           type="button"
           className="btn ghost"
-          onClick={() => void loadNear(GDL.lng, GDL.lat, 'Centro Histórico GDL')}
+          onClick={() => void loadNear(GDL.lng, GDL.lat, t('centerGdl'))}
         >
-          Demo Centro GDL
+          {t('demoCenter')}
         </button>
       </div>
 
       {(note || fromCache) && (
         <p className="cerca-note meta">
           {note}
-          {fromCache ? ' · caché' : ''}
+          {fromCache ? t('cacheTag') : ''}
         </p>
       )}
-      {loading && <p className="muted">Buscando…</p>}
+      {loading && <p className="muted">{t('searching')}</p>}
       {error && <p className="error">{error}</p>}
 
       <ul className="branch-list cerca-list">
         {branches.map((b) => {
           const id = String(b._id);
-          const nombre = b.nombre || b.name || 'Sucursal';
+          const nombre = b.nombre || b.name || t('branchFallback');
           const km =
             typeof b.distanceMeters === 'number'
               ? (b.distanceMeters / 1000).toFixed(2)
@@ -119,7 +118,9 @@ export default function Cerca() {
             <li key={id} className="promo-card place-card cerca-card">
               <div className="place-card-top">
                 <div>
-                  <p className="label">{b.chainName || 'Negocio'}</p>
+                  <p className="label">
+                    {b.chainName || t('businessFallback')}
+                  </p>
                   <h3>{nombre}</h3>
                 </div>
                 <div className="cerca-card-right">
@@ -156,10 +157,10 @@ export default function Cerca() {
 
       {!loading && !error && branches.length === 0 && (
         <div className="empty-state">
-          <p>Toca “Usar mi ubicación” para ver qué hay cerca.</p>
+          <p>{t('nearEmpty')}</p>
           <p className="muted">
-            También puedes guardar lugares en{' '}
-            <Link to="/favoritos">Favoritos</Link> para verlos offline.
+            {t('nearEmptyHint')}{' '}
+            <Link to="/favoritos">{t('navFavorites')}</Link>.
           </p>
         </div>
       )}

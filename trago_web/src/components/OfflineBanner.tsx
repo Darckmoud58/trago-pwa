@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom';
+import { useI18n } from '../lib/i18n';
 import './OfflineBanner.css';
 
 export default function OfflineBanner() {
+  const { t } = useI18n();
   return (
     <div className="offline-banner" role="status" aria-live="polite">
-      <strong>Sin conexión</strong>
+      <strong>{t('offlineBannerTitle')}</strong>
       <span>
-        Puedes abrir favoritos y lo último guardado.{' '}
-        <Link to="/favoritos">Ir a favoritos</Link>
+        {t('offlineBannerBody')}{' '}
+        <Link to="/favoritos">{t('goFavorites')}</Link>
       </span>
     </div>
   );

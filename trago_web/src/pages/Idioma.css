@@ -1,0 +1,63 @@
+.idioma-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.idioma-hero h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  color: #3b0b13;
+}
+
+.idioma-hero p {
+  margin: 0;
+  color: var(--tinto-soft, rgba(59, 11, 19, 0.72));
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.idioma-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.idioma-option-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.idioma-flag {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.55rem;
+  background: rgba(59, 11, 19, 0.08);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #3b0b13;
+}
+
+.idioma-option.is-selected {
+  background: rgba(59, 11, 19, 0.06);
+}
+
+.idioma-option.is-selected .idioma-flag {
+  background: #3b0b13;
+  color: #fbf3de;
+}
+
+.idioma-option.is-selected em {
+  color: #3b0b13;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

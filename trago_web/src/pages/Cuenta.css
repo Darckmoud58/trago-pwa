@@ -295,6 +295,15 @@
   opacity: 0.85;
 }
 
+button.settings-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .logout-btn {
   width: 100%;
   min-height: 2.85rem;

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
+import { useI18n } from '../lib/i18n';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +24,7 @@ export default function Login() {
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'Error de login';
+          ?.message || t('loginError');
       setError(msg);
     } finally {
       setLoading(false);
@@ -31,14 +33,13 @@ export default function Login() {
 
   return (
     <section className="auth">
-      <h1>Entrar</h1>
+      <h1>{t('loginTitle')}</h1>
       <p className="lead">
-        Accede a tu cuenta TraGo. Demo:{' '}
-        <code>demo@trago.app</code> / <code>TraGo123!</code>
+        {t('loginLead')} <code>demo@trago.app</code> / <code>TraGo123!</code>
       </p>
       <form className="card-form" onSubmit={onSubmit}>
         <label>
-          Correo
+          {t('email')}
           <input
             type="email"
             value={email}
@@ -48,7 +49,7 @@ export default function Login() {
           />
         </label>
         <label>
-          Contraseña
+          {t('password')}
           <input
             type="password"
             value={password}
@@ -58,12 +59,15 @@ export default function Login() {
           />
         </label>
         <button className="btn primary" disabled={loading}>
-          {loading ? 'Entrando…' : 'Entrar'}
+          {loading ? t('loggingIn') : t('loginSubmit')}
         </button>
         {error && <p className="error">{error}</p>}
       </form>
       <p className="muted">
-        ¿Sin cuenta? <Link to="/registro">Regístrate</Link>
+        {t('noAccount')} <Link to="/registro">{t('registerLink')}</Link>
+      </p>
+      <p className="muted">
+        <Link to="/idioma">{t('languageLink')}</Link>
       </p>
     </section>
   );

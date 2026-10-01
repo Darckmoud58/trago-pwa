@@ -3,7 +3,7 @@
   left: 0;
   right: 0;
   bottom: calc(3.85rem + env(safe-area-inset-bottom, 0px));
-  z-index: 60;
+  z-index: 80;
   padding: 0 0.75rem 0.75rem;
   pointer-events: none;
   animation: install-up 0.35s ease-out both;
@@ -12,24 +12,28 @@
 .install-sheet-card {
   pointer-events: auto;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  max-width: 520px;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 540px;
   margin: 0 auto;
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: 1.05rem;
   background: #3b0b13;
   color: #f7e5b5;
-  border: 1px solid rgba(247, 229, 181, 0.2);
-  box-shadow: 0 12px 32px rgba(59, 11, 19, 0.35);
+  border: 1px solid rgba(247, 229, 181, 0.28);
+  box-shadow: 0 14px 36px rgba(59, 11, 19, 0.42);
+}
+
+.install-sheet-top {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
 }
 
 .install-logo {
   flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.85rem;
+  height: 2.85rem;
   border-radius: 0.65rem;
   border: 1px solid rgba(247, 229, 181, 0.25);
   object-fit: contain;
@@ -37,42 +41,94 @@
 }
 
 .install-copy {
-  flex: 1 1 10rem;
+  flex: 1;
   min-width: 0;
 }
 
 .install-copy strong {
   display: block;
   font-family: var(--display);
-  font-size: 0.98rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
 }
 
 .install-copy p {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-  color: rgba(247, 229, 181, 0.8);
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  color: rgba(247, 229, 181, 0.9);
+  line-height: 1.4;
+}
+
+.install-ios-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.install-ios-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(247, 229, 181, 0.72);
   line-height: 1.35;
 }
 
+.install-ios-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  align-self: flex-start;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(247, 229, 181, 0.14);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.install-share-ico {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
 .install-steps {
-  margin: 0.45rem 0 0;
-  padding: 0 0 0 1.1rem;
-  font-size: 0.78rem;
-  color: rgba(247, 229, 181, 0.85);
-  line-height: 1.45;
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  list-style: none;
+  border-radius: 0.75rem;
+  background: rgba(247, 229, 181, 0.1);
+  font-size: 0.86rem;
+  color: #f7e5b5;
+  line-height: 1.55;
 }
 
 .install-steps li {
-  margin: 0;
+  margin: 0.2rem 0;
 }
 
 .install-actions {
   display: flex;
-  gap: 0.45rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.install-cta {
+  flex: 1 1 auto;
+  min-height: 2.7rem;
+  font-weight: 700;
+}
+
+.install-sheet .btn.primary {
+  background: #f7e5b5;
+  color: #3b0b13;
+  border-color: #f7e5b5;
+}
+
+.install-sheet .btn.primary:disabled {
+  opacity: 0.45;
 }
 
 .install-sheet .btn.ghost {
-  border-color: rgba(247, 229, 181, 0.4);
+  border-color: rgba(247, 229, 181, 0.45);
   color: #f7e5b5;
 }
 

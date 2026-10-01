@@ -16,7 +16,7 @@ import { ExpirationPlugin } from 'workbox-expiration';
 declare let self: ServiceWorkerGlobalScope;
 
 /** Bump al cambiar iconos/manifest para forzar actualización del SW en clientes. */
-const SW_RELEASE = 'trago-icons-v2';
+const SW_RELEASE = 'trago-icons-v3';
 
 self.skipWaiting();
 clientsClaim();

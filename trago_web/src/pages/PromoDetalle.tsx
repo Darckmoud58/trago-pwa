@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import { useI18n } from '../lib/i18n';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 
 export default function PromoDetalle() {
   const { promoId } = useParams();
+  const { t, locale } = useI18n();
   const [promo, setPromo] = useState<Promo | null>(null);
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
   const [error, setError] = useState('');
@@ -22,14 +24,14 @@ export default function PromoDetalle() {
         setPromo(res.data.promo);
         setUbicaciones(res.data.ubicaciones ?? []);
       })
-      .catch(() => setError('No encontramos esa promoción.'))
+      .catch(() => setError(t('promoMissing')))
       .finally(() => setLoading(false));
-  }, [promoId]);
+  }, [promoId, t]);
 
   if (loading) {
     return (
       <section className="promos-page">
-        <p className="muted">Cargando promo…</p>
+        <p className="muted">{t('loadingPromo')}</p>
       </section>
     );
   }
@@ -37,9 +39,9 @@ export default function PromoDetalle() {
   if (error || !promo) {
     return (
       <section className="promos-page">
-        <p className="error">{error || 'Promoción no encontrada'}</p>
+        <p className="error">{error || t('promoNotFound')}</p>
         <Link className="btn ghost" to="/promos">
-          Volver a promos
+          {t('backToPromos')}
         </Link>
       </section>
     );
@@ -57,17 +59,16 @@ export default function PromoDetalle() {
     return (
       <section className="promos-page">
         <aside className="promos-note">
-          Esta promo es solo para mayores de 18.{' '}
-          <Link to="/terminos">Ver términos</Link>
+          {t('promo18Only')} <Link to="/terminos">{t('seeTerms')}</Link>
         </aside>
         <Link className="btn ghost" to="/promos">
-          Volver a promos
+          {t('backToPromos')}
         </Link>
       </section>
     );
   }
 
-  const title = promo.nombre || promo.title || 'Promoción';
+  const title = promo.nombre || promo.title || t('promoFallback');
   const desc = promo.descripcion || promo.subtitle;
   const img = promo.imagen || promo.imageUrl;
   const end = promo.termina_en || promo.endsAt;
@@ -75,7 +76,7 @@ export default function PromoDetalle() {
   return (
     <section className="promos-page promo-detail">
       <p className="meta">
-        <Link to="/promos">← Promos</Link>
+        <Link to="/promos">← {t('quickPromos')}</Link>
       </p>
 
       {img ? (
@@ -91,16 +92,16 @@ export default function PromoDetalle() {
       )}
 
       <div className="promo-tags" style={{ marginTop: '1rem' }}>
-        <span className="tag">{promo.chainName || 'Cadena'}</span>
+        <span className="tag">{promo.chainName || t('chainFallback')}</span>
         {(promo.featured || promo.destacada) && (
-          <span className="tag accent">Destacada</span>
+          <span className="tag accent">{t('featuredTag')}</span>
         )}
         {promo.alcohol && <span className="tag warn">18+</span>}
         {(promo.nocturno || promo.isNocturno) && (
-          <span className="tag">Nocturno</span>
+          <span className="tag">{t('nightTag')}</span>
         )}
         {(promo.cumpleanos || promo.isBirthday) && (
-          <span className="tag">Cumple</span>
+          <span className="tag">{t('bdayTag')}</span>
         )}
       </div>
 
@@ -110,35 +111,37 @@ export default function PromoDetalle() {
       <div className="detail-facts">
         {typeof promo.puntos === 'number' && (
           <div className="fact">
-            <p className="label">Puntos</p>
+            <p className="label">{t('points')}</p>
             <p className="fact-value">{promo.puntos}</p>
           </div>
         )}
         {end && (
           <div className="fact">
-            <p className="label">Vigencia</p>
+            <p className="label">{t('validity')}</p>
             <p className="fact-value">
-              {new Date(end).toLocaleDateString()}
+              {new Date(end).toLocaleDateString(
+                locale === 'en' ? 'en-US' : 'es-MX'
+              )}
             </p>
           </div>
         )}
         <div className="fact">
-          <p className="label">Sucursales</p>
+          <p className="label">{t('locations')}</p>
           <p className="fact-value">{ubicaciones.length}</p>
         </div>
       </div>
 
       {(promo.politicas || promo.terms) && (
         <article className="promo-card detail-block">
-          <p className="label">Políticas</p>
+          <p className="label">{t('policies')}</p>
           <p>{promo.politicas || promo.terms}</p>
         </article>
       )}
 
       <article className="detail-block">
-        <h2>Dónde aplica</h2>
+        <h2>{t('whereApplies')}</h2>
         {ubicaciones.length === 0 ? (
-          <p className="muted">Sin sucursales ligadas aún.</p>
+          <p className="muted">{t('noBranches')}</p>
         ) : (
           <ul className="branch-list">
             {ubicaciones.map((u) => (
@@ -160,10 +163,10 @@ export default function PromoDetalle() {
 
       <div className="cta-row" style={{ justifyContent: 'center' }}>
         <Link className="btn primary" to="/cerca">
-          Ver cerca de mí
+          {t('seeNearMe')}
         </Link>
         <Link className="btn ghost" to="/favoritos">
-          Mis favoritos
+          {t('myFavorites')}
         </Link>
       </div>
     </section>
