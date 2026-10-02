@@ -4,7 +4,7 @@ import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
-import type { Branch } from '../types';
+import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
 const GDL = { lng: -103.3496, lat: 20.6767 };
@@ -12,6 +12,8 @@ const GDL = { lng: -103.3496, lat: 20.6767 };
 export default function Cerca() {
   const { t } = useI18n();
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [promos, setPromos] = useState<Promo[]>([]);
+  const [sources, setSources] = useState<{ empresa: string; ok: boolean; count: number; reason?: string }[]>([]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,14 @@ export default function Cerca() {
       const list = (data.branches ?? data.ubicaciones ?? []) as Branch[];
       setBranches(list);
       setFromCache(false);
+      try {
+        const promoRes = await api.get('/api/promociones/cerca', { params: { lng, lat, maxMeters: 8000 } });
+        setPromos((promoRes.data.promos ?? []) as Promo[]);
+        setSources(promoRes.data.sources ?? []);
+      } catch {
+        setPromos([]);
+        setSources([]);
+      }
       await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: label });
     } catch {
       const cached = await cacheGet<{ branches: Branch[]; note: string }>(
@@ -48,6 +58,8 @@ export default function Cerca() {
       );
       if (cached?.data?.branches?.length) {
         setBranches(cached.data.branches);
+        setPromos([]);
+        setSources([]);
         setNote(t('offlineLastSearch'));
         setFromCache(true);
         setError('');
@@ -105,6 +117,27 @@ export default function Cerca() {
       )}
       {loading && <p className="muted">{t('searching')}</p>}
       {error && <p className="error">{error}</p>}
+
+      {sources.length > 0 && (
+        <section className="nearby-promos">
+          <h2>Promociones de empresas cercanas</h2>
+          <p className="meta">Detectadas en páginas oficiales; confirma términos y vigencia con el negocio.</p>
+          <ul className="branch-list">
+            {promos.map((promo) => (
+              <li key={promo._id} className="promo-card">
+                <p className="label">{promo.chainName || 'Empresa'}</p>
+                <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
+                {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
+                {promo.url_fuente && <a href={promo.url_fuente} target="_blank" rel="noreferrer">Ver publicación oficial ↗</a>}
+              </li>
+            ))}
+          </ul>
+          <details>
+            <summary>Estado de las fuentes consultadas</summary>
+            <ul>{sources.map((source) => <li key={source.empresa}>{source.empresa}: {source.ok ? `${source.count} promociones` : source.reason || 'sin lectura'}</li>)}</ul>
+          </details>
+        </section>
+      )}
 
       <ul className="branch-list cerca-list">
         {branches.map((b) => {

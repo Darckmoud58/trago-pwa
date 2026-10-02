@@ -90,3 +90,9 @@ El monolitico Next quedó en `web_next_legacy/` solo como referencia. El flujo d
 
 **trago_web:** Vite · React 19 · TypeScript · axios · React Router  
 **server:** Express 5 · Mongoose · JWT · CORS
+
+## Recolección de promociones cercanas
+
+`GET /api/promociones/cerca?lng=-103.35&lat=20.67&maxMeters=8000` busca sucursales activas del radio solicitado, consulta las páginas oficiales configuradas para esas empresas e importa resultados en MongoDB (`origen: oficial`, `url_fuente`). La pantalla **Cerca** solicita GPS (o usa el centro de Guadalajara si se deniega) y presenta los resultados con enlace a la fuente.
+
+Fuentes con parsers en `server/src/services/officialPromoCollector.js`: OXXO, La Europea, Italianni's, Vips, Starbucks y Karne Garibaldi. Se cachean por proceso durante seis horas. Los sitios pueden cambiar su HTML o bloquear solicitudes; cada empresa informa su estado. Si el texto no permite detectar fechas, la promo queda sin fechas y se muestra el aviso de confirmar vigencia y condiciones directamente con el negocio. La extracción es aproximada y no confirma inventario ni aplicación en sucursal.

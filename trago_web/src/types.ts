@@ -50,6 +50,7 @@ export type Promo = {
   imageUrl?: string;
   imagen?: string;
   origin?: string;
+  url_fuente?: string;
   puntos?: number;
   politicas?: string;
   terms?: string;

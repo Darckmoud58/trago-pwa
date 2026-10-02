@@ -25,7 +25,9 @@ export function getDeferredInstall(): BeforeInstallPromptEvent | null {
 export function subscribeInstallPrompt(fn: Listener) {
   listeners.add(fn);
   fn(deferred);
-  return () => listeners.delete(fn);
+  return () => {
+    listeners.delete(fn);
+  };
 }
 
 export function clearDeferredInstall() {

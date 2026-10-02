@@ -3,6 +3,7 @@ import Promocion from '../models/Promocion.js';
 import Ubicacion from '../models/Ubicacion.js';
 import Empresa from '../models/Empresa.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
+import { collectNearbyPromos } from '../services/officialPromoCollector.js';
 
 function mapPromo(p, empresaById = {}) {
   const emp = empresaById[String(p.id_empresa)] || {};
@@ -103,6 +104,52 @@ export async function listPromos(_req, res) {
   } catch (e) {
     console.error('listPromos:', e.message);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+
+/** Recolecta promociones publicadas por empresas con sucursales cerca del usuario. */
+export async function nearbyPromos(req, res) {
+  try {
+    const lng = Number(req.query.lng ?? req.query.long);
+    const lat = Number(req.query.lat);
+    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 5000), 250), 25000);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
+    }
+
+    const branches = await Ubicacion.aggregate([
+      { $geoNear: {
+        near: { type: 'Point', coordinates: [lng, lat] },
+        distanceField: 'distanceMeters', maxDistance: maxMeters, spherical: true,
+        query: { estatus: 'activo' },
+      } },
+      { $limit: 100 },
+    ]);
+    const companyIds = [...new Set(branches.map((b) => String(b.id_empresa)).filter(Boolean))];
+    const companies = companyIds.length
+      ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean()
+      : [];
+    const sources = await collectNearbyPromos(companies);
+    const now = new Date();
+    const promos = companies.length ? await Promocion.find({
+      id_empresa: { $in: companies.map((c) => c._id) },
+      estatus: 'activo',
+      $and: [
+        { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
+        { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
+      ],
+    }).sort({ destacada: -1, termina_en: 1 }).limit(100).lean() : [];
+    const companyById = Object.fromEntries(companies.map((c) => [String(c._id), c]));
+    const mapped = promos.map((p) => ({ ...mapPromo(p, companyById),
+      ubicacionesCercanas: branches.filter((b) => String(b.id_empresa) === String(p.id_empresa)).map((b) => ({
+        _id: b._id, nombre: b.nombre || b.calle, distanceMeters: Math.round(b.distanceMeters),
+      })),
+    }));
+    return res.json({ count: mapped.length, radiusMeters: maxMeters, promos: mapped, sources });
+  } catch (e) {
+    console.error('nearbyPromos:', e.message);
+    return res.status(500).json({ message: 'No se pudieron recolectar promociones cercanas' });
   }
 }
 
