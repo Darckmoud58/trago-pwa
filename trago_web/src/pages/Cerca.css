@@ -50,3 +50,64 @@
     grid-template-columns: 1.4fr 1fr;
   }
 }
+
+.cerca-actions > button {
+  min-width: 0;
+}
+
+.cerca-list,
+.nearby-promo-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cerca-card,
+.nearby-promo-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nearby-promos {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.nearby-promos-head,
+.nearby-promo-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.nearby-promos-head {
+  margin-bottom: 0.75rem;
+}
+
+.nearby-promo-actions {
+  justify-content: flex-start;
+  margin-top: 0.75rem;
+}
+
+@media (min-width: 920px) {
+  .cerca-list,
+  .nearby-promo-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 519px) {
+  .cerca-actions > button,
+  .nearby-promos-head > .btn {
+    width: 100%;
+  }
+
+  .nearby-promos {
+    padding: 0.8rem;
+  }
+}

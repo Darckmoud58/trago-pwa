@@ -131,6 +131,8 @@ export default function PromoDetalle() {
         </div>
       </div>
 
+      {promo.url_fuente && <p className="meta promo-source-link"><a href={promo.url_fuente} target="_blank" rel="noreferrer">{t('officialSource')} ↗</a></p>}
+
       {(promo.politicas || promo.terms) && (
         <article className="promo-card detail-block">
           <p className="label">{t('policies')}</p>

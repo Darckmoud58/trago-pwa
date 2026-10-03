@@ -14,6 +14,7 @@ export default function Cerca() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [sources, setSources] = useState<{ empresa: string; ok: boolean; count: number; reason?: string }[]>([]);
+  const [promosError, setPromosError] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,6 +27,7 @@ export default function Cerca() {
     setBranches([]);
     setPromos([]);
     setSources([]);
+    setPromosError(false);
     setFromCache(false);
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
@@ -43,9 +45,11 @@ export default function Cerca() {
         const promoRes = await api.get('/api/promociones/cerca', { params: { lng, lat, maxMeters: 8000 } });
         setPromos((promoRes.data.promos ?? []) as Promo[]);
         setSources(promoRes.data.sources ?? []);
+        setPromosError(false);
       } catch {
         setPromos([]);
         setSources([]);
+        setPromosError(true);
       }
       const savedNote = data.partial && data.searchedRadiusMeters
         ? `${label} · ${t('osmReducedRadius').replace('{km}', (data.searchedRadiusMeters / 1000).toFixed(1))}`
@@ -60,6 +64,7 @@ export default function Cerca() {
       const sameArea = Math.hypot(latDelta, lngDelta) <= 1000;
       if (sameArea && cached?.data?.branches?.length) {
         setBranches(cached.data.branches);
+        setPromosError(true);
         setPromos([]);
         setSources([]);
         setNote(t('offlineLastSearch'));
@@ -70,6 +75,7 @@ export default function Cerca() {
         setBranches([]);
         setPromos([]);
         setSources([]);
+        setPromosError(false);
         setNote('');
         setFromCache(false);
       }
@@ -132,27 +138,39 @@ export default function Cerca() {
       {loading && <p className="muted">{t('searching')}</p>}
       {error && <p className="error">{error}</p>}
 
-      {sources.length > 0 && (
+      {(promos.length > 0 || sources.length > 0 || promosError) && (
         <section className="nearby-promos">
-          <h2>Promociones de empresas cercanas</h2>
-          <p className="meta">Detectadas en páginas oficiales; confirma términos y vigencia con el negocio.</p>
-          <ul className="branch-list">
-            {promos.map((promo) => (
-              <li key={promo._id} className="promo-card">
-                <p className="label">{promo.chainName || 'Empresa'}</p>
-                <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
-                {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
-                {promo.ubicacionesCercanas?.length ? (
-                  <p className="meta">Sucursal(es) cercana(s) de esta empresa: {promo.ubicacionesCercanas.map((branch) => `${branch.nombre} (${(branch.distanceMeters / 1000).toFixed(1)} km)`).join(', ')}. La página consultada no confirma en cuál aplica la promoción.</p>
-                ) : null}
-                {promo.url_fuente && <a href={promo.url_fuente} target="_blank" rel="noreferrer">Ver publicación oficial ↗</a>}
-              </li>
-            ))}
-          </ul>
-          <details>
-            <summary>Estado de las fuentes consultadas</summary>
+          <div className="nearby-promos-head">
+            <div>
+              <h2>{t('nearbyPromosTitle')}</h2>
+              <p className="meta">{t('nearbyPromosSourceNote')}</p>
+            </div>
+            <Link className="btn ghost btn-sm" to="/promos">{t('viewAllPromos')}</Link>
+          </div>
+          {promosError && <p className="error">{t('nearbyPromosError')}</p>}
+          {!promosError && promos.length === 0 && <p className="muted">{t('nearbyPromosEmpty')}</p>}
+          {promos.length > 0 && (
+            <ul className="branch-list nearby-promo-list">
+              {promos.map((promo) => (
+                <li key={promo._id} className="promo-card nearby-promo-card">
+                  <p className="label">{promo.chainName || 'Empresa'}</p>
+                  <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
+                  {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
+                  {promo.ubicacionesCercanas?.length ? (
+                    <p className="meta">{t('nearbyBranchesLabel')} {promo.ubicacionesCercanas.map((branch) => `${branch.nombre} (${(branch.distanceMeters / 1000).toFixed(1)} km)`).join(', ')}. {t('branchPromoDisclaimer')}</p>
+                  ) : null}
+                  <div className="nearby-promo-actions">
+                    <Link className="btn primary btn-sm" to={`/promos/${promo.slug || promo._id}`}>{t('seeOfferDetails')}</Link>
+                    {promo.url_fuente && <a href={promo.url_fuente} target="_blank" rel="noreferrer">{t('officialSource')} ↗</a>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {sources.length > 0 && <details>
+            <summary>{t('promoSourcesStatus')}</summary>
             <ul>{sources.map((source) => <li key={source.empresa}>{source.empresa}: {source.ok ? `${source.count} promociones` : source.reason || 'sin lectura'}</li>)}</ul>
-          </details>
+          </details>}
         </section>
       )}
 

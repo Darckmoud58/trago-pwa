@@ -28,8 +28,10 @@
 
 @media (min-width: 900px) {
   .app-shell:not(.is-auth) .app-main {
-    max-width: none;
-    margin-left: 5.25rem;
+    width: min(calc(100% - 5.25rem), 1280px);
+    max-width: 1280px;
+    margin-left: max(5.25rem, calc((100vw - 1280px + 5.25rem) / 2));
+    margin-right: 0;
     padding: 1.15rem 1.5rem 1.5rem;
   }
 }

@@ -59,50 +59,70 @@ function parsePage(body, url, company) {
 }
 
 async function fetchPage(url) {
-  const response = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html,application/json;q=0.9,*/*;q=0.8' }, signal: AbortSignal.timeout(10000), redirect: 'follow' });
+  const response = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'text/html,application/json;q=0.9,*/*;q=0.8' }, signal: AbortSignal.timeout(3500), redirect: 'follow' });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
 }
 
-/** Importa promociones de páginas oficiales de empresas ya presentes en el radio solicitado. */
+/** Importa promociones oficiales con solicitudes concurrentes para no bloquear la función serverless. */
 export async function collectNearbyPromos(companies) {
-  const report = [];
-  for (const company of companies) {
-    const cached = lastCheckedByCompany.get(String(company._id));
-    if (cached && Date.now() - cached.at < SOURCE_TTL_MS) { report.push(cached.report); continue; }
+  return Promise.all(companies.map(async (company) => {
+    const companyId = String(company._id);
+    const cached = lastCheckedByCompany.get(companyId);
+    if (cached && Date.now() - cached.at < SOURCE_TTL_MS) return cached.report;
+
     const urls = SOURCE_CONFIG[company.slug];
-    if (!urls?.length) { const row = { empresa: company.nombre, ok: false, count: 0, reason: 'sin fuente compatible configurada' }; report.push(row); lastCheckedByCompany.set(String(company._id), { at: Date.now(), report: row }); continue; }
-    let count = 0;
-    const errors = [];
-    for (const url of urls) {
+    if (!urls?.length) {
+      const report = { empresa: company.nombre, ok: false, count: 0, reason: 'sin fuente compatible configurada' };
+      lastCheckedByCompany.set(companyId, { at: Date.now(), report });
+      return report;
+    }
+
+    const results = await Promise.all(urls.map(async (url) => {
       try {
         const body = await fetchPage(url);
-        const hits = parsePage(body, url, company);
-        for (const hit of hits) {
-          const key = crypto.createHash('sha1').update(`${company._id}:${slug(hit.title)}`).digest('hex').slice(0, 16);
-          const { start, end } = dates(hit.evidence);
-          const flags = classify(hit.evidence);
-          await Promocion.findOneAndUpdate(
-            { slug: `oficial-${key}` },
-            { $set: {
-              nombre: hit.title,
-              descripcion: hit.description || `Promoción publicada por ${company.nombre}.`,
-              politicas: `Fuente oficial consultada automáticamente. ${start && end ? 'Vigencia extraída del texto publicado.' : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'}`,
-              imagen: hit.image || company.imagen || '',
-              origen: 'oficial', url_fuente: hit.sourceUrl,
-              inicia_en: start, termina_en: end,
-              alcohol: flags.alcohol, audiencia: flags.alcohol ? 'adulto' : 'todos', nocturno: flags.nocturno,
-              estatus: end && end < new Date() ? 'caduco' : 'activo', destacada: false,
-            } },
-            { upsert: true, new: true, setDefaultsOnInsert: true },
-          );
-          count += 1;
-        }
-      } catch (error) { errors.push(`${url}: ${error.message}`); }
+        return { url, hits: parsePage(body, url, company), error: null };
+      } catch (error) {
+        return { url, hits: [], error: `${url}: ${error.message}` };
+      }
+    }));
+    const errors = results.flatMap((result) => result.error ? [result.error] : []);
+    const uniqueHits = new Map();
+    for (const result of results) {
+      for (const hit of result.hits) {
+        const key = slug(hit.title);
+        if (key) uniqueHits.set(key, hit);
+      }
     }
-    const row = { empresa: company.nombre, ok: errors.length < urls.length, count, ...(errors.length ? { errors } : {}) };
-    report.push(row);
-    lastCheckedByCompany.set(String(company._id), { at: Date.now(), report: row });
-  }
-  return report;
+
+    const now = new Date();
+    const operations = [...uniqueHits.values()].map((hit) => {
+      const key = crypto.createHash('sha1').update(`${companyId}:${slug(hit.title)}`).digest('hex').slice(0, 16);
+      const { start, end } = dates(hit.evidence);
+      const flags = classify(hit.evidence);
+      return {
+        updateOne: {
+          filter: { slug: `oficial-${key}` },
+          update: { $set: {
+            slug: `oficial-${key}`,
+            id_empresa: company._id,
+            nombre: hit.title,
+            descripcion: hit.description || `Promoción publicada por ${company.nombre}.`,
+            politicas: `Fuente oficial consultada automáticamente. ${start && end ? 'Vigencia extraída del texto publicado.' : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'}`,
+            imagen: hit.image || company.imagen || '',
+            origen: 'oficial', url_fuente: hit.sourceUrl,
+            inicia_en: start, termina_en: end,
+            alcohol: flags.alcohol, audiencia: flags.alcohol ? 'adulto' : 'todos', nocturno: flags.nocturno,
+            estatus: end && end < now ? 'caduco' : 'activo', destacada: false,
+          } },
+          upsert: true,
+        },
+      };
+    });
+    if (operations.length) await Promocion.bulkWrite(operations, { ordered: false });
+
+    const report = { empresa: company.nombre, ok: errors.length < urls.length, count: operations.length, ...(errors.length ? { errors } : {}) };
+    lastCheckedByCompany.set(companyId, { at: Date.now(), report });
+    return report;
+  }));
 }
