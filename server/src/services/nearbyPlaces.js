@@ -17,8 +17,9 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 function normalize(value = '') { return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
 
 function overpassQuery(lat, lng, radius) {
-  const around = `around:${radius + 250},${lat},${lng}`;
-  return `[out:json][timeout:8];(nwr(${around})["name"]["amenity"~"^(restaurant|bar|cafe|pub|fast_food|nightclub|biergarten|food_court|ice_cream)$"];nwr(${around})["name"]["shop"];nwr(${around})["name"]["craft"];);out center;`;
+  const venueArea = `around:${radius + 250},${lat},${lng}`;
+  const shopArea = `around:${Math.min(radius, 2000) + 250},${lat},${lng}`;
+  return `[out:json][timeout:8];(nwr(${venueArea})["name"]["amenity"~"^(restaurant|bar|cafe|pub|fast_food|nightclub|biergarten|food_court|ice_cream)$"];nwr(${shopArea})["name"]["shop"];);out center;`;
 }
 function parseElements(elements = []) {
   const seen = new Set();

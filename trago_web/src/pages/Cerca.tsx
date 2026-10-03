@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
@@ -19,23 +19,14 @@ export default function Cerca() {
   const [loading, setLoading] = useState(false);
   const [fromCache, setFromCache] = useState(false);
 
-  useEffect(() => {
-    void cacheGet<{ branches: Branch[]; note: string }>(CACHE_KEYS.lastNear).then(
-      (cached) => {
-        if (cached?.data?.branches?.length && branches.length === 0) {
-          setBranches(cached.data.branches);
-          setNote(cached.data.note || t('lastSearchSaved'));
-          setFromCache(true);
-        }
-      }
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   async function loadNear(lng: number, lat: number, label: string) {
     setLoading(true);
     setError('');
     setNote(label);
+    setBranches([]);
+    setPromos([]);
+    setSources([]);
+    setFromCache(false);
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
         params: { lng, lat, maxMeters: 8000 },
@@ -51,12 +42,15 @@ export default function Cerca() {
         setPromos([]);
         setSources([]);
       }
-      await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: label });
+      await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: label, lat, lng });
     } catch {
-      const cached = await cacheGet<{ branches: Branch[]; note: string }>(
-        CACHE_KEYS.lastNear
-      );
-      if (cached?.data?.branches?.length) {
+      const cached = await cacheGet<{ branches: Branch[]; note: string; lat?: number; lng?: number }>(CACHE_KEYS.lastNear);
+      const cachedLat = cached?.data?.lat;
+      const cachedLng = cached?.data?.lng;
+      const latDelta = ((cachedLat ?? 999) - lat) * 111_000;
+      const lngDelta = ((cachedLng ?? 999) - lng) * 111_000 * Math.cos((lat * Math.PI) / 180);
+      const sameArea = Math.hypot(latDelta, lngDelta) <= 1000;
+      if (sameArea && cached?.data?.branches?.length) {
         setBranches(cached.data.branches);
         setPromos([]);
         setSources([]);
@@ -66,6 +60,10 @@ export default function Cerca() {
       } else {
         setError(t('nearError'));
         setBranches([]);
+        setPromos([]);
+        setSources([]);
+        setNote('');
+        setFromCache(false);
       }
     } finally {
       setLoading(false);
