@@ -121,7 +121,7 @@ export async function nearbyPromos(req, res) {
 
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
     const branches = discovery.branches;
-    const companyIds = [...new Set(branches.map((b) => String(b.id_empresa)))];
+    const companyIds = [...new Set(branches.map((b) => b.id_empresa).filter(Boolean).map(String))];
     const companies = companyIds.length ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean() : [];
     const sourceCompanies = companies.filter((company) => hasOfficialPromoSource(company.slug));
     const sources = await collectNearbyPromos(sourceCompanies);
