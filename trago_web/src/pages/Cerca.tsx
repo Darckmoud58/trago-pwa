@@ -85,7 +85,15 @@ export default function Cerca() {
           pos.coords.latitude,
           t('usingLocation')
         ),
-      () => void loadNear(GDL.lng, GDL.lat, t('locationDenied')),
+      () => {
+        setLoading(false);
+        setBranches([]);
+        setPromos([]);
+        setSources([]);
+        setNote('');
+        setFromCache(false);
+        setError(t('locationPermissionError'));
+      },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
@@ -128,6 +136,9 @@ export default function Cerca() {
                 <p className="label">{promo.chainName || 'Empresa'}</p>
                 <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
                 {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
+                {promo.ubicacionesCercanas?.length ? (
+                  <p className="meta">Sucursal(es) cercana(s) de esta empresa: {promo.ubicacionesCercanas.map((branch) => `${branch.nombre} (${(branch.distanceMeters / 1000).toFixed(1)} km)`).join(', ')}. La página consultada no confirma en cuál aplica la promoción.</p>
+                ) : null}
                 {promo.url_fuente && <a href={promo.url_fuente} target="_blank" rel="noreferrer">Ver publicación oficial ↗</a>}
               </li>
             ))}
@@ -138,6 +149,8 @@ export default function Cerca() {
           </details>
         </section>
       )}
+
+      {branches.length > 0 && <p className="meta">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>. {t('osmCoverageNote')}</p>}
 
       <ul className="branch-list cerca-list">
         {branches.map((b) => {
@@ -183,6 +196,7 @@ export default function Cerca() {
                 </p>
               )}
               {b.hours && <p className="meta">{b.hours}</p>}
+              {b.osmUrl && <a className="meta" href={b.osmUrl} target="_blank" rel="noreferrer">Ver en OpenStreetMap ↗</a>}
             </li>
           );
         })}

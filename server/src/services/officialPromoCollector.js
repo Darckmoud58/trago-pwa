@@ -12,6 +12,7 @@ const SOURCE_CONFIG = {
 };
 const lastCheckedByCompany = new Map();
 const SOURCE_TTL_MS = 6 * 60 * 60 * 1000;
+export const hasOfficialPromoSource = (slug) => Boolean(SOURCE_CONFIG[slug]?.length);
 const MONTHS = { enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6, agosto: 7, septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11 };
 
 function clean(s = '') {

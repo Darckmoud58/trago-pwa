@@ -51,6 +51,7 @@ export type Promo = {
   imagen?: string;
   origin?: string;
   url_fuente?: string;
+  ubicacionesCercanas?: { _id: string; nombre: string; distanceMeters: number }[];
   puntos?: number;
   politicas?: string;
   terms?: string;
@@ -78,4 +79,5 @@ export type Branch = {
   city?: string;
   distanceMeters?: number;
   hours?: string;
+  osmUrl?: string;
 };

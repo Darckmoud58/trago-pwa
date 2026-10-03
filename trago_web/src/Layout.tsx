@@ -5,6 +5,7 @@ import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
+import { syncFavorites } from './lib/favorites';
 import { useNightTheme } from './hooks/useNightTheme';
 import './Layout.css';
 
@@ -21,7 +22,14 @@ export default function Layout() {
   }, [pathname]);
 
   useEffect(() => {
-    const on = () => setOnline(true);
+    void syncFavorites();
+  }, [token]);
+
+  useEffect(() => {
+    const on = () => {
+      setOnline(true);
+      void syncFavorites();
+    };
     const off = () => setOnline(false);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);

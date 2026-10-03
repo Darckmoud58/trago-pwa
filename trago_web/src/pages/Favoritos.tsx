@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   listFavorites,
   removeFavorite,
+  syncFavorites,
   type FavoritePlace,
 } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
@@ -16,12 +17,16 @@ export default function Favoritos() {
   );
 
   async function refresh() {
+    await syncFavorites();
     setItems(await listFavorites());
   }
 
   useEffect(() => {
     void refresh();
-    const on = () => setOnline(true);
+    const on = () => {
+      setOnline(true);
+      void refresh();
+    };
     const off = () => setOnline(false);
     window.addEventListener('online', on);
     window.addEventListener('offline', off);
@@ -31,8 +36,8 @@ export default function Favoritos() {
     };
   }, []);
 
-  async function onRemove(id: string) {
-    await removeFavorite(id);
+  async function onRemove(id: string, type: FavoritePlace['type']) {
+    await removeFavorite(id, type);
     await refresh();
   }
 
@@ -74,7 +79,7 @@ export default function Favoritos() {
               <button
                 type="button"
                 className="btn ghost fav-remove"
-                onClick={() => void onRemove(f.id)}
+                onClick={() => void onRemove(f.id, f.type)}
                 aria-label={t('favRemoveAria', { name: f.nombre })}
               >
                 {t('favRemove')}

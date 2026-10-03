@@ -3,7 +3,8 @@ import Promocion from '../models/Promocion.js';
 import Ubicacion from '../models/Ubicacion.js';
 import Empresa from '../models/Empresa.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
-import { collectNearbyPromos } from '../services/officialPromoCollector.js';
+import { collectNearbyPromos, hasOfficialPromoSource } from '../services/officialPromoCollector.js';
+import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
 
 function mapPromo(p, empresaById = {}) {
   const emp = empresaById[String(p.id_empresa)] || {};
@@ -108,32 +109,26 @@ export async function listPromos(_req, res) {
 }
 
 
-/** Recolecta promociones publicadas por empresas con sucursales cerca del usuario. */
+/** Recolecta promociones oficiales de empresas que OSM ubica cerca del usuario. */
 export async function nearbyPromos(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 5000), 250), 25000);
+    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
     if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
       return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
     }
 
-    const branches = await Ubicacion.aggregate([
-      { $geoNear: {
-        near: { type: 'Point', coordinates: [lng, lat] },
-        distanceField: 'distanceMeters', maxDistance: maxMeters, spherical: true,
-        query: { estatus: 'activo' },
-      } },
-      { $limit: 100 },
-    ]);
-    const companyIds = [...new Set(branches.map((b) => String(b.id_empresa)).filter(Boolean))];
-    const companies = companyIds.length
-      ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean()
-      : [];
-    const sources = await collectNearbyPromos(companies);
+    const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
+    const branches = discovery.branches;
+    const companyIds = [...new Set(branches.map((b) => String(b.id_empresa)))];
+    const companies = companyIds.length ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean() : [];
+    const sourceCompanies = companies.filter((company) => hasOfficialPromoSource(company.slug));
+    const sources = await collectNearbyPromos(sourceCompanies);
     const now = new Date();
-    const promos = companies.length ? await Promocion.find({
-      id_empresa: { $in: companies.map((c) => c._id) },
+    const promos = sourceCompanies.length ? await Promocion.find({
+      id_empresa: { $in: sourceCompanies.map((c) => c._id) },
+      origen: 'oficial',
       estatus: 'activo',
       $and: [
         { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
@@ -141,52 +136,53 @@ export async function nearbyPromos(req, res) {
       ],
     }).sort({ destacada: -1, termina_en: 1 }).limit(100).lean() : [];
     const companyById = Object.fromEntries(companies.map((c) => [String(c._id), c]));
-    const mapped = promos.map((p) => ({ ...mapPromo(p, companyById),
-      ubicacionesCercanas: branches.filter((b) => String(b.id_empresa) === String(p.id_empresa)).map((b) => ({
-        _id: b._id, nombre: b.nombre || b.calle, distanceMeters: Math.round(b.distanceMeters),
+    const mapped = promos.map((promo) => ({
+      ...mapPromo(promo, companyById),
+      ubicacionesCercanas: branches.filter((b) => String(b.id_empresa) === String(promo.id_empresa)).map((b) => ({
+        _id: b._id,
+        nombre: b.nombre || b.calle,
+        distanceMeters: b.distanceMeters,
+        osmUrl: b.osmUrl,
       })),
     }));
-    return res.json({ count: mapped.length, radiusMeters: maxMeters, promos: mapped, sources });
+    return res.json({
+      count: mapped.length,
+      radiusMeters: maxMeters,
+      promos: mapped,
+      sources,
+      businessesFound: branches.length,
+      businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length + companies.length - sourceCompanies.length,
+      locationSource: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
+    });
   } catch (e) {
     console.error('nearbyPromos:', e.message);
-    return res.status(500).json({ message: 'No se pudieron recolectar promociones cercanas' });
+    return res.status(502).json({ message: 'No se pudieron consultar negocios y promociones cercanas' });
   }
 }
 
-/** Ubicaciones cercanas — $geoNear (lng/long, lat). */
+/** Negocios, sucursales y restaurantes descubiertos alrededor del GPS con OpenStreetMap. */
 export async function nearBranches(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Number(req.query.maxMeters || 5000);
-
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
-      return res.status(400).json({ message: 'lng/long y lat requeridos' });
+    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
     }
-
-    const branches = await Ubicacion.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lng, lat] },
-          distanceField: 'distanceMeters',
-          maxDistance: maxMeters,
-          spherical: true,
-          query: { estatus: 'activo' },
-        },
-      },
-      { $limit: 40 },
-    ]);
-
-    const empresas = await Empresa.find({
-      _id: { $in: branches.map((b) => b.id_empresa).filter(Boolean) },
-    }).lean();
-    const empresaById = Object.fromEntries(empresas.map((e) => [String(e._id), e]));
-    const mapped = branches.map((b) => mapUbicacion(b, empresaById));
-
-    res.json({ count: mapped.length, branches: mapped, ubicaciones: mapped });
+    const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
+    const mapped = discovery.branches.map((branch) => ({ ...branch, osmUrl: branch.osmUrl }));
+    return res.json({
+      count: mapped.length,
+      radiusMeters: maxMeters,
+      branches: mapped,
+      ubicaciones: mapped,
+      source: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
+      attribution: '© OpenStreetMap contributors',
+      attributionUrl: 'https://www.openstreetmap.org/copyright',
+    });
   } catch (e) {
     console.error('nearBranches:', e.message);
-    res.status(500).json({ message: 'Error del servidor' });
+    res.status(502).json({ message: 'No se pudieron buscar lugares cercanos en OpenStreetMap' });
   }
 }
 

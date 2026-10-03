@@ -32,7 +32,7 @@ registerRoute(
   })
 );
 
-registerRoute(/\/api\/auth/i, new NetworkOnly());
+registerRoute(/\/api\/(auth|favoritos)/i, new NetworkOnly());
 registerRoute(/\/api\/sucursales\/cerca/i, new NetworkOnly());
 
 registerRoute(

@@ -93,6 +93,12 @@ El monolitico Next quedó en `web_next_legacy/` solo como referencia. El flujo d
 
 ## Recolección de promociones cercanas
 
-`GET /api/promociones/cerca?lng=-103.35&lat=20.67&maxMeters=8000` busca sucursales activas del radio solicitado, consulta las páginas oficiales configuradas para esas empresas e importa resultados en MongoDB (`origen: oficial`, `url_fuente`). La pantalla **Cerca** solicita GPS (o usa el centro de Guadalajara si se deniega) y presenta los resultados con enlace a la fuente.
+`GET /api/sucursales/cerca?lng=...&lat=...&maxMeters=8000` consulta lugares cercanos registrados en OpenStreetMap alrededor de las coordenadas recibidas. La pantalla **Cerca** obtiene el GPS del navegador; si falla, informa el problema y permite abrir explícitamente la zona Demo Centro GDL. No reemplaza la ubicación fallida con Guadalajara sin avisar. Los resultados se cachean 15 minutos y no se agregan al catálogo permanente de sucursales. La cobertura depende de los negocios registrados en OpenStreetMap y no garantiza encontrar todos los establecimientos. Los resultados muestran atribución y enlace de OpenStreetMap.
+
+`GET /api/promociones/cerca?lng=...&lat=...&maxMeters=8000` descubre primero lugares en el radio. Solo cuando un lugar se puede asociar con una empresa conocida consulta sus páginas oficiales configuradas e importa resultados en MongoDB (`origen: oficial`, `url_fuente`). Muestra sucursales OSM cercanas de esa empresa; la página oficial puede no especificar en cuál sucursal aplica.
 
 Fuentes con parsers en `server/src/services/officialPromoCollector.js`: OXXO, La Europea, Italianni's, Vips, Starbucks y Karne Garibaldi. Se cachean por proceso durante seis horas. Los sitios pueden cambiar su HTML o bloquear solicitudes; cada empresa informa su estado. Si el texto no permite detectar fechas, la promo queda sin fechas y se muestra el aviso de confirmar vigencia y condiciones directamente con el negocio. La extracción es aproximada y no confirma inventario ni aplicación en sucursal.
+
+## Favoritos de usuario y modo offline
+
+Los favoritos autenticados se guardan en MongoDB en `favoritos`, separados por `userId` y protegidos por JWT. `GET /api/favoritos` lista, `PUT /api/favoritos/:type/:targetId` crea/actualiza, `DELETE /api/favoritos/:type/:targetId` elimina y `POST /api/favoritos/sync` aplica cambios pendientes. El frontend mantiene un espejo por cuenta en IndexedDB y una cola de cambios; al recuperar conexión sincroniza altas y bajas. Los visitantes sin sesión conservan favoritos locales anónimos, sin subirlos a una cuenta automáticamente.
