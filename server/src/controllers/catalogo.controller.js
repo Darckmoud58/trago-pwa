@@ -124,7 +124,18 @@ export async function nearbyPromos(req, res) {
     const companyIds = [...new Set(branches.map((b) => b.id_empresa).filter(Boolean).map(String))];
     const companies = companyIds.length ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean() : [];
     const sourceCompanies = companies.filter((company) => hasOfficialPromoSource(company.slug));
-    const sources = await collectNearbyPromos(sourceCompanies);
+    let sources = [];
+    try {
+      sources = await collectNearbyPromos(sourceCompanies);
+    } catch (sourceError) {
+      console.error('nearbyPromos source refresh:', sourceError.message);
+      sources = sourceCompanies.map((company) => ({
+        empresa: company.nombre,
+        ok: false,
+        count: 0,
+        reason: 'No se pudo actualizar la fuente; se mostrarán las promociones oficiales guardadas.',
+      }));
+    }
     const now = new Date();
     const promos = sourceCompanies.length ? await Promocion.find({
       id_empresa: { $in: sourceCompanies.map((c) => c._id) },
