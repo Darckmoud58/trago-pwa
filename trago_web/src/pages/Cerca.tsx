@@ -34,6 +34,11 @@ export default function Cerca() {
       const list = (data.branches ?? data.ubicaciones ?? []) as Branch[];
       setBranches(list);
       setFromCache(false);
+      if (data.partial && data.searchedRadiusMeters) {
+        const km = (data.searchedRadiusMeters / 1000).toFixed(1);
+        const reducedNote = t('osmReducedRadius').replace('{km}', km);
+        setNote(`${label} · ${reducedNote}`);
+      }
       try {
         const promoRes = await api.get('/api/promociones/cerca', { params: { lng, lat, maxMeters: 8000 } });
         setPromos((promoRes.data.promos ?? []) as Promo[]);
@@ -42,7 +47,10 @@ export default function Cerca() {
         setPromos([]);
         setSources([]);
       }
-      await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: label, lat, lng });
+      const savedNote = data.partial && data.searchedRadiusMeters
+        ? `${label} · ${t('osmReducedRadius').replace('{km}', (data.searchedRadiusMeters / 1000).toFixed(1))}`
+        : label;
+      await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: savedNote, lat, lng });
     } catch {
       const cached = await cacheGet<{ branches: Branch[]; note: string; lat?: number; lng?: number }>(CACHE_KEYS.lastNear);
       const cachedLat = cached?.data?.lat;

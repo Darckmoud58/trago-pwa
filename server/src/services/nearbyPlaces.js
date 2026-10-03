@@ -16,10 +16,10 @@ function distanceMeters(lat1, lng1, lat2, lng2) {
 }
 function normalize(value = '') { return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, ''); }
 
-function overpassQuery(lat, lng, radius) {
+function overpassQuery(lat, lng, radius, timeoutSeconds) {
   const venueArea = `around:${radius + 250},${lat},${lng}`;
   const shopArea = `around:${Math.min(radius, 2000) + 250},${lat},${lng}`;
-  return `[out:json][timeout:8];(nwr(${venueArea})["name"]["amenity"~"^(restaurant|bar|cafe|pub|fast_food|nightclub|biergarten|food_court|ice_cream)$"];nwr(${shopArea})["name"]["shop"];);out center;`;
+  return `[out:json][timeout:${timeoutSeconds}];(nwr(${venueArea})["name"]["amenity"~"^(restaurant|bar|cafe|pub|fast_food|nightclub|biergarten|food_court|ice_cream)$"];nwr(${shopArea})["name"]["shop"];);out center;`;
 }
 function parseElements(elements = []) {
   const seen = new Set();
@@ -40,10 +40,10 @@ function parseElements(elements = []) {
     }];
   });
 }
-async function requestOverpass(lat, lng, radius) {
+async function requestOverpass(lat, lng, radius, timeoutSeconds = 3) {
   const response = await fetch(OVERPASS_URL, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'User-Agent': process.env.TRA_GO_USER_AGENT || 'TraGo/0.1 (nearby places search)', Accept: 'application/json' },
-    body: new URLSearchParams({ data: overpassQuery(lat, lng, radius) }), signal: AbortSignal.timeout(9000),
+    body: new URLSearchParams({ data: overpassQuery(lat, lng, radius, timeoutSeconds) }), signal: AbortSignal.timeout((timeoutSeconds + 1) * 1000),
   });
   if (!response.ok) throw new Error(`OpenStreetMap Overpass respondió ${response.status}`);
   return parseElements((await response.json()).elements)
@@ -76,20 +76,42 @@ function mapPlace(place, company, lat, lng, maxMeters) {
 export async function discoverNearbyBranches(lat, lng, maxMeters) {
   const searchLat = cell(lat), searchLng = cell(lng), key = cacheKey(lat, lng, maxMeters);
   const previous = await NearbyPlaceCache.findOne({ key }).lean();
-  let places = previous?.places || [], stale = false, cached = Boolean(previous);
+  let places = previous?.places || [];
+  let searchedRadiusMeters = previous?.searchedRadiusMeters || maxMeters;
+  let stale = false, partial = false, cached = Boolean(previous);
   if (!previous || new Date(previous.expiresAt).getTime() <= Date.now()) {
     try {
       places = await requestOverpass(searchLat, searchLng, maxMeters);
+      searchedRadiusMeters = maxMeters;
+    } catch (primaryError) {
+      const reducedRadius = Math.min(maxMeters, 2500);
+      if (maxMeters - reducedRadius >= 500) {
+        try {
+          places = await requestOverpass(searchLat, searchLng, reducedRadius, 3);
+          searchedRadiusMeters = reducedRadius;
+          partial = true;
+        } catch (fallbackError) {
+          if (!previous) throw fallbackError;
+          places = previous.places || [];
+          searchedRadiusMeters = previous.searchedRadiusMeters || maxMeters;
+          stale = true;
+        }
+      } else if (!previous) {
+        throw primaryError;
+      } else {
+        places = previous.places || [];
+        searchedRadiusMeters = previous.searchedRadiusMeters || maxMeters;
+        stale = true;
+      }
+    }
+    if (!stale) {
       const fetchedAt = new Date();
-      await NearbyPlaceCache.findOneAndUpdate({ key }, { $set: { places, fetchedAt, expiresAt: new Date(Date.now() + CACHE_MS) } }, { upsert: true });
+      await NearbyPlaceCache.findOneAndUpdate({ key }, { $set: { places, searchedRadiusMeters, fetchedAt, expiresAt: new Date(Date.now() + CACHE_MS) } }, { upsert: true });
       cached = false;
-    } catch (error) {
-      if (!previous) throw error;
-      places = previous.places || []; stale = true;
     }
   }
   const companies = await Empresa.find({ estatus: 'activo' }).select('_id nombre slug').lean();
   const branches = places.map((place) => mapPlace(place, matchCompany(place, companies), lat, lng, maxMeters))
     .filter((place) => place.withinRadius).sort((a, b) => a.distanceMeters - b.distanceMeters);
-  return { branches, stale, cached };
+  return { branches, stale, cached, partial, searchedRadiusMeters };
 }

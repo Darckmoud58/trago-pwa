@@ -151,6 +151,8 @@ export async function nearbyPromos(req, res) {
       promos: mapped,
       sources,
       businessesFound: branches.length,
+      searchedRadiusMeters: discovery.searchedRadiusMeters,
+      partial: discovery.partial,
       businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length + companies.length - sourceCompanies.length,
       locationSource: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
     });
@@ -174,6 +176,8 @@ export async function nearBranches(req, res) {
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
+      searchedRadiusMeters: discovery.searchedRadiusMeters,
+      partial: discovery.partial,
       branches: mapped,
       ubicaciones: mapped,
       source: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
