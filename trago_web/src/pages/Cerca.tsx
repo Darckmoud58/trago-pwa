@@ -220,6 +220,11 @@ export default function Cerca() {
                 </p>
               )}
               {b.hours && <p className="meta">{b.hours}</p>}
+              {b.hasOfficialPromos ? (
+                <p className="meta cerca-offer-flag is-yes">{t('nearbyHasOffers')}</p>
+              ) : (
+                <p className="meta cerca-offer-flag is-no">{t('nearbyNoOffers')}</p>
+              )}
               {b.osmUrl && <a className="meta" href={b.osmUrl} target="_blank" rel="noreferrer">Ver en OpenStreetMap ↗</a>}
             </li>
           );

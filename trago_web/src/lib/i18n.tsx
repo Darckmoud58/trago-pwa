@@ -91,7 +91,10 @@ const messages = {
     osmCoverageNote: 'La cobertura depende de los lugares registrados en OpenStreetMap.',
     osmReducedRadius: 'OpenStreetMap tardó en responder; mostramos lugares dentro de {km} km.',
     nearbyPromosTitle: 'Ofertas de empresas cercanas',
-    nearbyPromosSourceNote: 'Se consultan las páginas oficiales; también se conservan sus promociones guardadas si una página no responde. Confirma vigencia y sucursal participante.',
+    nearbyPromosSourceNote:
+      'No todos los lugares de OSM publican ofertas legibles. Hoy TraGo lee: OXXO, 7‑Eleven, Chedraui, Burger King, Starbucks, Krispy Kreme, Circle K, HEB y La Europea. McDonald’s a veces bloquea (Cloudflare).',
+    nearbyHasOffers: 'Con ofertas oficiales',
+    nearbyNoOffers: 'Sin fuente de ofertas',
     nearbyPromosEmpty: 'No encontramos ofertas oficiales activas para los negocios identificados cerca de ti.',
     nearbyPromosError: 'No se pudieron cargar las ofertas cercanas. Puedes consultar todas las ofertas disponibles.',
     viewAllPromos: 'Ver todas las ofertas',
@@ -316,7 +319,10 @@ const messages = {
     osmCoverageNote: 'Coverage depends on the places recorded in OpenStreetMap.',
     osmReducedRadius: 'OpenStreetMap took too long to respond; showing places within {km} km.',
     nearbyPromosTitle: 'Offers from nearby businesses',
-    nearbyPromosSourceNote: 'Official pages are checked; saved offers remain available if a page is down. Confirm dates and participating branches.',
+    nearbyPromosSourceNote:
+      'Not every OSM place publishes readable offers. TraGo currently reads: OXXO, 7‑Eleven, Chedraui, Burger King, Starbucks, Krispy Kreme, Circle K, HEB and La Europea. McDonald’s sometimes blocks (Cloudflare).',
+    nearbyHasOffers: 'Official offers available',
+    nearbyNoOffers: 'No offer source',
     nearbyPromosEmpty: 'No active official offers found for identified nearby businesses.',
     nearbyPromosError: 'Nearby offers could not be loaded. You can browse all available offers.',
     viewAllPromos: 'View all offers',

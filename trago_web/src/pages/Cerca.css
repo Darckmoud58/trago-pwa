@@ -66,6 +66,15 @@
   overflow-wrap: anywhere;
 }
 
+.cerca-offer-flag.is-yes {
+  color: color-mix(in srgb, var(--cta, #d81a1c) 80%, #1a7a3c);
+  font-weight: 600;
+}
+
+.cerca-offer-flag.is-no {
+  opacity: 0.65;
+}
+
 .nearby-promos {
   min-width: 0;
   padding: 1rem;

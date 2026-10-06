@@ -50,6 +50,7 @@ export type Promo = {
   imageUrl?: string;
   imagen?: string;
   origin?: string;
+  origen?: 'oficial' | 'empresa' | 'demo' | 'usuario' | string;
   url_fuente?: string;
   ubicacionesCercanas?: { _id: string; nombre: string; distanceMeters: number }[];
   puntos?: number;
@@ -80,4 +81,6 @@ export type Branch = {
   distanceMeters?: number;
   hours?: string;
   osmUrl?: string;
+  hasOfficialPromos?: boolean;
+  officialBrand?: string | null;
 };

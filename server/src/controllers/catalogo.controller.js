@@ -3,8 +3,43 @@ import Promocion from '../models/Promocion.js';
 import Ubicacion from '../models/Ubicacion.js';
 import Empresa from '../models/Empresa.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
-import { collectNearbyPromos, hasOfficialPromoSource } from '../services/officialPromoCollector.js';
+import {
+  collectNearbyPromos,
+  ensureOfficialCompanies,
+  hasOfficialPromoSource,
+  officialSourceSlugs,
+  resolveOfficialBrand,
+} from '../services/officialPromoCollector.js';
 import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
+
+function officialPromoFilter(now = new Date()) {
+  return {
+    origen: 'oficial',
+    estatus: 'activo',
+    $and: [
+      { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
+      { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
+    ],
+  };
+}
+
+/** Refresca scrapers de todas las empresas con fuente oficial configurada. */
+async function refreshOfficialSources() {
+  const companies = await ensureOfficialCompanies([], { allConfigured: true });
+  if (!companies.length) return [];
+  try {
+    return await collectNearbyPromos(companies);
+  } catch (sourceError) {
+    console.error('refreshOfficialSources:', sourceError.message);
+    return companies.map((company) => ({
+      empresa: company.nombre,
+      ok: false,
+      count: 0,
+      reason:
+        'No se pudo actualizar la fuente; se mostrarán las promociones oficiales guardadas.',
+    }));
+  }
+}
 
 function mapPromo(p, empresaById = {}) {
   const emp = empresaById[String(p.id_empresa)] || {};
@@ -12,6 +47,8 @@ function mapPromo(p, empresaById = {}) {
     ...p,
     // aliases front (Todo_pwa / UI previa)
     title: p.nombre,
+    origin: p.origen,
+    url_fuente: p.url_fuente,
     subtitle: p.descripcion,
     chainName: emp.nombre || '',
     chainId: p.id_empresa,
@@ -62,7 +99,7 @@ export async function getPromo(req, res) {
       byId ||
       (await Promocion.findOne({ slug: promoId, estatus: 'activo' }).lean());
 
-    if (!promo || promo.estatus === 'inactivo') {
+    if (!promo || promo.estatus === 'inactivo' || promo.origen !== 'oficial') {
       return res.status(404).json({ message: 'Promoción no encontrada' });
     }
 
@@ -89,19 +126,23 @@ export async function getPromo(req, res) {
   }
 }
 
-/** Listado público de promociones activas. */
+/** Listado público: solo promociones scrapadas de sitios oficiales. */
 export async function listPromos(_req, res) {
   try {
+    const sources = await refreshOfficialSources();
+    const now = new Date();
     const [promos, empresas] = await Promise.all([
-      Promocion.find({ estatus: 'activo' })
+      Promocion.find(officialPromoFilter(now))
         .sort({ destacada: -1, termina_en: 1 })
         .limit(100)
         .lean(),
-      Empresa.find({}).lean(),
+      Empresa.find({ slug: { $in: officialSourceSlugs() } }).lean(),
     ]);
-    const empresaById = Object.fromEntries(empresas.map((e) => [String(e._id), e]));
+    const empresaById = Object.fromEntries(
+      empresas.map((e) => [String(e._id), e])
+    );
     const mapped = promos.map((p) => mapPromo(p, empresaById));
-    res.json({ count: mapped.length, promos: mapped });
+    res.json({ count: mapped.length, promos: mapped, sources });
   } catch (e) {
     console.error('listPromos:', e.message);
     res.status(500).json({ message: 'Error del servidor' });
@@ -120,10 +161,30 @@ export async function nearbyPromos(req, res) {
     }
 
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
-    const branches = discovery.branches;
-    const companyIds = [...new Set(branches.map((b) => b.id_empresa).filter(Boolean).map(String))];
-    const companies = companyIds.length ? await Empresa.find({ _id: { $in: companyIds }, estatus: 'activo' }).lean() : [];
-    const sourceCompanies = companies.filter((company) => hasOfficialPromoSource(company.slug));
+    let branches = discovery.branches;
+
+    // Crea/actualiza empresas oficiales detectadas cerca (Circle K, HEB, OXXO…)
+    const ensured = await ensureOfficialCompanies(branches, { allConfigured: false });
+    const bySlug = Object.fromEntries(ensured.map((c) => [c.slug, c]));
+
+    branches = branches.map((branch) => {
+      const brand = resolveOfficialBrand(branch);
+      const company = brand ? bySlug[brand.slug] : null;
+      if (!company) return branch;
+      return {
+        ...branch,
+        id_empresa: company._id,
+        companyId: company._id,
+        chainName: company.nombre || branch.chainName,
+      };
+    });
+
+    const sourceCompanies = ensured.filter(
+      (company) =>
+        company?._id &&
+        hasOfficialPromoSource(company.slug) &&
+        branches.some((b) => String(b.id_empresa) === String(company._id))
+    );
     let sources = [];
     try {
       sources = await collectNearbyPromos(sourceCompanies);
@@ -137,24 +198,26 @@ export async function nearbyPromos(req, res) {
       }));
     }
     const now = new Date();
-    const promos = sourceCompanies.length ? await Promocion.find({
-      id_empresa: { $in: sourceCompanies.map((c) => c._id) },
-      origen: 'oficial',
-      estatus: 'activo',
-      $and: [
-        { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
-        { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
-      ],
-    }).sort({ destacada: -1, termina_en: 1 }).limit(100).lean() : [];
-    const companyById = Object.fromEntries(companies.map((c) => [String(c._id), c]));
+    const promos = sourceCompanies.length
+      ? await Promocion.find({
+          ...officialPromoFilter(now),
+          id_empresa: { $in: sourceCompanies.map((c) => c._id) },
+        })
+          .sort({ destacada: -1, termina_en: 1 })
+          .limit(200)
+          .lean()
+      : [];
+    const companyById = Object.fromEntries(ensured.map((c) => [String(c._id), c]));
     const mapped = promos.map((promo) => ({
       ...mapPromo(promo, companyById),
-      ubicacionesCercanas: branches.filter((b) => String(b.id_empresa) === String(promo.id_empresa)).map((b) => ({
-        _id: b._id,
-        nombre: b.nombre || b.calle,
-        distanceMeters: b.distanceMeters,
-        osmUrl: b.osmUrl,
-      })),
+      ubicacionesCercanas: branches
+        .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
+        .map((b) => ({
+          _id: b._id,
+          nombre: b.nombre || b.calle,
+          distanceMeters: b.distanceMeters,
+          osmUrl: b.osmUrl,
+        })),
     }));
     return res.json({
       count: mapped.length,
@@ -164,8 +227,12 @@ export async function nearbyPromos(req, res) {
       businessesFound: branches.length,
       searchedRadiusMeters: discovery.searchedRadiusMeters,
       partial: discovery.partial,
-      businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length + companies.length - sourceCompanies.length,
-      locationSource: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
+      businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length,
+      locationSource: discovery.stale
+        ? 'openstreetmap-cache-stale'
+        : discovery.cached
+          ? 'openstreetmap-cache'
+          : 'openstreetmap',
     });
   } catch (e) {
     console.error('nearbyPromos:', e.message);
@@ -183,7 +250,15 @@ export async function nearBranches(req, res) {
       return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
     }
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
-    const mapped = discovery.branches.map((branch) => ({ ...branch, osmUrl: branch.osmUrl }));
+    const mapped = discovery.branches.map((branch) => {
+      const brand = resolveOfficialBrand(branch);
+      return {
+        ...branch,
+        osmUrl: branch.osmUrl,
+        hasOfficialPromos: Boolean(brand && hasOfficialPromoSource(brand.slug)),
+        officialBrand: brand?.nombre || null,
+      };
+    });
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
@@ -194,6 +269,7 @@ export async function nearBranches(req, res) {
       source: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
       attribution: '© OpenStreetMap contributors',
       attributionUrl: 'https://www.openstreetmap.org/copyright',
+      officialBrandsSupported: officialSourceSlugs(),
     });
   } catch (e) {
     console.error('nearBranches:', e.message);

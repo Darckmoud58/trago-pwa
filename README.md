@@ -97,7 +97,7 @@ El monolitico Next quedó en `web_next_legacy/` solo como referencia. El flujo d
 
 `GET /api/promociones/cerca?lng=...&lat=...&maxMeters=8000` descubre primero lugares en el radio. Solo cuando un lugar se puede asociar con una empresa conocida consulta sus páginas oficiales configuradas e importa resultados en MongoDB (`origen: oficial`, `url_fuente`). Muestra sucursales OSM cercanas de esa empresa; la página oficial puede no especificar en cuál sucursal aplica.
 
-Fuentes con parsers en `server/src/services/officialPromoCollector.js`: OXXO, La Europea, Italianni's, Vips, Starbucks y Karne Garibaldi. Se cachean por proceso durante seis horas. Los sitios pueden cambiar su HTML o bloquear solicitudes; cada empresa informa su estado. Si el texto no permite detectar fechas, la promo queda sin fechas y se muestra el aviso de confirmar vigencia y condiciones directamente con el negocio. La extracción es aproximada y no confirma inventario ni aplicación en sucursal.
+El catálogo público (`GET /api/promociones`) y el detalle solo muestran promociones con `origen: oficial` tomadas de sitios oficiales. Fuentes con parsers en `server/src/services/officialPromoCollector.js`: OXXO, 7‑Eleven (ofertas Jalisco), Chedraui (API VTEX), Burger King (GraphQL loyalty), Starbucks, Krispy Kreme, Italianni’s, Vips, Walmart (campañas Tempo), Circle K, HEB y La Europea. McDonald’s y Soriana suelen bloquear scrapers (Cloudflare/PerimeterX); si no hay lectura legible no se inventan ofertas. Se cachean por proceso durante seis horas. La extracción es aproximada y no confirma inventario ni aplicación en sucursal.
 
 ## Favoritos de usuario y modo offline
 

@@ -87,12 +87,19 @@ export function isPromoActive(p: Promo, now = Date.now()): boolean {
   return t >= now;
 }
 
+/** Solo ofertas tomadas de sitios oficiales (origen: oficial). */
+export function isOfficialPromo(p: Promo): boolean {
+  const origin = p.origin || p.origen;
+  return origin === 'oficial' || origin === 'official';
+}
+
 export function filterActivePromos(promos: Promo[]): Promo[] {
-  return promos.filter((p) => isPromoActive(p));
+  return promos.filter((p) => isOfficialPromo(p) && isPromoActive(p));
 }
 
 export const CACHE_KEYS = {
-  promos: 'promociones',
+  // bump key para invalidar caché con demos del seed
+  promos: 'promociones_oficiales_v1',
   negocios: 'negocios',
   lastNear: 'sucursales_cerca',
 } as const;
