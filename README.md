@@ -2,7 +2,7 @@
 
 PWA / app de **promociones vigentes** en Guadalajara.
 
-TraGo vende **certeza**: qué promo sigue vigente, en cuál sucursal y a cuántos metros — oficial × local × GPS × verdad de piso. No es directorio ni delivery; la promo es el producto. Tesis comercial y go-to-market: [docs/PITCH-TRAGO.md](docs/PITCH-TRAGO.md). Contexto para agentes: [AGENTS.md](AGENTS.md).
+TraGo vende **certeza**: qué promo sigue vigente, en cuál sucursal y a cuántos metros — oficial × local × GPS × verdad de piso. No es directorio ni delivery; la promo es el producto. Tesis comercial y go-to-market: [docs/PITCH-TRAGO.md](docs/PITCH-TRAGO.md). Contexto para agentes: [AGENTS.md](AGENTS.md). Claude.ai / Claude Code: [docs/claude-project/COMO-CONECTAR.md](docs/claude-project/COMO-CONECTAR.md) y [CLAUDE.md](CLAUDE.md).
 
 > Alcohol: 18+.
 

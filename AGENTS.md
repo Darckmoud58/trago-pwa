@@ -16,6 +16,8 @@
 | [README.md](README.md) | Stack, rutas, OSM/cerca, scrapers oficiales, favoritos |
 | [GUIA_MONGODB_TRAGO.txt](GUIA_MONGODB_TRAGO.txt) | Colecciones y seed |
 | [.cursor/rules/trago-vision.mdc](.cursor/rules/trago-vision.mdc) | Regla siempre activa |
+| [CLAUDE.md](CLAUDE.md) | Mapa del repo para Claude Code (carpeta local) |
+| [docs/claude-project/](docs/claude-project/) | Instrucciones + guía para proyecto Claude.ai |
 
 ## Arranque
 
