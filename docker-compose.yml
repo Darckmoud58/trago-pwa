@@ -32,7 +32,9 @@ services:
       PORT: "4000"
       MONGODB_URI: mongodb://mongo:27017/trago
       MONGODB_DB: trago
-      JWT_SECRET: trago-docker-jwt-dev
+      # ≥32 chars · override with JWT_SECRET in .env (never use in production)
+      JWT_SECRET: "${JWT_SECRET:-trago-docker-dev-secret-min-32-chars!!}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}"
     restart: unless-stopped
 
   # Front Vite (build local → dist). Antes: imagen Next legacy.

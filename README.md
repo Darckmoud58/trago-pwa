@@ -110,6 +110,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Seguridad P1 (base del servidor)
+
+- `JWT_SECRET` obligatorio (≥32), sin fallback `changeme`.
+- `helmet`, CORS allowlist (`CORS_ORIGINS`), body JSON 20kb, `GET /` → `{ ok: true }`.
+- Auth con zod (`birthDate` obligatoria; se ignora `edad` del cliente), JWT 24h + `tokenVersion`.
+- Eliminado `token_login`. Migración: `npm run migrate:drop-token-login` en `server/`.
+- Verifica en Netlify que `JWT_SECRET` esté definido (las sesiones se invalidan al rotarlo).
+
 ## Mapa de vigencia (#8)
 
 - `GET /api/cadena/vigencia` incluye `lat`/`lng`, `byStatus` y `withCoords`.

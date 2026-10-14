@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import Usuario from '../models/Usuario.js';
 import {
   bandFromAge,
@@ -6,6 +5,7 @@ import {
   parseBand,
   resolveUserAge,
 } from '../lib/ageGate.js';
+import { verifyAccessToken } from '../lib/jwt.js';
 
 /**
  * Auth opcional + banda de edad del visitante.
@@ -25,13 +25,17 @@ export async function attachViewerAge(req, _res, next) {
 
   if (token) {
     try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET || 'changeme');
+      const payload = verifyAccessToken(token);
       req.userId = payload.id;
       req.role = payload.role;
       const user = await Usuario.findById(payload.id)
-        .select('edad fecha_nacimiento estatus')
+        .select('edad fecha_nacimiento estatus tokenVersion')
         .lean();
-      if (user && user.estatus === 'activo') {
+      const tvOk =
+        user &&
+        user.estatus === 'activo' &&
+        Number(payload.tv ?? 0) === Number(user.tokenVersion ?? 0);
+      if (tvOk) {
         const age = resolveUserAge(user);
         const band = bandFromAge(age) || parseBand(payload.band);
         req.viewer = {
