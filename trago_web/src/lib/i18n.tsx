@@ -58,10 +58,11 @@ const messages = {
     teenNote: 'Perfil 13–17: ocultamos alcohol y nocturno.',
     ageGateTitle: '¿Tienes 18 años o más?',
     ageGateBody:
-      'TraGo muestra promociones con alcohol y nocturno solo a mayores de 18. Tu respuesta se envía al servidor en cada consulta.',
+      'TraGo muestra alcohol y nocturno solo a mayores de 18. Es una declaración (no verificación de identidad); el servidor la guarda en una cookie firmada.',
     ageGateAdult: 'Sí, soy mayor de 18',
     ageGateTeen: 'Tengo entre 13 y 17',
-    ageGateNote: 'Puedes cambiar esto al iniciar sesión con tu fecha de nacimiento.',
+    ageGateNote:
+      'Al iniciar sesión, tu fecha de nacimiento manda. Una cuenta 13–17 nunca ve alcohol aunque declares lo contrario.',
     ageDialog: 'Aviso de edad',
     ageBody:
       'Hay promos con alcohol solo 18+. Al continuar aceptas los términos y el aviso de privacidad.',
@@ -383,10 +384,11 @@ const messages = {
     teenNote: 'Ages 13–17: we hide alcohol and nightlife.',
     ageGateTitle: 'Are you 18 or older?',
     ageGateBody:
-      'TraGo shows alcohol and nightlife deals only to adults. Your answer is sent to the server on every catalog request.',
+      'TraGo shows alcohol and nightlife only to ages 18+. This is a declaration (not identity verification); the server stores it in a signed cookie.',
     ageGateAdult: 'Yes, I am 18+',
     ageGateTeen: 'I am 13–17',
-    ageGateNote: 'Signing in with your birth date overrides this declaration.',
+    ageGateNote:
+      'When you sign in, your birth date wins. A 13–17 account never sees alcohol even if a cookie says otherwise.',
     ageDialog: 'Age notice',
     ageBody:
       'Some deals include alcohol for 18+ only. By continuing you accept the terms and privacy notice.',
