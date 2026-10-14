@@ -119,6 +119,11 @@ export default function Cadena() {
     void load();
   }, [token, load]);
 
+  const filteredVigencia = useMemo(() => {
+    if (mapFilter === 'all') return vigencia;
+    return vigencia.filter((r) => r.crowdStatus === mapFilter);
+  }, [vigencia, mapFilter]);
+
   if (!token) {
     return <Navigate to="/entrar" replace />;
   }
@@ -249,11 +254,6 @@ export default function Cadena() {
   }
 
   const verified = Boolean(empresa?.verificada || empresa?.verified);
-
-  const filteredVigencia = useMemo(() => {
-    if (mapFilter === 'all') return vigencia;
-    return vigencia.filter((r) => r.crowdStatus === mapFilter);
-  }, [vigencia, mapFilter]);
 
   function crowdLabel(status: string) {
     if (status === 'en_duda' || status === 'en-duda') return t('crowdDoubt');

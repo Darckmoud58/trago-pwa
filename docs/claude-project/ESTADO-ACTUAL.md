@@ -4,15 +4,18 @@ Actualizado para Claude.ai / Claude Code. Repo: https://github.com/Darckmoud58/t
 
 ## Cadena de PRs (draft, mergear en orden)
 
+Lista viva con URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md). Prompt para Claude: [`PROMPT-LEER-PRS.md`](./PROMPT-LEER-PRS.md).
+
 | PR | Rama | Qué entregó |
 |----|------|-------------|
-| #2 | `cursor/auth-cadena-panel-e557` | Auth cadena, CRUD promo/sucursal, panel `/cadena`, catálogo empresa verificada |
-| #3 | `cursor/ligar-promo-sucursales-e557` | Vínculo promo↔sucursal sin inventar participación OSM |
-| #4 | (voto / quick wins en cadena) | Scrapers a job 6h, puerto 4000 + proxy `/api`, voto vigencia 400 m |
-| #5 | `cursor/moderacion-reportes-e557` | Rate limit, flip-flop, ban, reafirmar / pausar participación |
-| #6 | `cursor/metrica-norte-e557` | Eventos `gps_ok` × `promo_open` × `sucursal_vista` + embudo en panel |
-| #7 | `cursor/gate-18-server-e557` | Gate 18+ server (`X-Trago-Band` / JWT), diálogo edad |
-| #8 | `cursor/mapa-vigencia-e557` | Mapa OSM Leaflet de vigencia en `/cadena` |
+| #3 | `cursor/auth-cadena-panel-e557` | Auth cadena, CRUD promo/sucursal, panel `/cadena` |
+| #4 | `cursor/ligar-promo-sucursales-e557` | Vínculo promo↔sucursal sin inventar participación OSM |
+| #5 | `cursor/moderacion-reportes-e557` | Rate limit votos, flip-flop, ban, reafirmar / pausar |
+| #6 | `cursor/metrica-norte-e557` | Eventos métrica norte + embudo en panel |
+| #7 | `cursor/gate-18-server-e557` | Gate 18+ server + diálogo edad |
+| #8 | `cursor/mapa-vigencia-e557` | Mapa OSM vigencia + paquete Claude |
+| #9 | `cursor/seguridad-p1-e557` | Seguridad P1 (JWT, helmet, CORS, zod, tokenVersion) |
+| #10 | `cursor/seguridad-p7-ci-e557` | CI, Dependabot, seed seguro, root package limpio |
 
 Quick wins y voto (#1) viven en la base de esa cadena.
 
@@ -30,7 +33,8 @@ Quick wins y voto (#1) viven en la base de esa cadena.
 
 Orden del auditor: **P1 → P2 → P3 → P6 → P4 → P5 → P8** (+ P7 tras P1).
 
-Nota: la auditoría miró `main` sin la cadena #2–#8. Producto (voto, cadena, métrica, gate, mapa) ya está en PRs; **P1 endurecimiento servidor** va en `cursor/seguridad-p1-e557`.
+**Hecho:** P1 (#9) · P7 (esta rama) · producto P4/P5/P3-parcial/P8 (#3–#8).  
+**Siguiente tipico:** P2 (rate limit Mongo + /cerca) o P6 (CSP/SW).
 
 Acciones operativas (sin código): JWT_SECRET en Netlify ≥32; Atlas usuario solo TraGo; no `seed` en prod.
 

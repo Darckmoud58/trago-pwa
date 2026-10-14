@@ -1,7 +1,15 @@
 /**
  * Seed TraGo alineado al diagrama ER (traGO.1.2.drawio).
- * Uso: cd server && npm run seed
- * Base: MONGODB_DB=trago (mismo Atlas que Todo_pwa / clase).
+ * Uso: cd server && npm run seed -- --yes
+ *
+ * Guardas:
+ * - No corre si NODE_ENV=production
+ * - Solo DB en lista permitida (trago, trago_dev, trago_test)
+ * - Requiere flag --yes para deleteMany parciales
+ * - Password demo desde SEED_DEMO_PASSWORD (default solo fuera de production)
+ *
+ * Nota: promos seed usan origen 'demo' y NO salen en el catálogo público
+ * (solo oficial + empresa verificada). Flag --demo documentado; nunca en prod.
  */
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -19,9 +27,15 @@ import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
+const ALLOWED_SEED_DBS = new Set(['trago', 'trago_dev', 'trago_test']);
+
+const DEMO_PASSWORD =
+  process.env.SEED_DEMO_PASSWORD ||
+  (process.env.NODE_ENV === 'production' ? '' : 'TraGo123!');
+
 const DEMO_USER = {
   correo: 'demo@trago.app',
-  password: 'TraGo123!',
+  password: DEMO_PASSWORD,
   nombre: 'Demo',
   ape_paterno: 'TraGo',
   ape_materno: 'ZMG',
@@ -30,7 +44,7 @@ const DEMO_USER = {
 
 const DEMO_CHAIN_USER = {
   correo: 'cadena@trago.app',
-  password: 'TraGo123!',
+  password: DEMO_PASSWORD,
   nombre: 'Gerente',
   ape_paterno: 'Cadena',
   ape_materno: 'Demo',
@@ -295,7 +309,31 @@ const promosSeed = [
   },
 ];
 
+function assertSeedAllowed() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Seed bloqueado: NODE_ENV=production');
+    process.exit(1);
+  }
+  const dbName = process.env.MONGODB_DB || 'trago';
+  if (!ALLOWED_SEED_DBS.has(dbName)) {
+    console.error(
+      `Seed bloqueado: MONGODB_DB="${dbName}" no está en ${[...ALLOWED_SEED_DBS].join(', ')}`
+    );
+    process.exit(1);
+  }
+  if (!process.argv.includes('--yes')) {
+    console.error('Seed requiere confirmación: npm run seed -- --yes');
+    process.exit(1);
+  }
+  if (!DEMO_PASSWORD || DEMO_PASSWORD.length < 8) {
+    console.error('Define SEED_DEMO_PASSWORD (≥8) para crear usuarios demo');
+    process.exit(1);
+  }
+}
+
 async function main() {
+  assertSeedAllowed();
+
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.error('Falta MONGODB_URI en server/.env');
@@ -528,12 +566,12 @@ async function main() {
   console.log(`  promociones:      ${promociones.length} (origen: demo — NO salen en catálogo público)`);
   console.log(`  promo_ubicaciones:${links.length}`);
   console.log(`  cupones:          ${cupones.length}`);
-  console.log(`  usuario demo:     ${DEMO_USER.correo} / ${DEMO_USER.password}`);
+  console.log(`  usuario demo:     ${DEMO_USER.correo} / (SEED_DEMO_PASSWORD)`);
   console.log(
-    `  usuario cadena:   ${DEMO_CHAIN_USER.correo} / ${DEMO_CHAIN_USER.password} (panel /cadena)`
+    `  usuario cadena:   ${DEMO_CHAIN_USER.correo} / (SEED_DEMO_PASSWORD) · panel /cadena`
   );
   console.log(
-    '  Nota: catálogo público = origen oficial + empresa verificada con sucursales. Seed demo no inventa oficiales.'
+    '  Nota: origen demo NO sale en catálogo público. Oficiales = scraper/job. Nunca uses --demo en producción.'
   );
 
   await mongoose.disconnect();
