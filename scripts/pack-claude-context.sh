@@ -13,6 +13,8 @@ trap cleanup EXIT
 mkdir -p "$OUT_DIR"
 cp "$ROOT/docs/claude-project/INSTRUCCIONES.md" "$STAGE/"
 cp "$ROOT/docs/claude-project/COMO-CONECTAR.md" "$STAGE/"
+cp "$ROOT/docs/claude-project/PASO-A-PASO.md" "$STAGE/"
+cp "$ROOT/docs/claude-project/CONTEXTO-COMPLETO.md" "$STAGE/"
 cp "$ROOT/AGENTS.md" "$STAGE/"
 cp "$ROOT/CLAUDE.md" "$STAGE/"
 cp "$ROOT/README.md" "$STAGE/"

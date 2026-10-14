@@ -3,13 +3,15 @@
 Claude.ai **Projects** guarda instrucciones + archivos subidos.  
 **No monta** la carpeta del disco en vivo. Para acceso a la carpeta usa **Claude Code** o **Cursor Cloud** (este repo).
 
+Atajo: sigue [`PASO-A-PASO.md`](PASO-A-PASO.md). Un solo archivo: [`CONTEXTO-COMPLETO.md`](CONTEXTO-COMPLETO.md).
+
 ## A) Claude.ai Project — todo el contexto (5 minutos)
 
 1. Abre el proyecto **TraGo** en claude.ai.
 2. **Instrucciones → Agregar / Editar**  
    Pega el contenido completo de [`INSTRUCCIONES.md`](INSTRUCCIONES.md)  
    (no pegues el `.mdc` de Cursor con el YAML `---`; ese frontmatter es solo para Cursor).
-3. **Archivos → Agregar** y sube estos del repo (o el zip del script):
+3. **Archivos → Agregar** y sube al menos [`CONTEXTO-COMPLETO.md`](CONTEXTO-COMPLETO.md), o estos del repo (o el zip del script):
 
    | Archivo | Ruta en el repo |
    |---------|-----------------|
