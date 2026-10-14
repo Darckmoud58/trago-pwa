@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-// Vacío en Netlify → mismas rutas /api/* (Function). En local: VITE_API_URL=http://localhost:4001
+// Vacío en local → proxy Vite /api → :4000. En Netlify → Function /api/*.
+// Alternativa explícita: VITE_API_URL=http://localhost:4000
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
 });

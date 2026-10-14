@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import authRoutes from './routes/auth.routes.js';
 import catalogoRoutes from './routes/catalogo.routes.js';
 import favoritosRoutes from './routes/favoritos.routes.js';
+import reportesRoutes from './routes/reportes.routes.js';
 
 /**
  * App Express (sin listen) — usable en local y en Netlify Functions.
@@ -39,12 +40,14 @@ export function createApp() {
         'canjes',
         'resenas',
         'promo_ubicaciones',
+        'reportes_vigencia',
       ],
     })
   );
 
   app.use('/api/auth', authRoutes);
   app.use('/api/favoritos', favoritosRoutes);
+  app.use('/api/reportes', reportesRoutes);
   app.use('/api', catalogoRoutes);
 
   return app;

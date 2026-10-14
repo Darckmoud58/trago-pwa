@@ -71,6 +71,7 @@ export default function Promos() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
+  const [emptyOfficial, setEmptyOfficial] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'))
@@ -93,6 +94,7 @@ export default function Promos() {
         setPromos(list);
         setFromCache(false);
         setError('');
+        setEmptyOfficial(list.length === 0);
       } catch {
         const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
         if (cancelled) return;
@@ -100,8 +102,10 @@ export default function Promos() {
           setPromos(filterActivePromos(cached.data));
           setFromCache(true);
           setError('');
+          setEmptyOfficial(false);
         } else {
           setError(t('promosLoadError'));
+          setEmptyOfficial(false);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -288,17 +292,23 @@ export default function Promos() {
 
       {!loading && !error && visible.length === 0 && (
         <div className="empty-state promos-empty">
-          <p>{t('promosEmpty')}</p>
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => {
-              applyFilter('todas');
-              setQuery('');
-            }}
-          >
-            {t('clearFilters')}
-          </button>
+          <p>{emptyOfficial ? t('promosEmptyOfficial') : t('promosEmpty')}</p>
+          {emptyOfficial ? (
+            <Link className="btn primary" to="/cerca">
+              {t('openNear')}
+            </Link>
+          ) : (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => {
+                applyFilter('todas');
+                setQuery('');
+              }}
+            >
+              {t('clearFilters')}
+            </button>
+          )}
         </div>
       )}
     </section>

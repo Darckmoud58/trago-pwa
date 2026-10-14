@@ -26,8 +26,8 @@ services:
       mongo:
         condition: service_healthy
     ports:
-      # Host 4001: en Mac el 4000 suele estar ocupado por Todo_pwa
-      - "4001:4000"
+      # Unificado con local / Vite proxy. Override: TRAGO_API_HOST_PORT=4001
+      - "${TRAGO_API_HOST_PORT:-4000}:4000"
     environment:
       PORT: "4000"
       MONGODB_URI: mongodb://mongo:27017/trago

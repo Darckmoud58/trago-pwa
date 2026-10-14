@@ -296,16 +296,17 @@ async function main() {
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || 'trago' });
   console.log('Conectado a', mongoose.connection.name);
 
+  // Preservar scrapes oficiales: no borrar origen=oficial ni sus vínculos.
+  const officialPromoIds = await Promocion.find({ origen: 'oficial' }).distinct('_id');
+
   await Promise.all([
     Rol.deleteMany({}),
     Nivel.deleteMany({}),
     Categoria.deleteMany({}),
     Insignia.deleteMany({}),
-    Empresa.deleteMany({}),
-    Ubicacion.deleteMany({}),
-    Promocion.deleteMany({}),
-    PromoUbicacion.deleteMany({}),
-    Cupon.deleteMany({}),
+    Promocion.deleteMany({ origen: { $in: ['demo', 'usuario'] } }),
+    PromoUbicacion.deleteMany({ id_promo: { $nin: officialPromoIds } }),
+    Cupon.deleteMany({ fuente: 'seed-demo' }),
     Usuario.deleteMany({ correo: DEMO_USER.correo }),
   ]);
 
@@ -318,39 +319,53 @@ async function main() {
 
   const catByNombre = Object.fromEntries(categorias.map((c) => [c.nombre, c]));
 
-  const empresas = await Empresa.insertMany(
-    empresasSeed.map((e) => ({
-      slug: e.slug,
-      nombre: e.nombre,
-      descripcion: e.descripcion,
-      imagen: e.imagen,
-      sitio_web: e.sitio_web,
-      id_categoria: catByNombre[e.cat]?._id || null,
-      estatus: 'activo',
-    }))
-  );
+  const empresas = [];
+  for (const e of empresasSeed) {
+    const doc = await Empresa.findOneAndUpdate(
+      { slug: e.slug },
+      {
+        $set: {
+          nombre: e.nombre,
+          descripcion: e.descripcion,
+          imagen: e.imagen,
+          sitio_web: e.sitio_web,
+          id_categoria: catByNombre[e.cat]?._id || null,
+          estatus: 'activo',
+        },
+        $setOnInsert: { slug: e.slug },
+      },
+      { upsert: true, new: true }
+    );
+    empresas.push(doc);
+  }
   const empBySlug = Object.fromEntries(empresas.map((e) => [e.slug, e]));
 
-  const ubicaciones = await Ubicacion.insertMany(
-    ubicacionesSeed.map((u) => {
-      const emp = empBySlug[u.empresaSlug];
-      return {
-        slug: u.slug,
-        nombre: u.nombre,
-        calle: u.calle,
-        num_ext: u.num_ext,
-        colonia: u.colonia,
-        municipio: u.municipio,
-        estado: 'Jalisco',
-        lat: u.lat,
-        long: u.long,
-        location: { type: 'Point', coordinates: [u.long, u.lat] },
-        id_empresa: emp._id,
-        horario: u.horario,
-        estatus: 'activo',
-      };
-    })
-  );
+  const ubicaciones = [];
+  for (const u of ubicacionesSeed) {
+    const emp = empBySlug[u.empresaSlug];
+    const doc = await Ubicacion.findOneAndUpdate(
+      { slug: u.slug },
+      {
+        $set: {
+          nombre: u.nombre,
+          calle: u.calle,
+          num_ext: u.num_ext,
+          colonia: u.colonia,
+          municipio: u.municipio,
+          estado: 'Jalisco',
+          lat: u.lat,
+          long: u.long,
+          location: { type: 'Point', coordinates: [u.long, u.lat] },
+          id_empresa: emp._id,
+          horario: u.horario,
+          estatus: 'activo',
+        },
+        $setOnInsert: { slug: u.slug },
+      },
+      { upsert: true, new: true }
+    );
+    ubicaciones.push(doc);
+  }
   const ubiBySlug = Object.fromEntries(ubicaciones.map((u) => [u.slug, u]));
 
   const inicia = new Date('2026-08-01T06:00:00.000Z');
@@ -445,10 +460,13 @@ async function main() {
   console.log(`  insignias:        ${insignias.length}`);
   console.log(`  empresas:         ${empresas.length}`);
   console.log(`  ubicaciones:      ${ubicaciones.length}`);
-  console.log(`  promociones:      ${promociones.length}`);
+  console.log(`  promociones:      ${promociones.length} (origen: demo — NO salen en catálogo público)`);
   console.log(`  promo_ubicaciones:${links.length}`);
   console.log(`  cupones:          ${cupones.length}`);
   console.log(`  usuario demo:     ${DEMO_USER.correo} / ${DEMO_USER.password}`);
+  console.log(
+    '  Nota: GET /api/promociones solo lista origen=oficial (scrapers/job). El seed no inventa oficiales.'
+  );
 
   await mongoose.disconnect();
 }
