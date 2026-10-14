@@ -3,10 +3,14 @@ import { auth } from '../middleware/auth.js';
 import { requireAdmin, requireChain } from '../middleware/roles.js';
 import Empresa from '../models/Empresa.js';
 import {
+  blockUserReports,
   createPromo,
   createSucursal,
   getCadenaMe,
+  listVigencia,
+  reafirmarVigencia,
   registerCadena,
+  setParticipacion,
   setPromoSucursales,
   updatePromo,
   verifyEmpresa,
@@ -43,7 +47,13 @@ router.post(
   setPromoSucursales
 );
 
-/** Admin verifica cadena para catálogo público. */
+/** Moderación de vigencia en piso */
+router.get('/vigencia', auth, requireChain, listVigencia);
+router.post('/vigencia/reafirmar', auth, requireChain, reafirmarVigencia);
+router.post('/vigencia/participacion', auth, requireChain, setParticipacion);
+
+/** Admin */
 router.post('/admin/verificar', auth, requireAdmin, verifyEmpresa);
+router.post('/admin/bloquear-reportes', auth, requireAdmin, blockUserReports);
 
 export default router;

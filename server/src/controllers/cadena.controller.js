@@ -7,6 +7,7 @@ import PromoUbicacion from '../models/PromoUbicacion.js';
 import Usuario from '../models/Usuario.js';
 import Rol from '../models/Rol.js';
 import { uniqueSlug } from '../lib/slugify.js';
+import { crowdStatus } from '../lib/validity.js';
 
 function mapEmpresa(e) {
   if (!e) return null;
@@ -420,6 +421,238 @@ export async function verifyEmpresa(req, res) {
     return res.json({ empresa: mapEmpresa(empresa) });
   } catch (e) {
     console.error('verifyEmpresa:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+/**
+ * GET /api/cadena/vigencia
+ * Mapa de vigencia por local (para panel / venta Pro).
+ */
+export async function listVigencia(req, res) {
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const promos = await Promocion.find({ id_empresa: empresa._id })
+      .select('_id nombre estatus origen')
+      .lean();
+    const promoIds = promos.map((p) => p._id);
+    const promoById = Object.fromEntries(promos.map((p) => [String(p._id), p]));
+
+    const links = promoIds.length
+      ? await PromoUbicacion.find({ id_promo: { $in: promoIds } }).lean()
+      : [];
+    const ubiIds = links.map((l) => l.id_ubicacion);
+    const ubicaciones = ubiIds.length
+      ? await Ubicacion.find({ _id: { $in: ubiIds } }).lean()
+      : [];
+    const ubiById = Object.fromEntries(ubicaciones.map((u) => [String(u._id), u]));
+
+    const rows = links.map((link) => {
+      const status = crowdStatus({
+        officialActive: link.activa_oficial !== false,
+        reportsVigente: link.reportes_vigente || 0,
+        reportsCaduco: link.reportes_caduco || 0,
+      });
+      const promo = promoById[String(link.id_promo)];
+      const ubi = ubiById[String(link.id_ubicacion)];
+      return {
+        promoId: link.id_promo,
+        promoNombre: promo?.nombre || '',
+        ubicacionId: link.id_ubicacion,
+        sucursalNombre: ubi?.nombre || ubi?.calle || '',
+        activaOficial: link.activa_oficial !== false,
+        reportsVigente: link.reportes_vigente || 0,
+        reportsCaduco: link.reportes_caduco || 0,
+        crowdStatus: status,
+        reafirmadoEn: link.reafirmado_en || null,
+        notaModeracion: link.nota_moderacion || '',
+      };
+    });
+
+    // Dudas primero (útil para el gerente)
+    const order = { caduco: 0, en_duda: 1, vigente: 2, fuera: 3 };
+    rows.sort(
+      (a, b) => (order[a.crowdStatus] ?? 9) - (order[b.crowdStatus] ?? 9)
+    );
+
+    return res.json({
+      count: rows.length,
+      enDuda: rows.filter((r) => r.crowdStatus === 'en_duda' || r.crowdStatus === 'caduco')
+        .length,
+      rows,
+    });
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('listVigencia:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+/**
+ * POST /api/cadena/vigencia/reafirmar
+ * body: { promoId, ubicacionId, nota? }
+ * Reafirma participación oficial; no borra votos de piso.
+ */
+export async function reafirmarVigencia(req, res) {
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const promoId = req.body.promoId;
+    const ubicacionId = req.body.ubicacionId || req.body.branchId;
+    if (
+      !mongoose.isValidObjectId(promoId) ||
+      !mongoose.isValidObjectId(ubicacionId)
+    ) {
+      return res.status(400).json({ message: 'promoId y ubicacionId requeridos' });
+    }
+
+    const [promo, ubi] = await Promise.all([
+      Promocion.findOne({ _id: promoId, id_empresa: empresa._id }).lean(),
+      Ubicacion.findOne({ _id: ubicacionId, id_empresa: empresa._id }).lean(),
+    ]);
+    if (!promo || !ubi) {
+      return res.status(404).json({ message: 'Promo o sucursal no pertenece a tu cadena' });
+    }
+
+    const link = await PromoUbicacion.findOneAndUpdate(
+      { id_promo: promoId, id_ubicacion: ubicacionId },
+      {
+        $set: {
+          activa_oficial: true,
+          reafirmado_en: new Date(),
+          reafirmado_por: req.userId,
+          nota_moderacion: String(req.body.nota || req.body.notaModeracion || '').slice(
+            0,
+            500
+          ),
+        },
+      },
+      { new: true }
+    ).lean();
+
+    if (!link) {
+      return res.status(404).json({
+        message: 'No hay vínculo promo↔sucursal. Asigna la sucursal a la promo primero.',
+      });
+    }
+
+    const status = crowdStatus({
+      officialActive: true,
+      reportsVigente: link.reportes_vigente || 0,
+      reportsCaduco: link.reportes_caduco || 0,
+    });
+
+    return res.json({
+      ok: true,
+      link,
+      crowdStatus: status,
+      message:
+        'Participación reafirmada. Los votos de piso se conservan (matizan; no borran el folio).',
+    });
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('reafirmarVigencia:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+/**
+ * POST /api/cadena/vigencia/participacion
+ * body: { promoId, ubicacionId, activaOficial: boolean }
+ * Pausa o reactive participación de una sucursal (sin borrar la promo).
+ */
+export async function setParticipacion(req, res) {
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const promoId = req.body.promoId;
+    const ubicacionId = req.body.ubicacionId || req.body.branchId;
+    const activa =
+      typeof req.body.activaOficial === 'boolean'
+        ? req.body.activaOficial
+        : typeof req.body.activa_oficial === 'boolean'
+          ? req.body.activa_oficial
+          : null;
+
+    if (
+      !mongoose.isValidObjectId(promoId) ||
+      !mongoose.isValidObjectId(ubicacionId) ||
+      typeof activa !== 'boolean'
+    ) {
+      return res.status(400).json({
+        message: 'promoId, ubicacionId y activaOficial (boolean) son requeridos',
+      });
+    }
+
+    const promo = await Promocion.findOne({
+      _id: promoId,
+      id_empresa: empresa._id,
+    }).lean();
+    if (!promo) {
+      return res.status(404).json({ message: 'Promo no es de tu cadena' });
+    }
+
+    const link = await PromoUbicacion.findOneAndUpdate(
+      { id_promo: promoId, id_ubicacion: ubicacionId },
+      {
+        $set: {
+          activa_oficial: activa,
+          nota_moderacion: String(req.body.nota || '').slice(0, 500),
+        },
+      },
+      { new: true }
+    ).lean();
+
+    if (!link) {
+      return res.status(404).json({ message: 'Vínculo no encontrado' });
+    }
+
+    return res.json({
+      ok: true,
+      link,
+      crowdStatus: crowdStatus({
+        officialActive: link.activa_oficial !== false,
+        reportsVigente: link.reportes_vigente || 0,
+        reportsCaduco: link.reportes_caduco || 0,
+      }),
+      message: activa
+        ? 'Sucursal vuelve a participar.'
+        : 'Participación pausada en esta sucursal (folio de promo intacto).',
+    });
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('setParticipacion:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+/** POST /api/cadena/admin/bloquear-reportes — admin pausa votos de un usuario */
+export async function blockUserReports(req, res) {
+  try {
+    const userId = req.body.userId;
+    const hours = Math.min(Math.max(Number(req.body.hours || 24), 1), 24 * 14);
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ message: 'userId inválido' });
+    }
+    const until = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const user = await Usuario.findByIdAndUpdate(
+      userId,
+      {
+        $set: { reportes_bloqueado_hasta: until },
+        $inc: { reportes_abuso_count: 1 },
+      },
+      { new: true }
+    )
+      .select('_id correo reportes_bloqueado_hasta reportes_abuso_count estatus')
+      .lean();
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    return res.json({ ok: true, user, blockedUntil: until });
+  } catch (e) {
+    console.error('blockUserReports:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
   }
 }
