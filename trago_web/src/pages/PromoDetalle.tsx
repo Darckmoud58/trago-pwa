@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
+import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 
@@ -27,11 +28,25 @@ export default function PromoDetalle() {
       return api
         .get(`/api/promociones/${promoId}`, params)
         .then((res) => {
-          setPromo(res.data.promo);
-          setUbicaciones(
-            res.data.sucursalesParticipantes ?? res.data.ubicaciones ?? []
-          );
+          const p = res.data.promo as Promo;
+          const ubis = (res.data.sucursalesParticipantes ??
+            res.data.ubicaciones ??
+            []) as Branch[];
+          setPromo(p);
+          setUbicaciones(ubis);
           setVinculoMsg(res.data.vinculoSucursales?.mensaje || null);
+          if (p?._id) {
+            void trackPromoOpen(p._id, p.chainId ? String(p.chainId) : undefined);
+            for (const u of ubis) {
+              if (u._id) {
+                void trackSucursalVista(
+                  p._id,
+                  u._id,
+                  p.chainId ? String(p.chainId) : undefined
+                );
+              }
+            }
+          }
         });
     };
 

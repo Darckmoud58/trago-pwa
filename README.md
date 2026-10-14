@@ -110,6 +110,16 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Métrica norte (#6)
+
+Definición: **sesiones con `gps_ok` × `promo_open` × `sucursal_vista`** (no likes).
+
+- `POST /api/metricas/eventos` — beacon público (auth opcional); batch hasta 40.
+- `GET /api/metricas/norte?days=7` — agregado global (JWT).
+- `GET /api/metricas/cadena?days=7` — filtrado por empresa del dueño.
+- Front: `trago_web/src/lib/metrics.ts` instrumenta Cerca (GPS) y detalle (promo + sucursales).
+- Panel `/cadena` muestra el embudo de 7 días.
+
 ## Moderación de reportes (#5)
 
 - Límites: 12/h, 30/día, máx 3 flip-flops/24 h; ráfaga en memoria; ban temporal `reportes_bloqueado_hasta`.
