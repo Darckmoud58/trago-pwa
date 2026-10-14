@@ -83,4 +83,11 @@ export type Branch = {
   osmUrl?: string;
   hasOfficialPromos?: boolean;
   officialBrand?: string | null;
+  lat?: number;
+  long?: number;
+  lng?: number;
+  reportsVigente?: number;
+  reportsCaduco?: number;
+  officialActive?: boolean;
+  crowdStatus?: 'vigente' | 'en_duda' | 'caduco' | 'fuera' | string;
 };

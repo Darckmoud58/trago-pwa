@@ -1,0 +1,46 @@
+.validity-vote {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(59, 11, 19, 0.12);
+}
+
+.validity-status {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d81a1c;
+  font-weight: 700;
+}
+
+.validity-counts,
+.validity-geo {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(59, 11, 19, 0.72);
+}
+
+.validity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+
+.validity-actions .btn {
+  font-size: 0.8rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.validity-login {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #d81a1c;
+}
+
+.validity-error {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  color: #d81a1c;
+}

@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { createApp } from './app.js';
 import { connectDB } from './db/connect.js';
+import { startOfficialPromoJob } from './services/officialPromoJob.js';
 
 dotenv.config();
 
@@ -9,6 +10,7 @@ const PORT = process.env.PORT || 4000;
 
 connectDB()
   .then(() => {
+    startOfficialPromoJob({ immediate: true });
     app.listen(PORT, () => {
       console.log(`TraGo API en http://localhost:${PORT}`);
     });

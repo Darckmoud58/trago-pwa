@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed/catalogo.js"
+    "seed": "node src/seed/catalogo.js",
+    "test": "node --test src/lib/validity.test.js"
   },
   "author": "Equipo TraGo",
   "license": "ISC",

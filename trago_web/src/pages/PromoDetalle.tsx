@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
@@ -146,19 +147,39 @@ export default function PromoDetalle() {
           <p className="muted">{t('noBranches')}</p>
         ) : (
           <ul className="branch-list">
-            {ubicaciones.map((u) => (
-              <li key={u._id} className="promo-card">
-                <p className="label">{u.chainName || promo.chainName}</p>
-                <h3>{u.nombre || u.name}</h3>
-                {u.address && <p className="meta">{u.address}</p>}
-                {(u.colonia || u.city) && (
-                  <p className="meta">
-                    {[u.colonia, u.city].filter(Boolean).join(', ')}
-                  </p>
-                )}
-                {u.hours && <p className="meta">{u.hours}</p>}
-              </li>
-            ))}
+            {ubicaciones.map((u) => {
+              const branchLat = Number(u.lat);
+              const branchLng = Number(u.lng ?? u.long);
+              const canVote =
+                Number.isFinite(branchLat) && Number.isFinite(branchLng);
+              return (
+                <li key={u._id} className="promo-card">
+                  <p className="label">{u.chainName || promo.chainName}</p>
+                  <h3>{u.nombre || u.name}</h3>
+                  {u.address && <p className="meta">{u.address}</p>}
+                  {(u.colonia || u.city) && (
+                    <p className="meta">
+                      {[u.colonia, u.city].filter(Boolean).join(', ')}
+                    </p>
+                  )}
+                  {u.hours && <p className="meta">{u.hours}</p>}
+                  {canVote && u.officialActive !== false ? (
+                    <ValidityVote
+                      promoId={promo._id}
+                      ubicacionId={u._id}
+                      branchLat={branchLat}
+                      branchLng={branchLng}
+                      reportsVigente={u.reportsVigente ?? 0}
+                      reportsCaduco={u.reportsCaduco ?? 0}
+                      crowdStatus={u.crowdStatus || 'vigente'}
+                      officialActive={u.officialActive}
+                    />
+                  ) : (
+                    <p className="meta">{t('branchPromoDisclaimer')}</p>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </article>

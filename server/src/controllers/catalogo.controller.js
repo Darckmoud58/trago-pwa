@@ -10,7 +10,9 @@ import {
   officialSourceSlugs,
   resolveOfficialBrand,
 } from '../services/officialPromoCollector.js';
+import { getOfficialRefreshStatus } from '../services/officialPromoJob.js';
 import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
+import { crowdStatus } from '../lib/validity.js';
 
 function officialPromoFilter(now = new Date()) {
   return {
@@ -21,24 +23,6 @@ function officialPromoFilter(now = new Date()) {
       { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
     ],
   };
-}
-
-/** Refresca scrapers de todas las empresas con fuente oficial configurada. */
-async function refreshOfficialSources() {
-  const companies = await ensureOfficialCompanies([], { allConfigured: true });
-  if (!companies.length) return [];
-  try {
-    return await collectNearbyPromos(companies);
-  } catch (sourceError) {
-    console.error('refreshOfficialSources:', sourceError.message);
-    return companies.map((company) => ({
-      empresa: company.nombre,
-      ok: false,
-      count: 0,
-      reason:
-        'No se pudo actualizar la fuente; se mostrarán las promociones oficiales guardadas.',
-    }));
-  }
 }
 
 function mapPromo(p, empresaById = {}) {
@@ -111,6 +95,9 @@ export async function getPromo(req, res) {
       : {};
 
     const links = await PromoUbicacion.find({ id_promo: promo._id }).lean();
+    const linkByUbi = Object.fromEntries(
+      links.map((l) => [String(l.id_ubicacion), l])
+    );
     const ubicacionIds = links.map((l) => l.id_ubicacion).filter(Boolean);
     const ubicaciones = ubicacionIds.length
       ? await Ubicacion.find({ _id: { $in: ubicacionIds } }).lean()
@@ -118,7 +105,27 @@ export async function getPromo(req, res) {
 
     res.json({
       promo: mapPromo(promo, empresaById),
-      ubicaciones: ubicaciones.map((u) => mapUbicacion(u, empresaById)),
+      ubicaciones: ubicaciones.map((u) => {
+        const link = linkByUbi[String(u._id)] || {};
+        const reportsVigente = link.reportes_vigente || 0;
+        const reportsCaduco = link.reportes_caduco || 0;
+        const officialActive = link.activa_oficial !== false;
+        const status = crowdStatus({
+          officialActive,
+          reportsVigente,
+          reportsCaduco,
+        });
+        return {
+          ...mapUbicacion(u, empresaById),
+          lat: u.lat,
+          long: u.long,
+          lng: u.long,
+          reportsVigente,
+          reportsCaduco,
+          officialActive,
+          crowdStatus: status,
+        };
+      }),
     });
   } catch (e) {
     console.error('getPromo:', e.message);
@@ -126,11 +133,11 @@ export async function getPromo(req, res) {
   }
 }
 
-/** Listado público: solo promociones scrapadas de sitios oficiales. */
+/** Listado público: solo Mongo (scrapers corren en job de fondo). */
 export async function listPromos(_req, res) {
   try {
-    const sources = await refreshOfficialSources();
     const now = new Date();
+    const refresh = getOfficialRefreshStatus();
     const [promos, empresas] = await Promise.all([
       Promocion.find(officialPromoFilter(now))
         .sort({ destacada: -1, termina_en: 1 })
@@ -142,7 +149,16 @@ export async function listPromos(_req, res) {
       empresas.map((e) => [String(e._id), e])
     );
     const mapped = promos.map((p) => mapPromo(p, empresaById));
-    res.json({ count: mapped.length, promos: mapped, sources });
+    res.json({
+      count: mapped.length,
+      promos: mapped,
+      sources: refresh.sources,
+      sourcesRefreshedAt: refresh.at,
+      emptyReason:
+        mapped.length === 0
+          ? 'Sin promociones oficiales guardadas aún. El recolector corre en segundo plano; vuelve en unos minutos o usa Cerca con GPS.'
+          : null,
+    });
   } catch (e) {
     console.error('listPromos:', e.message);
     res.status(500).json({ message: 'Error del servidor' });
@@ -290,8 +306,43 @@ export async function listNegocios(_req, res) {
 export async function listPromoSucursales(req, res) {
   try {
     const { promoId } = req.params;
+    if (!mongoose.isValidObjectId(promoId)) {
+      return res.status(400).json({ message: 'promoId inválido' });
+    }
     const links = await PromoUbicacion.find({ id_promo: promoId }).lean();
-    res.json({ count: links.length, links });
+    const ubiIds = links.map((l) => l.id_ubicacion).filter(Boolean);
+    const ubicaciones = ubiIds.length
+      ? await Ubicacion.find({ _id: { $in: ubiIds } }).lean()
+      : [];
+    const ubiById = Object.fromEntries(ubicaciones.map((u) => [String(u._id), u]));
+    const enriched = links.map((link) => {
+      const u = ubiById[String(link.id_ubicacion)];
+      const reportsVigente = link.reportes_vigente || 0;
+      const reportsCaduco = link.reportes_caduco || 0;
+      const officialActive = link.activa_oficial !== false;
+      return {
+        ...link,
+        reportsVigente,
+        reportsCaduco,
+        officialActive,
+        crowdStatus: crowdStatus({
+          officialActive,
+          reportsVigente,
+          reportsCaduco,
+        }),
+        ubicacion: u
+          ? {
+              _id: u._id,
+              nombre: u.nombre,
+              lat: u.lat,
+              long: u.long,
+              calle: u.calle,
+              colonia: u.colonia,
+            }
+          : null,
+      };
+    });
+    res.json({ count: enriched.length, links: enriched });
   } catch (e) {
     res.status(500).json({ message: 'Error del servidor' });
   }

@@ -19,6 +19,8 @@ export default function Home() {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [fromCache, setFromCache] = useState(false);
   const [promosError, setPromosError] = useState(false);
+  const [emptyReason, setEmptyReason] = useState<string | null>(null);
+  const [loadingPromos, setLoadingPromos] = useState(true);
   const token = localStorage.getItem('token');
 
   const categories = [
@@ -37,6 +39,7 @@ export default function Home() {
     let cancelled = false;
 
     async function load() {
+      setLoadingPromos(true);
       try {
         const res = await api.get('/api/promociones');
         if (cancelled) return;
@@ -46,6 +49,11 @@ export default function Home() {
         setPromos((destacadas.length ? destacadas : list).slice(0, 6));
         setFromCache(false);
         setPromosError(false);
+        setEmptyReason(
+          list.length === 0
+            ? res.data.emptyReason || t('promosEmptyOfficial')
+            : null
+        );
       } catch {
         const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
         if (cancelled) return;
@@ -55,9 +63,13 @@ export default function Home() {
           setPromos((destacadas.length ? destacadas : active).slice(0, 6));
           setFromCache(true);
           setPromosError(false);
+          setEmptyReason(null);
         } else {
           setPromosError(true);
+          setEmptyReason(null);
         }
+      } finally {
+        if (!cancelled) setLoadingPromos(false);
       }
     }
 
@@ -65,7 +77,7 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   function ackAge() {
     localStorage.setItem(AGE_KEY, '1');
@@ -133,8 +145,14 @@ export default function Home() {
         </div>
         {fromCache && <p className="cache-hint">{t('cacheHint')}</p>}
         {promosError && <p className="muted">{t('apiOffline')}</p>}
-        {!promosError && promos.length === 0 && (
+        {loadingPromos && !promosError && promos.length === 0 && (
           <p className="muted">{t('loading')}</p>
+        )}
+        {!loadingPromos && !promosError && promos.length === 0 && (
+          <p className="muted">
+            {emptyReason || t('promosEmptyOfficial')}{' '}
+            <Link to="/cerca">{t('openNear')}</Link>
+          </p>
         )}
         <div className="feed-list">
           {promos.map((p, i) => (
