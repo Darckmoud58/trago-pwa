@@ -26,6 +26,9 @@ const schema = new mongoose.Schema(
     lat: { type: Number, required: true },
     long: { type: Number, required: true },
     distancia_m: { type: Number, required: true },
+    /** Cuántas veces cambió el voto (anti flip-flop). */
+    cambios_voto: { type: Number, default: 0 },
+    ultimo_cambio_en: { type: Date, default: null },
   },
   { timestamps: true, collection: 'reportes_vigencia' }
 );

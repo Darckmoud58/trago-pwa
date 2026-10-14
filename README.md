@@ -110,6 +110,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Moderación de reportes (#5)
+
+- Límites: 12/h, 30/día, máx 3 flip-flops/24 h; ráfaga en memoria; ban temporal `reportes_bloqueado_hasta`.
+- El voto **matiza** (`en_duda` / `caduco`); **nunca** borra el folio.
+- Cadena: `GET /api/cadena/vigencia`, `POST .../reafirmar`, `POST .../participacion` (pausar sucursal).
+- Admin: `POST /api/cadena/admin/bloquear-reportes` `{ userId, hours }`.
+- UI: sección “Vigencia por sucursal” en `/cadena`.
+
 ## Panel de cadena (`/cadena`)
 
 - `POST /api/cadena/registro` — crea empresa + rol `empresa` (devuelve JWT nuevo).

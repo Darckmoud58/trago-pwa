@@ -99,3 +99,15 @@
   font-size: 0.85rem;
   color: #d81a1c;
 }
+
+.cadena-vigencia-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+}
+
+.cadena-vigencia-actions .btn {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.7rem;
+}

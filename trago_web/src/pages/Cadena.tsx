@@ -58,6 +58,19 @@ export default function Cadena() {
   const [promoDesc, setPromoDesc] = useState('');
   const [promoAlcohol, setPromoAlcohol] = useState(false);
   const [promoUbis, setPromoUbis] = useState<string[]>([]);
+  const [vigencia, setVigencia] = useState<
+    {
+      promoId: string;
+      promoNombre: string;
+      ubicacionId: string;
+      sucursalNombre: string;
+      crowdStatus: string;
+      reportsVigente: number;
+      reportsCaduco: number;
+      activaOficial: boolean;
+      reafirmadoEn?: string | null;
+    }[]
+  >([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,6 +80,16 @@ export default function Cadena() {
       setEmpresa(res.data.empresa || null);
       setPromos(res.data.promociones || []);
       setSucursales(res.data.sucursales || []);
+      if (res.data.empresa) {
+        try {
+          const vig = await api.get('/api/cadena/vigencia');
+          setVigencia(vig.data.rows || []);
+        } catch {
+          setVigencia([]);
+        }
+      } else {
+        setVigencia([]);
+      }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
       if (axiosErr.response?.status === 403) {
@@ -171,7 +194,57 @@ export default function Cadena() {
     );
   }
 
+  async function reafirmar(promoId: string, ubicacionId: string) {
+    setBusy(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await api.post('/api/cadena/vigencia/reafirmar', {
+        promoId,
+        ubicacionId,
+      });
+      setInfo(res.data.message || t('chainReaffirmOk'));
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainReaffirmError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function toggleParticipacion(
+    promoId: string,
+    ubicacionId: string,
+    activaOficial: boolean
+  ) {
+    setBusy(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await api.post('/api/cadena/vigencia/participacion', {
+        promoId,
+        ubicacionId,
+        activaOficial,
+      });
+      setInfo(res.data.message || t('chainParticipationOk'));
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainParticipationError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const verified = Boolean(empresa?.verificada || empresa?.verified);
+
+  function crowdLabel(status: string) {
+    if (status === 'en_duda' || status === 'en-duda') return t('crowdDoubt');
+    if (status === 'caduco') return t('crowdExpired');
+    if (status === 'fuera') return t('crowdOut');
+    return t('crowdLive');
+  }
 
   return (
     <section className="cadena-page">
@@ -357,6 +430,63 @@ export default function Cadena() {
                         {t('seeOfferDetails')}
                       </Link>
                     )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </article>
+
+          <article className="cadena-card">
+            <h2>{t('chainVigenciaTitle')}</h2>
+            <p className="muted">{t('chainVigenciaLead')}</p>
+            {vigencia.length === 0 ? (
+              <p className="muted">{t('chainVigenciaEmpty')}</p>
+            ) : (
+              <ul className="cadena-list">
+                {vigencia.map((row) => (
+                  <li key={`${row.promoId}-${row.ubicacionId}`}>
+                    <strong>
+                      {row.promoNombre} · {row.sucursalNombre}
+                    </strong>
+                    <span className="meta">
+                      {crowdLabel(row.crowdStatus)}
+                      {' · '}
+                      {t('voteCounts')
+                        .replace('{yes}', String(row.reportsVigente))
+                        .replace('{no}', String(row.reportsCaduco))}
+                      {!row.activaOficial ? ` · ${t('chainPaused')}` : ''}
+                      {row.reafirmadoEn
+                        ? ` · ${t('chainReaffirmed')}`
+                        : ''}
+                    </span>
+                    <div className="cadena-vigencia-actions">
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={busy}
+                        onClick={() =>
+                          void reafirmar(row.promoId, row.ubicacionId)
+                        }
+                      >
+                        {t('chainReaffirm')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        disabled={busy}
+                        onClick={() =>
+                          void toggleParticipacion(
+                            row.promoId,
+                            row.ubicacionId,
+                            !row.activaOficial
+                          )
+                        }
+                      >
+                        {row.activaOficial
+                          ? t('chainPauseBranch')
+                          : t('chainResumeBranch')}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

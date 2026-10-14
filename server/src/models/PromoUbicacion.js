@@ -24,6 +24,14 @@ const schema = new mongoose.Schema(
     },
     /** true solo si la página oficial nombró esa sucursal. */
     especificado_por_fuente: { type: Boolean, default: false },
+    /** Cadena reafirmó vigencia oficial (el voto de piso no se borra). */
+    reafirmado_en: { type: Date, default: null },
+    reafirmado_por: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      default: null,
+    },
+    nota_moderacion: { type: String, default: '' },
   },
   { timestamps: true, collection: 'promo_ubicaciones' }
 );

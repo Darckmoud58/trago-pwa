@@ -30,6 +30,9 @@ const schema = new mongoose.Schema(
     id_nivel: { type: mongoose.Schema.Types.ObjectId, ref: 'Nivel', default: null },
     // Extra clase TraGo (18+)
     fecha_nacimiento: { type: Date, default: null },
+    /** Moderación de reportes de vigencia */
+    reportes_bloqueado_hasta: { type: Date, default: null },
+    reportes_abuso_count: { type: Number, default: 0 },
   },
   { timestamps: true, collection: 'usuarios' }
 );
