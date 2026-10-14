@@ -13,6 +13,11 @@ import {
 import { getOfficialRefreshStatus } from '../services/officialPromoJob.js';
 import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
 import { crowdStatus } from '../lib/validity.js';
+import {
+  enrichBranchesWithDistance,
+  upsertCompanyBranchesFromOsm,
+  vinculoMeta,
+} from '../services/promoBranchLinks.js';
 
 function dateActiveFilter(now = new Date()) {
   return {
@@ -143,7 +148,10 @@ export async function getPromo(req, res) {
       ? { [String(empresa._id)]: empresa }
       : {};
 
-    const links = await PromoUbicacion.find({ id_promo: promo._id }).lean();
+    const links = await PromoUbicacion.find({
+      id_promo: promo._id,
+      activa_oficial: { $ne: false },
+    }).lean();
     const linkByUbi = Object.fromEntries(
       links.map((l) => [String(l.id_ubicacion), l])
     );
@@ -152,9 +160,15 @@ export async function getPromo(req, res) {
       ? await Ubicacion.find({ _id: { $in: ubicacionIds } }).lean()
       : [];
 
-    res.json({
-      promo: mapPromo(promo, empresaById),
-      ubicaciones: ubicaciones.map((u) => {
+    const userLat = Number(req.query.lat);
+    const userLng = Number(req.query.lng ?? req.query.long);
+    const userGeo =
+      Number.isFinite(userLat) && Number.isFinite(userLng)
+        ? { lat: userLat, lng: userLng }
+        : null;
+
+    const mappedUbis = enrichBranchesWithDistance(
+      ubicaciones.map((u) => {
         const link = linkByUbi[String(u._id)] || {};
         const reportsVigente = link.reportes_vigente || 0;
         const reportsCaduco = link.reportes_caduco || 0;
@@ -173,8 +187,22 @@ export async function getPromo(req, res) {
           reportsCaduco,
           officialActive,
           crowdStatus: status,
+          origenVinculo: link.origen_vinculo || 'empresa',
+          especificadoPorFuente: Boolean(link.especificado_por_fuente),
+          participacionConfirmada: true,
         };
       }),
+      userGeo
+    );
+
+    const fuenteEspecificada = links.some((l) => l.especificado_por_fuente);
+    const vinculo = vinculoMeta(mappedUbis.length, fuenteEspecificada);
+
+    res.json({
+      promo: mapPromo(promo, empresaById),
+      ubicaciones: mappedUbis,
+      sucursalesParticipantes: mappedUbis,
+      vinculoSucursales: vinculo,
     });
   } catch (e) {
     console.error('getPromo:', e.message);
@@ -254,6 +282,16 @@ export async function nearbyPromos(req, res) {
         hasOfficialPromoSource(company.slug) &&
         branches.some((b) => String(b.id_empresa) === String(company._id))
     );
+
+    // Persiste pins OSM de marcas conocidas como ubicaciones de catálogo.
+    // No crea PromoUbicacion: estar cerca ≠ participar en la promo.
+    const matchedBranches = branches.filter((b) => b.id_empresa || b.companyId);
+    try {
+      await upsertCompanyBranchesFromOsm(matchedBranches);
+    } catch (persistErr) {
+      console.error('nearbyPromos upsert branches:', persistErr.message);
+    }
+
     let sources = [];
     try {
       sources = await collectNearbyPromos(sourceCompanies);
@@ -276,18 +314,41 @@ export async function nearbyPromos(req, res) {
           .limit(200)
           .lean()
       : [];
+
+    const promoIds = promos.map((p) => p._id);
+    const allLinks = promoIds.length
+      ? await PromoUbicacion.find({
+          id_promo: { $in: promoIds },
+          activa_oficial: { $ne: false },
+        }).lean()
+      : [];
+    const linksByPromo = {};
+    for (const link of allLinks) {
+      const k = String(link.id_promo);
+      if (!linksByPromo[k]) linksByPromo[k] = [];
+      linksByPromo[k].push(link);
+    }
+
     const companyById = Object.fromEntries(ensured.map((c) => [String(c._id), c]));
-    const mapped = promos.map((promo) => ({
-      ...mapPromo(promo, companyById),
-      ubicacionesCercanas: branches
-        .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
-        .map((b) => ({
-          _id: b._id,
-          nombre: b.nombre || b.calle,
-          distanceMeters: b.distanceMeters,
-          osmUrl: b.osmUrl,
-        })),
-    }));
+    const mapped = promos.map((promo) => {
+      const links = linksByPromo[String(promo._id)] || [];
+      const fuenteEsp = links.some((l) => l.especificado_por_fuente);
+      return {
+        ...mapPromo(promo, companyById),
+        sucursalesParticipantesCount: links.length,
+        vinculoSucursales: vinculoMeta(links.length, fuenteEsp),
+        // OSM cerca de la misma marca: candidatas, NO participación confirmada.
+        ubicacionesCercanas: branches
+          .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
+          .map((b) => ({
+            _id: b._id,
+            nombre: b.nombre || b.calle,
+            distanceMeters: b.distanceMeters,
+            osmUrl: b.osmUrl,
+            participacionConfirmada: false,
+          })),
+      };
+    });
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
@@ -297,6 +358,8 @@ export async function nearbyPromos(req, res) {
       searchedRadiusMeters: discovery.searchedRadiusMeters,
       partial: discovery.partial,
       businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length,
+      disclaimerSucursales:
+        'Los lugares OSM cercanos de la misma marca no confirman que la promo aplique ahí. Solo las sucursales vinculadas participan.',
       locationSource: discovery.stale
         ? 'openstreetmap-cache-stale'
         : discovery.cached
