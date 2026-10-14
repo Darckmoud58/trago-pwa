@@ -103,6 +103,13 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 
 `POST /api/reportes` (JWT) con `{ promoId, ubicacionId, stillValid, lat, lng }` exige estar a ≤400 m de la sucursal. Actualiza contadores en `promo_ubicaciones` y nunca toca `activa_oficial`. `GET /api/reportes?promoId=&ubicacionId=` devuelve el voto propio. En el detalle de promo, cada sucursal ligada muestra “Sigue vigente” / “Ya no aplica”.
 
+## Promo ↔ sucursales (sin inventar)
+
+- Vínculos solo en `promo_ubicaciones` (`origen_vinculo`: `empresa` | `fuente` | `manual`).
+- Scrapers **no** asignan todas las tiendas de la marca: solo si el texto oficial nombra una sucursal ya conocida.
+- `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
+- En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
+
 ## Panel de cadena (`/cadena`)
 
 - `POST /api/cadena/registro` — crea empresa + rol `empresa` (devuelve JWT nuevo).

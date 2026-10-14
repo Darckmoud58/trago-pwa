@@ -261,6 +261,8 @@ export async function createPromo(req, res) {
           activa_oficial: true,
           reportes_vigente: 0,
           reportes_caduco: 0,
+          origen_vinculo: 'empresa',
+          especificado_por_fuente: false,
         }))
       );
     }
@@ -349,6 +351,8 @@ export async function updatePromo(req, res) {
             activa_oficial: true,
             reportes_vigente: 0,
             reportes_caduco: 0,
+            origen_vinculo: 'empresa',
+            especificado_por_fuente: false,
           }))
         );
         promo.estatus = 'activo';

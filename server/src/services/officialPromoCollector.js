@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import Promocion from '../models/Promocion.js';
 import Empresa from '../models/Empresa.js';
+import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
 
 const UA = 'Mozilla/5.0 (compatible; TraGoPromoCollector/1.0; +https://trago.app)';
 
@@ -1045,6 +1046,7 @@ export async function collectNearbyPromos(companies) {
       }
 
       const now = new Date();
+      let linkedFromSource = 0;
       const operations = [...uniqueHits.values()].map((hit) => {
         const key = crypto
           .createHash('sha1')
@@ -1100,6 +1102,22 @@ export async function collectNearbyPromos(companies) {
           },
           { $set: { estatus: 'caduco' } }
         );
+        // Solo vincula si el texto de la fuente nombra una sucursal ya conocida. Nunca inventa.
+        const saved = await Promocion.find({
+          id_empresa: company._id,
+          origen: 'oficial',
+          slug: { $in: keepSlugs },
+          estatus: 'activo',
+        })
+          .select('_id nombre descripcion politicas')
+          .lean();
+        for (const promo of saved) {
+          const result = await linkOfficialPromoIfSourceNamesBranch(
+            promo,
+            company._id
+          );
+          if (result.especificado) linkedFromSource += result.linked;
+        }
       } else if (!errors.length) {
         // Fuente respondió pero sin ofertas legibles: caducar basura previa
         await Promocion.updateMany(
@@ -1112,6 +1130,9 @@ export async function collectNearbyPromos(companies) {
         empresa: company.nombre,
         ok: errors.length < urls.length,
         count: operations.length,
+        ...(linkedFromSource
+          ? { sucursalesVinculadasPorFuente: linkedFromSource }
+          : {}),
         ...(errors.length ? { errors } : {}),
         ...(operations.length === 0 && !errors.length
           ? { reason: 'sitio sin promociones legibles en esta consulta' }

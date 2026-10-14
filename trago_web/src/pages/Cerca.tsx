@@ -157,7 +157,19 @@ export default function Cerca() {
                   <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
                   {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
                   {promo.ubicacionesCercanas?.length ? (
-                    <p className="meta">{t('nearbyBranchesLabel')} {promo.ubicacionesCercanas.map((branch) => `${branch.nombre} (${(branch.distanceMeters / 1000).toFixed(1)} km)`).join(', ')}. {t('branchPromoDisclaimer')}</p>
+                    <p className="meta">
+                      {t('nearbyBranchesLabel')}{' '}
+                      {promo.ubicacionesCercanas
+                        .map(
+                          (branch) =>
+                            `${branch.nombre} (${(branch.distanceMeters / 1000).toFixed(1)} km)`
+                        )
+                        .join(', ')}
+                      . {t('branchPromoDisclaimer')}
+                      {typeof promo.sucursalesParticipantesCount === 'number'
+                        ? ` · ${t('confirmedBranches').replace('{n}', String(promo.sucursalesParticipantesCount))}`
+                        : ''}
+                    </p>
                   ) : null}
                   <div className="nearby-promo-actions">
                     <Link className="btn primary btn-sm" to={`/promos/${promo.slug || promo._id}`}>{t('seeOfferDetails')}</Link>

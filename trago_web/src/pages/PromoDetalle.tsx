@@ -11,6 +11,7 @@ export default function PromoDetalle() {
   const { t, locale } = useI18n();
   const [promo, setPromo] = useState<Promo | null>(null);
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
+  const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const band = localStorage.getItem('trago_band');
@@ -19,14 +20,42 @@ export default function PromoDetalle() {
   useEffect(() => {
     if (!promoId) return;
     setLoading(true);
-    api
-      .get(`/api/promociones/${promoId}`)
-      .then((res) => {
-        setPromo(res.data.promo);
-        setUbicaciones(res.data.ubicaciones ?? []);
-      })
-      .catch(() => setError(t('promoMissing')))
-      .finally(() => setLoading(false));
+
+    const load = (lat?: number, lng?: number) => {
+      const params =
+        lat != null && lng != null ? { params: { lat, lng } } : undefined;
+      return api
+        .get(`/api/promociones/${promoId}`, params)
+        .then((res) => {
+          setPromo(res.data.promo);
+          setUbicaciones(
+            res.data.sucursalesParticipantes ?? res.data.ubicaciones ?? []
+          );
+          setVinculoMsg(res.data.vinculoSucursales?.mensaje || null);
+        });
+    };
+
+    const finish = () => setLoading(false);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          void load(pos.coords.latitude, pos.coords.longitude)
+            .catch(() => setError(t('promoMissing')))
+            .finally(finish);
+        },
+        () => {
+          void load()
+            .catch(() => setError(t('promoMissing')))
+            .finally(finish);
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      void load()
+        .catch(() => setError(t('promoMissing')))
+        .finally(finish);
+    }
   }, [promoId, t]);
 
   if (loading) {
@@ -143,8 +172,9 @@ export default function PromoDetalle() {
 
       <article className="detail-block">
         <h2>{t('whereApplies')}</h2>
+        {vinculoMsg && <p className="meta">{vinculoMsg}</p>}
         {ubicaciones.length === 0 ? (
-          <p className="muted">{t('noBranches')}</p>
+          <p className="muted">{t('noBranchesLinked')}</p>
         ) : (
           <ul className="branch-list">
             {ubicaciones.map((u) => {
@@ -163,6 +193,14 @@ export default function PromoDetalle() {
                     </p>
                   )}
                   {u.hours && <p className="meta">{u.hours}</p>}
+                  {typeof u.distanceMeters === 'number' && (
+                    <p className="meta">
+                      {t('branchDistance').replace(
+                        '{m}',
+                        String(Math.round(u.distanceMeters))
+                      )}
+                    </p>
+                  )}
                   {canVote && u.officialActive !== false ? (
                     <ValidityVote
                       promoId={promo._id}
