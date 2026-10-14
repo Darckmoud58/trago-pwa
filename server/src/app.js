@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import { corsOriginList, getEnv, isDev } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
+import ageRoutes from './routes/age.routes.js';
 import catalogoRoutes from './routes/catalogo.routes.js';
 import favoritosRoutes from './routes/favoritos.routes.js';
 import reportesRoutes from './routes/reportes.routes.js';
@@ -39,6 +40,7 @@ export function createApp() {
         if (allowed.has(origin)) return cb(null, true);
         return cb(null, false);
       },
+      credentials: true,
     })
   );
   app.use(express.json({ limit: '20kb' }));
@@ -60,6 +62,7 @@ export function createApp() {
   app.get('/', (_req, res) => res.json({ ok: true }));
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/age', ageRoutes);
   app.use('/api/favoritos', favoritosRoutes);
   app.use('/api/reportes', reportesRoutes);
   app.use('/api/cadena', cadenaRoutes);

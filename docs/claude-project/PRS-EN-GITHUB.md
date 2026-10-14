@@ -17,6 +17,7 @@ Repo: https://github.com/Darckmoud58/trago-pwa
 | [#8](https://github.com/Darckmoud58/trago-pwa/pull/8) | `cursor/mapa-vigencia-e557` | … | Mapa vigencia + paquete Claude |
 | [#9](https://github.com/Darckmoud58/trago-pwa/pull/9) | `cursor/seguridad-p1-e557` | #8 | **Seguridad P1** (JWT, CORS, auth) |
 | [#10](https://github.com/Darckmoud58/trago-pwa/pull/10) | `cursor/seguridad-p7-ci-e557` | #9 | **Seguridad P7** CI / seed / Dependabot |
+| (R1) | `cursor/seguridad-r1-age-cookie-e557` | #10 | **R1** Gate 18+ cookie firmada (cierra R-01) |
 
 La base de #3 (`cursor/voto-vigencia-quickwins-e557`) trae quick wins + voto de vigencia (#1 producto del backlog).
 

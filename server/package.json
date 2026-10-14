@@ -9,7 +9,7 @@
     "start": "node src/server.js",
     "seed": "node src/seed/catalogo.js",
     "migrate:drop-token-login": "node src/scripts/migrate-drop-token-login.js",
-    "test": "node --test src/lib/validity.test.js src/lib/promoBranchLinks.test.js src/lib/moderation.test.js src/lib/metricas.test.js src/lib/ageGate.test.js src/lib/security.p1.test.js"
+    "test": "node --test 'src/**/*.test.js'"
   },
   "author": "Equipo TraGo",
   "license": "ISC",

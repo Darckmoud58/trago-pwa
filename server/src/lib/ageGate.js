@@ -48,14 +48,19 @@ export function isRestrictedPromo(promo) {
   );
 }
 
+/**
+ * Anónimo sin declaración → NO ve alcohol/nocturno.
+ * Solo `band === 'adult'` (auth o cookie firmada) ve restringido.
+ * Cuenta teen nunca, aunque haya cookie adult.
+ */
 export function canSeeRestricted(viewer) {
-  if (!viewer) return true;
+  if (!viewer) return false;
   if (viewer.canSeeAlcohol === false) return false;
-  if (viewer.band === 'teen') return false;
+  if (viewer.band === 'teen' || viewer.band === 'anon') return false;
   if (viewer.age != null && Number.isFinite(viewer.age)) {
     return viewer.age >= MIN_ALCOHOL_AGE;
   }
-  return viewer.band !== 'teen';
+  return viewer.band === 'adult';
 }
 
 export function filterPromosForViewer(promos, viewer) {

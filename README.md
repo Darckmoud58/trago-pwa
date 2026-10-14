@@ -110,6 +110,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Gate 18+ (R1)
+
+- Anónimo **sin** cookie firmada `age_ok` → no ve alcohol/nocturno.
+- `POST /api/age/declare { adult: true|false }` → cookie httpOnly (HMAC con JWT_SECRET, 30 días).
+- JWT de cuenta 13–17 gana sobre cualquier cookie.
+- Ya no se confía en `X-Trago-Band` ni `?band=`.
+- Es **declaración**, no verificación de identidad (copy + Aviso).
+
 ## CI / calidad (P7)
 
 - `.github/workflows/ci.yml` — install, lint, `server` tests, build web, `npm audit --audit-level=high --omit=dev`, gitleaks  

@@ -2,22 +2,23 @@ import Usuario from '../models/Usuario.js';
 import {
   bandFromAge,
   canSeeRestricted,
-  parseBand,
   resolveUserAge,
 } from '../lib/ageGate.js';
+import { readAgeBandFromRequest } from '../lib/ageCookie.js';
 import { verifyAccessToken } from '../lib/jwt.js';
 
 /**
- * Auth opcional + banda de edad del visitante.
- * Prioridad: usuario autenticado (edad en DB) > header X-Trago-Band > query band.
+ * Auth opcional + banda de edad.
+ * Prioridad: JWT (fecha_nacimiento en DB) > cookie firmada age_ok > anon.
+ * NO confía en X-Trago-Band ni ?band= (el cliente no puede saltarse el gate).
  */
-export async function attachViewerAge(req, _res, next) {
+export async function attachViewerAge(req, res, next) {
   req.viewer = {
     userId: null,
     age: null,
-    band: null,
-    source: 'unknown',
-    canSeeAlcohol: true,
+    band: 'anon',
+    source: 'anon',
+    canSeeAlcohol: false,
   };
 
   const header = req.headers.authorization || '';
@@ -37,14 +38,16 @@ export async function attachViewerAge(req, _res, next) {
         Number(payload.tv ?? 0) === Number(user.tokenVersion ?? 0);
       if (tvOk) {
         const age = resolveUserAge(user);
-        const band = bandFromAge(age) || parseBand(payload.band);
+        const band = bandFromAge(age) || 'teen';
         req.viewer = {
           userId: user._id,
           age,
           band,
           source: 'auth',
-          canSeeAlcohol: band !== 'teen' && (age == null || age >= 18),
+          canSeeAlcohol: false,
         };
+        req.viewer.canSeeAlcohol = canSeeRestricted(req.viewer);
+        setAgeResponseHeaders(res);
         return next();
       }
     } catch {
@@ -52,21 +55,23 @@ export async function attachViewerAge(req, _res, next) {
     }
   }
 
-  const declared =
-    parseBand(req.headers['x-trago-band']) ||
-    parseBand(req.query.band) ||
-    parseBand(req.query.ageBand);
-
-  if (declared) {
+  const cookieBand = readAgeBandFromRequest(req);
+  if (cookieBand === 'adult' || cookieBand === 'teen') {
     req.viewer = {
       userId: null,
-      age: declared === 'adult' ? 18 : 16,
-      band: declared,
-      source: 'declared',
-      canSeeAlcohol: declared === 'adult',
+      age: cookieBand === 'adult' ? 18 : 16,
+      band: cookieBand,
+      source: 'cookie',
+      canSeeAlcohol: false,
     };
   }
 
   req.viewer.canSeeAlcohol = canSeeRestricted(req.viewer);
+  setAgeResponseHeaders(res);
   next();
+}
+
+export function setAgeResponseHeaders(res) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Vary', 'Cookie, Authorization');
 }

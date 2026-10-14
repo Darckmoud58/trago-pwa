@@ -58,10 +58,17 @@ describe('filterPromosForViewer', () => {
     assert.equal(filterPromosForViewer(list, { band: 'adult' }).length, 3);
   });
 
+  it('anónimo no ve restringido', () => {
+    assert.equal(canSeeRestricted(null), false);
+    assert.equal(canSeeRestricted({ band: 'anon' }), false);
+    assert.equal(filterPromosForViewer(list, { band: 'anon' }).length, 1);
+  });
+
   it('canSeeRestricted respeta constantes', () => {
     assert.equal(MIN_ACCOUNT_AGE, 13);
     assert.equal(MIN_ALCOHOL_AGE, 18);
     assert.equal(canSeeRestricted({ band: 'teen' }), false);
-    assert.equal(canSeeRestricted({ age: 21 }), true);
+    assert.equal(canSeeRestricted({ band: 'adult', age: 21 }), true);
+    assert.equal(canSeeRestricted({ age: 21, band: 'adult' }), true);
   });
 });
