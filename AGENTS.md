@@ -49,4 +49,5 @@ cd trago_web && npm install && npm run dev
 5. Observabilidad del embudo norte para venta Pro.
 
 Métrica norte: **sesiones con GPS × promo abierta × sucursal vista**.
-| Claude.ai Project | [`docs/claude-project/`](docs/claude-project/) — pega `PROMPT-SIGUIENTE.md` |
+
+Para pedirle opinión a Claude.ai: pega [`docs/claude-project/PROMPT-SIGUIENTE.md`](docs/claude-project/PROMPT-SIGUIENTE.md).
