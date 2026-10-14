@@ -103,6 +103,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 
 `POST /api/reportes` (JWT) con `{ promoId, ubicacionId, stillValid, lat, lng }` exige estar a ≤400 m de la sucursal. Actualiza contadores en `promo_ubicaciones` y nunca toca `activa_oficial`. `GET /api/reportes?promoId=&ubicacionId=` devuelve el voto propio. En el detalle de promo, cada sucursal ligada muestra “Sigue vigente” / “Ya no aplica”.
 
+## Panel de cadena (`/cadena`)
+
+- `POST /api/cadena/registro` — crea empresa + rol `empresa` (devuelve JWT nuevo).
+- `GET /api/cadena/me` — empresa, promos y sucursales del dueño.
+- `POST /api/cadena/sucursales` · `POST /api/cadena/promociones` · `PUT /api/cadena/promociones/:id`.
+- Promos con `origen: empresa`; **sin sucursales = borrador**; catálogo público solo si la cadena está `verificada` (admin: `POST /api/cadena/admin/verificar`).
+- Seed demo: `cadena@trago.app` / `TraGo123!`. Auto-verificar altas: `TRAGO_AUTO_VERIFY_CHAIN=true`.
+
 ## Favoritos de usuario y modo offline
 
 Los favoritos autenticados se guardan en MongoDB en `favoritos`, separados por `userId` y protegidos por JWT. `GET /api/favoritos` lista, `PUT /api/favoritos/:type/:targetId` crea/actualiza, `DELETE /api/favoritos/:type/:targetId` elimina y `POST /api/favoritos/sync` aplica cambios pendientes. El frontend mantiene un espejo por cuenta en IndexedDB y una cola de cambios; al recuperar conexión sincroniza altas y bajas. Los visitantes sin sesión conservan favoritos locales anónimos, sin subirlos a una cuenta automáticamente.

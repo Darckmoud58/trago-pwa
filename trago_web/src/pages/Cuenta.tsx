@@ -121,6 +121,10 @@ export default function Cuenta() {
               <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>
             </Link>
+            <Link className="settings-row" to="/cadena">
+              <span>{t('titleChain')}</span>
+              <em>›</em>
+            </Link>
             <Link className="settings-row" to="/promos">
               <span>{t('settingsPromos')}</span>
               <em>›</em>

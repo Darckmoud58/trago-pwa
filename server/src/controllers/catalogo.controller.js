@@ -14,15 +14,50 @@ import { getOfficialRefreshStatus } from '../services/officialPromoJob.js';
 import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
 import { crowdStatus } from '../lib/validity.js';
 
-function officialPromoFilter(now = new Date()) {
+function dateActiveFilter(now = new Date()) {
   return {
-    origen: 'oficial',
     estatus: 'activo',
     $and: [
       { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
       { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
     ],
   };
+}
+
+/** Solo scrapes oficiales (p. ej. cerca / job). */
+function officialPromoFilter(now = new Date()) {
+  return { origen: 'oficial', ...dateActiveFilter(now) };
+}
+
+/**
+ * Catálogo público: oficiales + promos de cadena verificada con ≥1 sucursal.
+ */
+async function publicCatalogFilter(now = new Date()) {
+  const verifiedIds = await Empresa.find({
+    verificada: true,
+    estatus: 'activo',
+  }).distinct('_id');
+  const linkedPromoIds = await PromoUbicacion.distinct('id_promo', {
+    activa_oficial: { $ne: false },
+  });
+  return {
+    ...dateActiveFilter(now),
+    $or: [
+      { origen: 'oficial' },
+      {
+        origen: 'empresa',
+        id_empresa: { $in: verifiedIds },
+        _id: { $in: linkedPromoIds },
+      },
+    ],
+  };
+}
+
+function isPublicPromo(promo, empresa) {
+  if (!promo || promo.estatus === 'inactivo') return false;
+  if (promo.origen === 'oficial') return true;
+  if (promo.origen === 'empresa' && empresa?.verificada) return true;
+  return false;
 }
 
 function mapPromo(p, empresaById = {}) {
@@ -83,13 +118,27 @@ export async function getPromo(req, res) {
       byId ||
       (await Promocion.findOne({ slug: promoId, estatus: 'activo' }).lean());
 
-    if (!promo || promo.estatus === 'inactivo' || promo.origen !== 'oficial') {
+    if (!promo || promo.estatus === 'inactivo') {
       return res.status(404).json({ message: 'Promoción no encontrada' });
     }
 
     const empresa = promo.id_empresa
       ? await Empresa.findById(promo.id_empresa).lean()
       : null;
+    if (!isPublicPromo(promo, empresa)) {
+      return res.status(404).json({ message: 'Promoción no encontrada' });
+    }
+    // Cadena verificada: sin sucursales no se publica (solo oficiales pueden listarse sin vínculo).
+    if (promo.origen === 'empresa') {
+      const n = await PromoUbicacion.countDocuments({
+        id_promo: promo._id,
+        activa_oficial: { $ne: false },
+      });
+      if (n === 0) {
+        return res.status(404).json({ message: 'Promoción no encontrada' });
+      }
+    }
+
     const empresaById = empresa
       ? { [String(empresa._id)]: empresa }
       : {};
@@ -138,13 +187,17 @@ export async function listPromos(_req, res) {
   try {
     const now = new Date();
     const refresh = getOfficialRefreshStatus();
-    const [promos, empresas] = await Promise.all([
-      Promocion.find(officialPromoFilter(now))
-        .sort({ destacada: -1, termina_en: 1 })
-        .limit(100)
-        .lean(),
-      Empresa.find({ slug: { $in: officialSourceSlugs() } }).lean(),
-    ]);
+    const filter = await publicCatalogFilter(now);
+    const promos = await Promocion.find(filter)
+      .sort({ destacada: -1, termina_en: 1 })
+      .limit(100)
+      .lean();
+    const empresaIds = [
+      ...new Set(promos.map((p) => String(p.id_empresa)).filter(Boolean)),
+    ];
+    const empresas = empresaIds.length
+      ? await Empresa.find({ _id: { $in: empresaIds } }).lean()
+      : [];
     const empresaById = Object.fromEntries(
       empresas.map((e) => [String(e._id), e])
     );
