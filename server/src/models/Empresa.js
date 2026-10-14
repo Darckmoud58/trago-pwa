@@ -17,6 +17,20 @@ const schema = new mongoose.Schema(
     // extras útiles PWA (no rompen el ER)
     slug: { type: String, sparse: true, unique: true },
     sitio_web: { type: String, default: '' },
+    /** Dueño del panel cadena (rol empresa). */
+    id_dueno: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Usuario',
+      default: null,
+      index: true,
+    },
+    /** Solo cadenas verificadas por admin entran al catálogo público (como oficial). */
+    verificada: { type: Boolean, default: false, index: true },
+    plan: {
+      type: String,
+      enum: ['freemium', 'pro', 'premium'],
+      default: 'freemium',
+    },
     estatus: {
       type: String,
       enum: ['activo', 'inactivo'],
