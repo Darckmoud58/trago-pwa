@@ -13,11 +13,11 @@ import {
 } from '../lib/validity.js';
 import {
   FLIPFLOP_MAX_PER_DAY,
-  hitRateLimit,
   MODERATION_COPY,
   voteBanStatus,
   VOTES_PER_DAY,
 } from '../lib/moderation.js';
+import { consumeRateLimit } from '../middleware/rateLimit.js';
 import {
   MIN_ALCOHOL_AGE,
   isRestrictedPromo,
@@ -128,7 +128,11 @@ export async function postReport(req, res) {
     }
 
     // Ráfaga en memoria (anti-bot)
-    const burst = hitRateLimit(`vote:${user._id}`, VOTES_PER_HOUR, 60 * 60 * 1000);
+    const burst = await consumeRateLimit(
+      `vote:${user._id}`,
+      VOTES_PER_HOUR,
+      60 * 60 * 1000
+    );
     if (!burst.ok) {
       const until = await bumpAbuse(user._id);
       return res.status(429).json({

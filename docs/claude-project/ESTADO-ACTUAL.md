@@ -24,14 +24,14 @@ URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md) · Prompt: [`PROMPT-LEER-PRS.md`]
 
 | Hallazgo | Estado |
 |----------|--------|
-| R-01 Gate saltable con header/`?band=` | **R1** cookie `age_ok` firmada; anon no ve alcohol |
-| R-02 P2 rate limit + job Netlify | abierto |
+| R-01 Gate saltable con header/`?band=` | **#11** cookie `age_ok` firmada; anon no ve alcohol |
+| R-02 P2 rate limit + job Netlify | **R2** Mongo rate limit + Scheduled Function + /cerca México |
 | R-03 Métricas contaminables / lat | abierto |
 | R-04 Flag auto-verify + seed | parcial en #10 (seed); falta audit_log / flag prod |
 | R-05 P6 CSP/SW + zip gitignore | parcial (#10 CI); falta P6 |
 | S-01 JWT changeme | cerrado en #9 |
 
-**Siguiente:** R2 (límites Mongo + Scheduled Function Netlify).
+**Siguiente:** R3 (métricas) · R4 (cadena/audit) · R5/P6 (CSP/SW).
 
 ## Operativo (humano)
 

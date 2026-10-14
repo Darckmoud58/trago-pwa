@@ -1,3 +1,4 @@
+import OfficialRefresh from '../models/OfficialRefresh.js';
 import {
   collectNearbyPromos,
   ensureOfficialCompanies,
@@ -5,32 +6,58 @@ import {
 
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
-/** Último estado de refresco (para listPromos sin scrapear). */
-let lastRefresh = {
-  at: null,
-  sources: [],
-  error: null,
-};
-
+let memoryCache = { at: null, sources: [], error: null };
 let timer = null;
 let running = false;
 
-export function getOfficialRefreshStatus() {
-  return { ...lastRefresh };
+export async function getOfficialRefreshStatus() {
+  try {
+    const doc = await OfficialRefresh.findOne({ key: 'global' }).lean();
+    if (doc) {
+      memoryCache = {
+        at: doc.at || null,
+        sources: doc.sources || [],
+        error: doc.error || null,
+      };
+    }
+  } catch {
+    /* sin DB aún */
+  }
+  return { ...memoryCache };
 }
 
-/** Refresca scrapers de empresas con fuente oficial. No bloquea el listado público. */
+async function persistStatus(next) {
+  memoryCache = next;
+  try {
+    await OfficialRefresh.findOneAndUpdate(
+      { key: 'global' },
+      {
+        $set: {
+          at: next.at,
+          sources: next.sources,
+          error: next.error,
+        },
+        $setOnInsert: { key: 'global' },
+      },
+      { upsert: true, new: true }
+    );
+  } catch (e) {
+    console.error('[officialPromoJob] persist:', e.message);
+  }
+}
+
+/** Refresca scrapers. No debe llamarse desde el hot path de list/cerca. */
 export async function refreshOfficialSources() {
-  if (running) return lastRefresh.sources;
+  if (running) return (await getOfficialRefreshStatus()).sources;
   running = true;
   try {
     const companies = await ensureOfficialCompanies([], { allConfigured: true });
     if (!companies.length) {
-      lastRefresh = { at: new Date(), sources: [], error: null };
+      await persistStatus({ at: new Date(), sources: [], error: null });
       return [];
     }
     const sources = await collectNearbyPromos(companies);
-    lastRefresh = { at: new Date(), sources, error: null };
+    await persistStatus({ at: new Date(), sources, error: null });
     console.log(
       `[officialPromoJob] refresco OK · ${sources.length} fuentes · ${new Date().toISOString()}`
     );
@@ -38,20 +65,20 @@ export async function refreshOfficialSources() {
   } catch (err) {
     const message = err?.message || String(err);
     console.error('[officialPromoJob] refreshOfficialSources:', message);
-    lastRefresh = {
+    const prev = await getOfficialRefreshStatus();
+    await persistStatus({
       at: new Date(),
-      sources: lastRefresh.sources,
+      sources: prev.sources,
       error: message,
-    };
-    return lastRefresh.sources;
+    });
+    return prev.sources;
   } finally {
     running = false;
   }
 }
 
 /**
- * Arranca refresco al boot y cada 6 h.
- * Solo para proceso largo (server.js); no usar en Netlify Functions.
+ * Solo proceso largo (server.js). En Netlify usa Scheduled Function.
  */
 export function startOfficialPromoJob({ immediate = true } = {}) {
   if (timer) return;

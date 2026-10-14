@@ -4,7 +4,6 @@ import Ubicacion from '../models/Ubicacion.js';
 import Empresa from '../models/Empresa.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
 import {
-  collectNearbyPromos,
   ensureOfficialCompanies,
   hasOfficialPromoSource,
   officialSourceSlugs,
@@ -23,6 +22,7 @@ import {
   isRestrictedPromo,
   mongoExcludeRestricted,
 } from '../lib/ageGate.js';
+import { assertMexicoCoords, quantizeMaxMeters } from '../lib/geoNear.js';
 
 function dateActiveFilter(now = new Date()) {
   return {
@@ -228,7 +228,7 @@ export async function getPromo(req, res) {
 export async function listPromos(req, res) {
   try {
     const now = new Date();
-    const refresh = getOfficialRefreshStatus();
+    const refresh = await getOfficialRefreshStatus();
     const filter = await publicCatalogFilter(now);
     const ageFilter =
       req.viewer && !req.viewer.canSeeAlcohol ? mongoExcludeRestricted() : {};
@@ -270,14 +270,20 @@ export async function listPromos(req, res) {
 }
 
 
-/** Recolecta promociones oficiales de empresas que OSM ubica cerca del usuario. */
+/** Promos oficiales cerca: solo lee Mongo (+ OSM). Scrapers = job / Scheduled Function. */
 export async function nearbyPromos(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
+    const geo = assertMexicoCoords(lat, lng);
+    if (!geo.ok) {
+      return res.status(geo.status || 400).json({ message: geo.message });
+    }
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    if (maxMeters == null) {
+      return res.status(400).json({
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+      });
     }
 
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
@@ -315,18 +321,21 @@ export async function nearbyPromos(req, res) {
       console.error('nearbyPromos upsert branches:', persistErr.message);
     }
 
-    let sources = [];
-    try {
-      sources = await collectNearbyPromos(sourceCompanies);
-    } catch (sourceError) {
-      console.error('nearbyPromos source refresh:', sourceError.message);
-      sources = sourceCompanies.map((company) => ({
-        empresa: company.nombre,
-        ok: false,
-        count: 0,
-        reason: 'No se pudo actualizar la fuente; se mostrarán las promociones oficiales guardadas.',
-      }));
-    }
+    const refresh = await getOfficialRefreshStatus();
+    const sources =
+      refresh.sources?.length > 0
+        ? refresh.sources.filter((s) =>
+            sourceCompanies.some((c) => c.nombre === s.empresa)
+          )
+        : sourceCompanies.map((company) => ({
+            empresa: company.nombre,
+            ok: false,
+            count: 0,
+            reason:
+              'Fuente pendiente del job de refresco (cada 6 h). Se muestran promos oficiales ya guardadas.',
+            lastFetchedAt: refresh.at,
+          }));
+
     const now = new Date();
     const promos = sourceCompanies.length
       ? await Promocion.find({
@@ -382,6 +391,7 @@ export async function nearbyPromos(req, res) {
         restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
       },
       sources,
+      sourcesRefreshedAt: refresh.at,
       businessesFound: branches.length,
       searchedRadiusMeters: discovery.searchedRadiusMeters,
       partial: discovery.partial,
@@ -405,9 +415,15 @@ export async function nearBranches(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
+    const geo = assertMexicoCoords(lat, lng);
+    if (!geo.ok) {
+      return res.status(geo.status || 400).json({ message: geo.message });
+    }
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    if (maxMeters == null) {
+      return res.status(400).json({
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+      });
     }
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
     const mapped = discovery.branches.map((branch) => {
