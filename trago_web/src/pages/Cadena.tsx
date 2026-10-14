@@ -71,6 +71,17 @@ export default function Cadena() {
       reafirmadoEn?: string | null;
     }[]
   >([]);
+  const [metricas, setMetricas] = useState<{
+    days: number;
+    sessions: {
+      gpsOk: number;
+      promoOpen: number;
+      sucursalVista: number;
+      northStar: number;
+    };
+    funnel: { gpsToPromo: number; gpsToBranch: number; promoToBranch: number };
+    definition?: string;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,8 +98,17 @@ export default function Cadena() {
         } catch {
           setVigencia([]);
         }
+        try {
+          const met = await api.get('/api/metricas/cadena', {
+            params: { days: 7 },
+          });
+          setMetricas(met.data);
+        } catch {
+          setMetricas(null);
+        }
       } else {
         setVigencia([]);
+        setMetricas(null);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
@@ -435,6 +455,46 @@ export default function Cadena() {
               </ul>
             )}
           </article>
+
+          {metricas && (
+            <article className="cadena-card">
+              <h2>{t('metricsTitle')}</h2>
+              <p className="muted">{t('metricsLead')}</p>
+              <div className="cadena-metrics">
+                <div>
+                  <p className="label">{t('metricsNorthStar')}</p>
+                  <p className="cadena-metric-value">
+                    {metricas.sessions.northStar}
+                  </p>
+                </div>
+                <div>
+                  <p className="label">GPS</p>
+                  <p className="cadena-metric-value">
+                    {metricas.sessions.gpsOk}
+                  </p>
+                </div>
+                <div>
+                  <p className="label">{t('metricsPromoOpen')}</p>
+                  <p className="cadena-metric-value">
+                    {metricas.sessions.promoOpen}
+                  </p>
+                </div>
+                <div>
+                  <p className="label">{t('metricsBranchView')}</p>
+                  <p className="cadena-metric-value">
+                    {metricas.sessions.sucursalVista}
+                  </p>
+                </div>
+              </div>
+              <p className="meta">
+                {t('metricsFunnel')
+                  .replace('{a}', String(metricas.funnel.gpsToPromo))
+                  .replace('{b}', String(metricas.funnel.gpsToBranch))}
+                {' · '}
+                {t('metricsDays').replace('{n}', String(metricas.days))}
+              </p>
+            </article>
+          )}
 
           <article className="cadena-card">
             <h2>{t('chainVigenciaTitle')}</h2>

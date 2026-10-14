@@ -4,6 +4,7 @@ import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
+import { track, trackGps } from '../lib/metrics';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
@@ -29,6 +30,7 @@ export default function Cerca() {
     setSources([]);
     setPromosError(false);
     setFromCache(false);
+    void track({ tipo: 'cerca_open', lat, lng, meta: { label } });
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
         params: { lng, lat, maxMeters: 8000 },
@@ -87,17 +89,21 @@ export default function Cerca() {
   function useGps() {
     if (!navigator.geolocation) {
       setError(t('noGeo'));
+      void trackGps(false);
       return;
     }
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
+      (pos) => {
+        void trackGps(true, pos.coords.latitude, pos.coords.longitude);
         void loadNear(
           pos.coords.longitude,
           pos.coords.latitude,
           t('usingLocation')
-        ),
+        );
+      },
       () => {
+        void trackGps(false);
         setLoading(false);
         setBranches([]);
         setPromos([]);

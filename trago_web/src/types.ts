@@ -35,6 +35,7 @@ export type Promo = {
   subtitle?: string;
   descripcion?: string;
   chainName?: string;
+  chainId?: string;
   kind?: string;
   alcohol?: boolean;
   audience?: 'all' | 'adult';
