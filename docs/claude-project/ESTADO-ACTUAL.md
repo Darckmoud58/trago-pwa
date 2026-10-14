@@ -18,7 +18,7 @@ URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md) · Prompt: [`PROMPT-LEER-PRS.md`]
 | #8 | `cursor/mapa-vigencia-e557` | Mapa OSM vigencia + paquete Claude | no |
 | #9 | `cursor/seguridad-p1-e557` | Seguridad P1 (JWT, helmet, CORS, zod) | no |
 | #10 | `cursor/seguridad-p7-ci-e557` | CI, Dependabot, seed seguro | no |
-| R1 | `cursor/seguridad-r1-age-cookie-e557` | Gate 18+ cookie firmada (cierra R-01) | no |
+| #11 | `cursor/seguridad-r1-age-cookie-e557` | Gate 18+ cookie firmada (cierra R-01) | no |
 
 ## Seguridad — revisión Claude post-PRs
 
