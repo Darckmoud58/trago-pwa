@@ -42,3 +42,6 @@ yarn-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# paquete regenerable para Claude.ai (scripts/pack-claude-context.sh)
+docs/claude-project/trago-claude-context.zip
