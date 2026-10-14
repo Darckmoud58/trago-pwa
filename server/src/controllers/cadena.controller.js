@@ -455,11 +455,16 @@ export async function listVigencia(req, res) {
       });
       const promo = promoById[String(link.id_promo)];
       const ubi = ubiById[String(link.id_ubicacion)];
+      const lat = Number(ubi?.lat);
+      const lng = Number(ubi?.long ?? ubi?.lng);
       return {
         promoId: link.id_promo,
         promoNombre: promo?.nombre || '',
         ubicacionId: link.id_ubicacion,
         sucursalNombre: ubi?.nombre || ubi?.calle || '',
+        municipio: ubi?.municipio || '',
+        lat: Number.isFinite(lat) ? lat : null,
+        lng: Number.isFinite(lng) ? lng : null,
         activaOficial: link.activa_oficial !== false,
         reportsVigente: link.reportes_vigente || 0,
         reportsCaduco: link.reportes_caduco || 0,
@@ -475,10 +480,20 @@ export async function listVigencia(req, res) {
       (a, b) => (order[a.crowdStatus] ?? 9) - (order[b.crowdStatus] ?? 9)
     );
 
+    const withCoords = rows.filter((r) => r.lat != null && r.lng != null);
+    const byStatus = {
+      vigente: rows.filter((r) => r.crowdStatus === 'vigente').length,
+      en_duda: rows.filter((r) => r.crowdStatus === 'en_duda').length,
+      caduco: rows.filter((r) => r.crowdStatus === 'caduco').length,
+      fuera: rows.filter((r) => r.crowdStatus === 'fuera').length,
+    };
+
     return res.json({
       count: rows.length,
       enDuda: rows.filter((r) => r.crowdStatus === 'en_duda' || r.crowdStatus === 'caduco')
         .length,
+      withCoords: withCoords.length,
+      byStatus,
       rows,
     });
   } catch (e) {

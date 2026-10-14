@@ -110,6 +110,12 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Mapa de vigencia (#8)
+
+- `GET /api/cadena/vigencia` incluye `lat`/`lng`, `byStatus` y `withCoords`.
+- Panel `/cadena`: mapa OSM (Leaflet) con pines por estado (`vigente` / `en_duda` / `caduco` / `fuera`), filtros y sincronía lista↔pin.
+- Reafirmar / pausar participación siguen en la lista bajo el mapa.
+
 ## Gate 18+ server (#7)
 
 - `attachViewerAge`: JWT (edad en DB) > header `X-Trago-Band` > query `band`.

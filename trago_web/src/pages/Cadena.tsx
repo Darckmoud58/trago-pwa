@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
+import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n } from '../lib/i18n';
 import './Cadena.css';
 
@@ -58,19 +59,9 @@ export default function Cadena() {
   const [promoDesc, setPromoDesc] = useState('');
   const [promoAlcohol, setPromoAlcohol] = useState(false);
   const [promoUbis, setPromoUbis] = useState<string[]>([]);
-  const [vigencia, setVigencia] = useState<
-    {
-      promoId: string;
-      promoNombre: string;
-      ubicacionId: string;
-      sucursalNombre: string;
-      crowdStatus: string;
-      reportsVigente: number;
-      reportsCaduco: number;
-      activaOficial: boolean;
-      reafirmadoEn?: string | null;
-    }[]
-  >([]);
+  const [vigencia, setVigencia] = useState<VigenciaMapRow[]>([]);
+  const [mapFilter, setMapFilter] = useState<'all' | string>('all');
+  const [selectedVigencia, setSelectedVigencia] = useState<string | null>(null);
   const [metricas, setMetricas] = useState<{
     days: number;
     sessions: {
@@ -94,7 +85,7 @@ export default function Cadena() {
       if (res.data.empresa) {
         try {
           const vig = await api.get('/api/cadena/vigencia');
-          setVigencia(vig.data.rows || []);
+          setVigencia((vig.data.rows || []) as VigenciaMapRow[]);
         } catch {
           setVigencia([]);
         }
@@ -259,11 +250,20 @@ export default function Cadena() {
 
   const verified = Boolean(empresa?.verificada || empresa?.verified);
 
+  const filteredVigencia = useMemo(() => {
+    if (mapFilter === 'all') return vigencia;
+    return vigencia.filter((r) => r.crowdStatus === mapFilter);
+  }, [vigencia, mapFilter]);
+
   function crowdLabel(status: string) {
     if (status === 'en_duda' || status === 'en-duda') return t('crowdDoubt');
     if (status === 'caduco') return t('crowdExpired');
     if (status === 'fuera') return t('crowdOut');
     return t('crowdLive');
+  }
+
+  function vigenciaKey(row: VigenciaMapRow) {
+    return `${row.promoId}-${row.ubicacionId}`;
   }
 
   return (
@@ -502,54 +502,97 @@ export default function Cadena() {
             {vigencia.length === 0 ? (
               <p className="muted">{t('chainVigenciaEmpty')}</p>
             ) : (
-              <ul className="cadena-list">
-                {vigencia.map((row) => (
-                  <li key={`${row.promoId}-${row.ubicacionId}`}>
-                    <strong>
-                      {row.promoNombre} · {row.sucursalNombre}
-                    </strong>
-                    <span className="meta">
-                      {crowdLabel(row.crowdStatus)}
-                      {' · '}
-                      {t('voteCounts')
-                        .replace('{yes}', String(row.reportsVigente))
-                        .replace('{no}', String(row.reportsCaduco))}
-                      {!row.activaOficial ? ` · ${t('chainPaused')}` : ''}
-                      {row.reafirmadoEn
-                        ? ` · ${t('chainReaffirmed')}`
-                        : ''}
-                    </span>
-                    <div className="cadena-vigencia-actions">
-                      <button
-                        type="button"
-                        className="btn primary"
-                        disabled={busy}
-                        onClick={() =>
-                          void reafirmar(row.promoId, row.ubicacionId)
+              <>
+                <div className="cadena-status-chips" role="toolbar" aria-label={t('mapFilterAria')}>
+                  {(
+                    [
+                      ['all', t('mapFilterAll')],
+                      ['en_duda', t('statusEnDuda')],
+                      ['caduco', t('statusCaduco')],
+                      ['vigente', t('statusVigente')],
+                      ['fuera', t('statusFuera')],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={mapFilter === id ? 'is-active' : ''}
+                      onClick={() => setMapFilter(id)}
+                    >
+                      {label}
+                      {id !== 'all'
+                        ? ` (${vigencia.filter((r) => r.crowdStatus === id).length})`
+                        : ` (${vigencia.length})`}
+                    </button>
+                  ))}
+                </div>
+
+                <VigenciaMap
+                  rows={filteredVigencia}
+                  selectedKey={selectedVigencia}
+                  onSelect={(row) => setSelectedVigencia(vigenciaKey(row))}
+                />
+
+                <ul className="cadena-list">
+                  {filteredVigencia.map((row) => {
+                    const key = vigenciaKey(row);
+                    return (
+                      <li
+                        key={key}
+                        className={
+                          selectedVigencia === key ? 'is-map-selected' : undefined
                         }
+                        onClick={() => setSelectedVigencia(key)}
                       >
-                        {t('chainReaffirm')}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn ghost"
-                        disabled={busy}
-                        onClick={() =>
-                          void toggleParticipacion(
-                            row.promoId,
-                            row.ubicacionId,
-                            !row.activaOficial
-                          )
-                        }
-                      >
-                        {row.activaOficial
-                          ? t('chainPauseBranch')
-                          : t('chainResumeBranch')}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                        <strong>
+                          {row.promoNombre} · {row.sucursalNombre}
+                        </strong>
+                        <span className="meta">
+                          {crowdLabel(row.crowdStatus)}
+                          {' · '}
+                          {t('voteCounts')
+                            .replace('{yes}', String(row.reportsVigente))
+                            .replace('{no}', String(row.reportsCaduco))}
+                          {!row.activaOficial ? ` · ${t('chainPaused')}` : ''}
+                          {row.reafirmadoEn
+                            ? ` · ${t('chainReaffirmed')}`
+                            : ''}
+                        </span>
+                        <div className="cadena-vigencia-actions">
+                          <button
+                            type="button"
+                            className="btn primary"
+                            disabled={busy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void reafirmar(row.promoId, row.ubicacionId);
+                            }}
+                          >
+                            {t('chainReaffirm')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            disabled={busy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void toggleParticipacion(
+                                row.promoId,
+                                row.ubicacionId,
+                                !row.activaOficial
+                              );
+                            }}
+                          >
+                            {row.activaOficial
+                              ? t('chainPauseBranch')
+                              : t('chainResumeBranch')}
+                          </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
             )}
           </article>
         </>
