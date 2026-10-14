@@ -110,6 +110,15 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Rate limits + refresco Netlify (R2)
+
+- Rate limit en Mongo (`rate_limits` + TTL): login 5/15min, registro 5/h, `/cerca` 20/min, API 120/min.
+- `/cerca`: radio cuantizado `{1000,2500,5000,8000}`, coords solo México (422 si no), single-flight Overpass.
+- Scrapers **fuera** del hot path; `npm run refresh` + Scheduled Function `netlify/functions/refresh-official.mjs` (cada 6 h).
+- Estado en colección `official_refresh` (sirve en Functions sin `setInterval`).
+- McDonald’s: sin intermediario `r.jina.ai` (no se inventa como oficial).
+- Límites alineados a `web_next_legacy` / patrones Todo_pwa (`LOGIN_MAX_FAILURES`, etc.).
+
 ## Gate 18+ (R1)
 
 - Anónimo **sin** cookie firmada `age_ok` → no ve alcohol/nocturno.

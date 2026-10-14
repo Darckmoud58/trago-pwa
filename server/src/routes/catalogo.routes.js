@@ -8,14 +8,32 @@ import {
   nearbyPromos,
 } from '../controllers/catalogo.controller.js';
 import { attachViewerAge } from '../middleware/viewerAge.js';
+import { LIMITS, rateLimit } from '../middleware/rateLimit.js';
 
 const router = Router();
 
-router.get('/promociones', attachViewerAge, listPromos);
-router.get('/promociones/cerca', attachViewerAge, nearbyPromos);
-router.get('/promociones/:promoId', attachViewerAge, getPromo);
-router.get('/negocios', listNegocios);
-router.get('/sucursales/cerca', nearBranches);
-router.get('/promociones/:promoId/sucursales', attachViewerAge, listPromoSucursales);
+const cercaLimit = rateLimit({
+  name: 'cerca',
+  max: LIMITS.cerca.max,
+  windowMs: LIMITS.cerca.windowMs,
+});
+
+const apiLimit = rateLimit({
+  name: 'api',
+  max: LIMITS.api.max,
+  windowMs: LIMITS.api.windowMs,
+});
+
+router.get('/promociones', apiLimit, attachViewerAge, listPromos);
+router.get('/promociones/cerca', cercaLimit, attachViewerAge, nearbyPromos);
+router.get('/promociones/:promoId', apiLimit, attachViewerAge, getPromo);
+router.get('/negocios', apiLimit, listNegocios);
+router.get('/sucursales/cerca', cercaLimit, nearBranches);
+router.get(
+  '/promociones/:promoId/sucursales',
+  apiLimit,
+  attachViewerAge,
+  listPromoSucursales
+);
 
 export default router;

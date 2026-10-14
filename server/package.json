@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/catalogo.js",
+    "refresh": "node src/scripts/refresh-official.js",
     "migrate:drop-token-login": "node src/scripts/migrate-drop-token-login.js",
     "test": "node --test 'src/**/*.test.js'"
   },
