@@ -110,6 +110,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## Gate 18+ server (#7)
+
+- `attachViewerAge`: JWT (edad en DB) > header `X-Trago-Band` > query `band`.
+- Catálogo / cerca filtran alcohol + nocturno para `teen`.
+- Detalle de promo restringida → `403 AGE_RESTRICTED`.
+- Auth recalcula edad desde `fecha_nacimiento` y pone `band` en el JWT.
+- Front: diálogo de declaración + interceptor que envía `X-Trago-Band`.
+
 ## Métrica norte (#6)
 
 Definición: **sesiones con `gps_ok` × `promo_open` × `sucursal_vista`** (no likes).

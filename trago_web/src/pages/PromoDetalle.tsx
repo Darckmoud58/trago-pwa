@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import ValidityVote from '../components/ValidityVote';
+import { getAgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import type { Branch, Promo } from '../types';
@@ -14,13 +15,28 @@ export default function PromoDetalle() {
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
   const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [ageBlocked, setAgeBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const band = localStorage.getItem('trago_band');
-  const isTeen = band === 'teen';
+  const isTeen = getAgeBand() === 'teen';
 
   useEffect(() => {
     if (!promoId) return;
     setLoading(true);
+    setAgeBlocked(false);
+    setError('');
+
+    const onFail = (err: unknown) => {
+      const status = (err as { response?: { status?: number; data?: { code?: string } } })
+        ?.response?.status;
+      const code = (err as { response?: { data?: { code?: string } } })?.response
+        ?.data?.code;
+      if (status === 403 && code === 'AGE_RESTRICTED') {
+        setAgeBlocked(true);
+        setPromo(null);
+        return;
+      }
+      setError(t('promoMissing'));
+    };
 
     const load = (lat?: number, lng?: number) => {
       const params =
@@ -56,20 +72,16 @@ export default function PromoDetalle() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           void load(pos.coords.latitude, pos.coords.longitude)
-            .catch(() => setError(t('promoMissing')))
+            .catch(onFail)
             .finally(finish);
         },
         () => {
-          void load()
-            .catch(() => setError(t('promoMissing')))
-            .finally(finish);
+          void load().catch(onFail).finally(finish);
         },
         { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
       );
     } else {
-      void load()
-        .catch(() => setError(t('promoMissing')))
-        .finally(finish);
+      void load().catch(onFail).finally(finish);
     }
   }, [promoId, t]);
 
@@ -77,6 +89,19 @@ export default function PromoDetalle() {
     return (
       <section className="promos-page">
         <p className="muted">{t('loadingPromo')}</p>
+      </section>
+    );
+  }
+
+  if (ageBlocked || (isTeen && !promo && !error)) {
+    return (
+      <section className="promos-page">
+        <aside className="promos-note">
+          {t('promo18Only')} <Link to="/terminos">{t('seeTerms')}</Link>
+        </aside>
+        <Link className="btn ghost" to="/promos">
+          {t('backToPromos')}
+        </Link>
       </section>
     );
   }
@@ -100,7 +125,7 @@ export default function PromoDetalle() {
       promo.nocturno ||
       promo.isNocturno);
 
-  if (blocked) {
+  if (blocked || ageBlocked) {
     return (
       <section className="promos-page">
         <aside className="promos-note">

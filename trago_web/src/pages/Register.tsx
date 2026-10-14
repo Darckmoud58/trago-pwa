@@ -7,6 +7,7 @@ import {
   MIN_ACCOUNT_AGE,
   MIN_AGE,
 } from '../lib/age';
+import { setAgeBand, type AgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
 import './Legal.css';
 
@@ -47,8 +48,8 @@ export default function Register() {
         birthDate,
       });
       localStorage.setItem('token', data.token);
-      if (data.user?.band) {
-        localStorage.setItem('trago_band', data.user.band);
+      if (data.user?.band === 'teen' || data.user?.band === 'adult') {
+        setAgeBand(data.user.band as AgeBand);
       }
       setAuth(data.token);
       navigate('/cuenta', { replace: true });
