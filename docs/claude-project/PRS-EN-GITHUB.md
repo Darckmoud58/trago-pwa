@@ -16,7 +16,7 @@ Repo: https://github.com/Darckmoud58/trago-pwa
 | [#7](https://github.com/Darckmoud58/trago-pwa/pull/7) | `cursor/gate-18-server-e557` | … | Gate 18+ server |
 | [#8](https://github.com/Darckmoud58/trago-pwa/pull/8) | `cursor/mapa-vigencia-e557` | … | Mapa vigencia + paquete Claude |
 | [#9](https://github.com/Darckmoud58/trago-pwa/pull/9) | `cursor/seguridad-p1-e557` | #8 | **Seguridad P1** (JWT, CORS, auth) |
-| (este) | `cursor/seguridad-p7-ci-e557` | #9 | **Seguridad P7** CI / seed / Dependabot |
+| [#10](https://github.com/Darckmoud58/trago-pwa/pull/10) | `cursor/seguridad-p7-ci-e557` | #9 | **Seguridad P7** CI / seed / Dependabot |
 
 La base de #3 (`cursor/voto-vigencia-quickwins-e557`) trae quick wins + voto de vigencia (#1 producto del backlog).
 

@@ -15,7 +15,7 @@ Lista viva con URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md). Prompt para Claud
 | #7 | `cursor/gate-18-server-e557` | Gate 18+ server + diálogo edad |
 | #8 | `cursor/mapa-vigencia-e557` | Mapa OSM vigencia + paquete Claude |
 | #9 | `cursor/seguridad-p1-e557` | Seguridad P1 (JWT, helmet, CORS, zod, tokenVersion) |
-| P7 | `cursor/seguridad-p7-ci-e557` | CI, Dependabot, seed seguro, root package limpio |
+| #10 | `cursor/seguridad-p7-ci-e557` | CI, Dependabot, seed seguro, root package limpio |
 
 Quick wins y voto (#1) viven en la base de esa cadena.
 

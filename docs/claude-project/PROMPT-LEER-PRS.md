@@ -8,8 +8,9 @@ Repo: https://github.com/Darckmoud58/trago-pwa
 
 Lee / resume desde estas URLs (o pide el diff):
 
-1. https://github.com/Darckmoud58/trago-pwa/pull/9 — Seguridad P1  
-2. https://github.com/Darckmoud58/trago-pwa/pull/8 — Mapa vigencia + contexto Claude  
+1. https://github.com/Darckmoud58/trago-pwa/pull/10 — Seguridad P7 (CI)  
+2. https://github.com/Darckmoud58/trago-pwa/pull/9 — Seguridad P1  
+3. https://github.com/Darckmoud58/trago-pwa/pull/8 — Mapa vigencia + contexto Claude  
 3. https://github.com/Darckmoud58/trago-pwa/pull/7 — Gate 18+ server  
 4. https://github.com/Darckmoud58/trago-pwa/pull/6 — Métrica norte  
 5. https://github.com/Darckmoud58/trago-pwa/pull/5 — Moderación  
