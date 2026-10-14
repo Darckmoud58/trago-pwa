@@ -3,8 +3,13 @@ services:
     image: mongo:7
     container_name: trago-mongo
     restart: unless-stopped
+    # Solo localhost (no 0.0.0.0). Para auth: define MONGO_INITDB_ROOT_USERNAME/PASSWORD en .env
+    # y descomenta el bloque environment abajo.
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27018:27017"
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+    #   MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - trago_mongo:/data/db
     healthcheck:

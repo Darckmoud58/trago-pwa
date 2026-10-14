@@ -110,6 +110,16 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
 - En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
 
+## CI / calidad (P7)
+
+- `.github/workflows/ci.yml` — install, lint, `server` tests, build web, `npm audit --audit-level=high --omit=dev`, gitleaks  
+- `.github/dependabot.yml` — npm semanal en `server/` y `trago_web/`  
+- Seed: `cd server && npm run seed -- --yes` (bloqueado en `production`; password vía `SEED_DEMO_PASSWORD`)  
+- Root `package.json` solo scripts (deps en cada paquete)  
+- Docker Mongo publicado en `127.0.0.1:27018`
+
+PRs para Claude: `docs/claude-project/PRS-EN-GITHUB.md` · prompt `PROMPT-LEER-PRS.md`.
+
 ## Seguridad P1 (base del servidor)
 
 - `JWT_SECRET` obligatorio (≥32), sin fallback `changeme`.

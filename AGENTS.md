@@ -50,4 +50,4 @@ cd trago_web && npm install && npm run dev
 
 Métrica norte: **sesiones con GPS × promo abierta × sucursal vista**.
 
-Para pedirle opinión a Claude.ai: pega [`docs/claude-project/PROMPT-SIGUIENTE.md`](docs/claude-project/PROMPT-SIGUIENTE.md).
+Para pedirle opinión a Claude.ai (con PRs ya en GitHub): pega [`docs/claude-project/PROMPT-LEER-PRS.md`](docs/claude-project/PROMPT-LEER-PRS.md).
