@@ -24,7 +24,8 @@ const schema = new mongoose.Schema(
       enum: ['activo', 'inactivo', 'bloqueado'],
       default: 'activo',
     },
-    token_login: { type: String, default: null },
+    /** Incrementar invalida JWTs previos (campo `tv` del token). */
+    tokenVersion: { type: Number, default: 0 },
     // FKs del diagrama
     id_rol: { type: mongoose.Schema.Types.ObjectId, ref: 'Rol', default: null },
     id_nivel: { type: mongoose.Schema.Types.ObjectId, ref: 'Nivel', default: null },

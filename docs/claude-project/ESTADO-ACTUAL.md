@@ -26,6 +26,14 @@ Quick wins y voto (#1) viven en la base de esa cadena.
 - Gate 18+ en servidor  
 - Mapa de vigencia por local  
 
+## Seguridad (auditoría Claude 2026-10-14)
+
+Orden del auditor: **P1 → P2 → P3 → P6 → P4 → P5 → P8** (+ P7 tras P1).
+
+Nota: la auditoría miró `main` sin la cadena #2–#8. Producto (voto, cadena, métrica, gate, mapa) ya está en PRs; **P1 endurecimiento servidor** va en `cursor/seguridad-p1-e557`.
+
+Acciones operativas (sin código): JWT_SECRET en Netlify ≥32; Atlas usuario solo TraGo; no `seed` en prod.
+
 ## Huecos vs pitch (piloto cobrable)
 
 Del `docs/PITCH-TRAGO.md` §10 y modelo de ingresos, **aún no hay** (o está solo en seed/modelo):

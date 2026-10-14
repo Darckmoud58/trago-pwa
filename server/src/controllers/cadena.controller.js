@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
 import Empresa from '../models/Empresa.js';
 import Ubicacion from '../models/Ubicacion.js';
 import Promocion from '../models/Promocion.js';
@@ -8,6 +7,8 @@ import Usuario from '../models/Usuario.js';
 import Rol from '../models/Rol.js';
 import { uniqueSlug } from '../lib/slugify.js';
 import { crowdStatus } from '../lib/validity.js';
+import { bandFromAge, resolveUserAge } from '../lib/ageGate.js';
+import { signAccessToken } from '../lib/jwt.js';
 
 function mapEmpresa(e) {
   if (!e) return null;
@@ -133,12 +134,15 @@ export async function registerCadena(req, res) {
     let token = null;
     if (roleEmpresa) {
       await Usuario.findByIdAndUpdate(req.userId, { id_rol: roleEmpresa._id });
-      token = jwt.sign(
-        { id: req.userId, role: roleEmpresa.codigo },
-        process.env.JWT_SECRET || 'changeme',
-        { expiresIn: '7d' }
+      const owner = await Usuario.findById(req.userId).select(
+        'tokenVersion edad fecha_nacimiento'
       );
-      await Usuario.findByIdAndUpdate(req.userId, { token_login: token });
+      token = signAccessToken({
+        id: req.userId,
+        role: roleEmpresa.codigo,
+        band: bandFromAge(resolveUserAge(owner)) || 'adult',
+        tv: Number(owner?.tokenVersion || 0),
+      });
     }
 
     return res.status(201).json({
