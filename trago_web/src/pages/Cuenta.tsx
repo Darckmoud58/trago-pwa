@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
+import { setAgeBand, type AgeBand } from '../lib/ageBand';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 import type { AuthUser } from '../types';
@@ -33,11 +34,10 @@ export default function Cuenta() {
         const u = res.data.user as AuthUser;
         setUser(u);
         const b = u?.band || u?.age?.band;
-        if (b) localStorage.setItem('trago_band', b);
+        if (b === 'teen' || b === 'adult') setAgeBand(b as AgeBand);
       })
       .catch(() => {
         localStorage.removeItem('token');
-        localStorage.removeItem('trago_band');
         setAuth(null);
         setError(t('sessionInvalid'));
       });
@@ -70,7 +70,6 @@ export default function Cuenta() {
 
   function logout() {
     localStorage.removeItem('token');
-    localStorage.removeItem('trago_band');
     setAuth(null);
     navigate('/entrar', { replace: true });
   }

@@ -3,15 +3,12 @@ import Rol from '../models/Rol.js';
 import Nivel from '../models/Nivel.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-function yearsFromBirth(birthDate) {
-  const b = new Date(birthDate);
-  const now = new Date();
-  let y = now.getFullYear() - b.getFullYear();
-  const m = now.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) y -= 1;
-  return y;
-}
+import {
+  MIN_ACCOUNT_AGE,
+  bandFromAge,
+  yearsFromBirth,
+  resolveUserAge,
+} from '../lib/ageGate.js';
 
 function splitName(fullName) {
   const parts = String(fullName || '')
@@ -34,6 +31,8 @@ function publicUser(user, extras = {}) {
   const nombreCompleto = [user.nombre, user.ape_paterno, user.ape_materno]
     .filter(Boolean)
     .join(' ');
+  const age = resolveUserAge(user);
+  const band = bandFromAge(age) || 'teen';
   return {
     id: user._id,
     name: nombreCompleto,
@@ -42,15 +41,26 @@ function publicUser(user, extras = {}) {
     ape_materno: user.ape_materno,
     email: user.correo,
     correo: user.correo,
-    edad: user.edad,
+    edad: age,
     puntos: user.puntos ?? 0,
     estatus: user.estatus,
-    band: user.edad >= 18 ? 'adult' : 'teen',
+    band,
+    age: { band, years: age },
     id_rol: user.id_rol || null,
     id_nivel: user.id_nivel || null,
     rol: extras.rol || null,
     nivel: extras.nivel || null,
   };
+}
+
+async function refreshStoredAge(user) {
+  if (!user?.fecha_nacimiento) return user;
+  const age = yearsFromBirth(user.fecha_nacimiento);
+  if (age != null && age !== user.edad) {
+    user.edad = age;
+    await user.save();
+  }
+  return user;
 }
 
 async function loadUserExtras(user) {
@@ -112,8 +122,10 @@ export async function register(req, res) {
       });
     }
 
-    if (years < 13) {
-      return res.status(400).json({ message: 'Debes tener al menos 13 años' });
+    if (years < MIN_ACCOUNT_AGE) {
+      return res.status(400).json({
+        message: `Debes tener al menos ${MIN_ACCOUNT_AGE} años`,
+      });
     }
 
     const exists = await Usuario.findOne({ correo: mail });
@@ -138,8 +150,9 @@ export async function register(req, res) {
     });
     await user.save();
 
+    const band = bandFromAge(years) || 'teen';
     const token = jwt.sign(
-      { id: user._id, role: roleDoc?.codigo || 'user' },
+      { id: user._id, role: roleDoc?.codigo || 'user', band },
       process.env.JWT_SECRET || 'changeme',
       { expiresIn: '7d' }
     );
@@ -175,9 +188,12 @@ export async function login(req, res) {
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(401).json({ message: 'Credenciales inválidas' });
 
+    await refreshStoredAge(user);
+
     const roleDoc = user.id_rol ? await Rol.findById(user.id_rol) : null;
+    const band = bandFromAge(resolveUserAge(user)) || 'teen';
     const token = jwt.sign(
-      { id: user._id, role: roleDoc?.codigo || 'user' },
+      { id: user._id, role: roleDoc?.codigo || 'user', band },
       process.env.JWT_SECRET || 'changeme',
       { expiresIn: '7d' }
     );
@@ -197,6 +213,7 @@ export async function profile(req, res) {
   try {
     const user = await Usuario.findById(req.userId).select('-password');
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    await refreshStoredAge(user);
     const extras = await loadUserExtras(user);
     res.json({ user: publicUser(user, extras) });
   } catch (e) {

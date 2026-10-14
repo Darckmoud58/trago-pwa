@@ -18,6 +18,11 @@ import {
   upsertCompanyBranchesFromOsm,
   vinculoMeta,
 } from '../services/promoBranchLinks.js';
+import {
+  filterPromosForViewer,
+  isRestrictedPromo,
+  mongoExcludeRestricted,
+} from '../lib/ageGate.js';
 
 function dateActiveFilter(now = new Date()) {
   return {
@@ -144,6 +149,15 @@ export async function getPromo(req, res) {
       }
     }
 
+    if (isRestrictedPromo(promo) && req.viewer && !req.viewer.canSeeAlcohol) {
+      return res.status(403).json({
+        code: 'AGE_RESTRICTED',
+        message: 'Esta promoción es solo para mayores de 18 años.',
+        minAge: 18,
+        viewerBand: req.viewer.band || 'teen',
+      });
+    }
+
     const empresaById = empresa
       ? { [String(empresa._id)]: empresa }
       : {};
@@ -211,12 +225,14 @@ export async function getPromo(req, res) {
 }
 
 /** Listado público: solo Mongo (scrapers corren en job de fondo). */
-export async function listPromos(_req, res) {
+export async function listPromos(req, res) {
   try {
     const now = new Date();
     const refresh = getOfficialRefreshStatus();
     const filter = await publicCatalogFilter(now);
-    const promos = await Promocion.find(filter)
+    const ageFilter =
+      req.viewer && !req.viewer.canSeeAlcohol ? mongoExcludeRestricted() : {};
+    const promos = await Promocion.find({ ...filter, ...ageFilter })
       .sort({ destacada: -1, termina_en: 1 })
       .limit(100)
       .lean();
@@ -229,12 +245,19 @@ export async function listPromos(_req, res) {
     const empresaById = Object.fromEntries(
       empresas.map((e) => [String(e._id), e])
     );
-    const mapped = promos.map((p) => mapPromo(p, empresaById));
+    const mapped = filterPromosForViewer(
+      promos.map((p) => mapPromo(p, empresaById)),
+      req.viewer
+    );
     res.json({
       count: mapped.length,
       promos: mapped,
       sources: refresh.sources,
       sourcesRefreshedAt: refresh.at,
+      ageGate: {
+        band: req.viewer?.band || null,
+        restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
+      },
       emptyReason:
         mapped.length === 0
           ? 'Sin promociones oficiales guardadas aún. El recolector corre en segundo plano; vuelve en unos minutos o usa Cerca con GPS.'
@@ -330,7 +353,7 @@ export async function nearbyPromos(req, res) {
     }
 
     const companyById = Object.fromEntries(ensured.map((c) => [String(c._id), c]));
-    const mapped = promos.map((promo) => {
+    const mappedRaw = promos.map((promo) => {
       const links = linksByPromo[String(promo._id)] || [];
       const fuenteEsp = links.some((l) => l.especificado_por_fuente);
       return {
@@ -349,10 +372,15 @@ export async function nearbyPromos(req, res) {
           })),
       };
     });
+    const mapped = filterPromosForViewer(mappedRaw, req.viewer);
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
       promos: mapped,
+      ageGate: {
+        band: req.viewer?.band || null,
+        restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
+      },
       sources,
       businessesFound: branches.length,
       searchedRadiusMeters: discovery.searchedRadiusMeters,

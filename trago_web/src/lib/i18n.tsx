@@ -56,6 +56,12 @@ const messages = {
     logout: 'Cerrar sesión',
     sessionInvalid: 'Sesión inválida. Vuelve a entrar.',
     teenNote: 'Perfil 13–17: ocultamos alcohol y nocturno.',
+    ageGateTitle: '¿Tienes 18 años o más?',
+    ageGateBody:
+      'TraGo muestra promociones con alcohol y nocturno solo a mayores de 18. Tu respuesta se envía al servidor en cada consulta.',
+    ageGateAdult: 'Sí, soy mayor de 18',
+    ageGateTeen: 'Tengo entre 13 y 17',
+    ageGateNote: 'Puedes cambiar esto al iniciar sesión con tu fecha de nacimiento.',
     ageDialog: 'Aviso de edad',
     ageBody:
       'Hay promos con alcohol solo 18+. Al continuar aceptas los términos y el aviso de privacidad.',
@@ -367,6 +373,12 @@ const messages = {
     logout: 'Sign out',
     sessionInvalid: 'Invalid session. Sign in again.',
     teenNote: 'Ages 13–17: we hide alcohol and nightlife.',
+    ageGateTitle: 'Are you 18 or older?',
+    ageGateBody:
+      'TraGo shows alcohol and nightlife deals only to adults. Your answer is sent to the server on every catalog request.',
+    ageGateAdult: 'Yes, I am 18+',
+    ageGateTeen: 'I am 13–17',
+    ageGateNote: 'Signing in with your birth date overrides this declaration.',
     ageDialog: 'Age notice',
     ageBody:
       'Some deals include alcohol for 18+ only. By continuing you accept the terms and privacy notice.',

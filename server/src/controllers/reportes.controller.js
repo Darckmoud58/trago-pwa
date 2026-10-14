@@ -18,6 +18,11 @@ import {
   voteBanStatus,
   VOTES_PER_DAY,
 } from '../lib/moderation.js';
+import {
+  MIN_ALCOHOL_AGE,
+  isRestrictedPromo,
+  resolveUserAge,
+} from '../lib/ageGate.js';
 
 async function recountLink(promoId, ubicacionId) {
   const cutoff = voteCutoff();
@@ -144,10 +149,13 @@ export async function postReport(req, res) {
         message: 'Esta sucursal no participa en la promo (sin vínculo oficial o pausada por la cadena).',
       });
     }
-    if (promo.alcohol || promo.audiencia === 'adulto') {
-      if ((user.edad ?? 0) < 18) {
+    if (isRestrictedPromo(promo)) {
+      const age = resolveUserAge(user);
+      if (age == null || age < MIN_ALCOHOL_AGE) {
         return res.status(403).json({
-          message: 'Solo mayores de 18 pueden reportar vigencia de promos con alcohol.',
+          code: 'AGE_RESTRICTED',
+          message: `Solo mayores de ${MIN_ALCOHOL_AGE} pueden reportar vigencia de promos con alcohol o nocturno.`,
+          minAge: MIN_ALCOHOL_AGE,
         });
       }
     }
