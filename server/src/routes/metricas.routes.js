@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
 import { requireChain } from '../middleware/roles.js';
+import { LIMITS, rateLimit } from '../middleware/rateLimit.js';
 import {
   getCadenaMetricas,
   getNorthStar,
@@ -25,7 +26,16 @@ function optionalAuth(req, _res, next) {
   next();
 }
 
-router.post('/eventos', optionalAuth, postEvents);
+router.post(
+  '/eventos',
+  rateLimit({
+    name: 'metrics',
+    max: LIMITS.metrics.max,
+    windowMs: LIMITS.metrics.windowMs,
+  }),
+  optionalAuth,
+  postEvents
+);
 router.get('/norte', auth, getNorthStar);
 router.get('/cadena', auth, requireChain, getCadenaMetricas);
 

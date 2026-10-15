@@ -19,6 +19,8 @@ Repo: https://github.com/Darckmoud58/trago-pwa
 | [#10](https://github.com/Darckmoud58/trago-pwa/pull/10) | `cursor/seguridad-p7-ci-e557` | #9 | **Seguridad P7** CI / seed / Dependabot |
 | [#11](https://github.com/Darckmoud58/trago-pwa/pull/11) | `cursor/seguridad-r1-age-cookie-e557` | #10 | **R1** Gate 18+ cookie firmada (cierra R-01) |
 | [#12](https://github.com/Darckmoud58/trago-pwa/pull/12) | `cursor/seguridad-r2-limits-e557` | #11 | **R2** Rate limit Mongo + job Netlify + /cerca MX |
+| [#13](https://github.com/Darckmoud58/trago-pwa/pull/13) | `cursor/web-push-vapid-e557` | contexto | Web Push / VAPID |
+| [#14](https://github.com/Darckmoud58/trago-pwa/pull/14) | `cursor/seguridad-r3-metricas-e557` | #12 | **R3** Métricas anti-contaminación (lat MX / dedupe) |
 
 La base de #3 (`cursor/voto-vigencia-quickwins-e557`) trae quick wins + voto de vigencia (#1 producto del backlog).
 
@@ -34,7 +36,8 @@ Lee el estado REAL desde GitHub, no solo main:
 
 Actualiza tu auditoría: marca S-01/token_login/CORS/helmet según P1;
 marca voto/cadena/métrica/gate/mapa según #3–#8.
-Propón SOLO lo que aún falta (P2 rate limit, P6 CSP/SW, alinear P3 cookie, etc.).
+Propón SOLO lo que aún falta (R4 audit/cadena, P6 CSP/SW, etc.).
+No reabras R-01/R-02/R-03 si ya están cerrados en #11–#14.
 ```
 
 ## Operativo pendiente (humano)

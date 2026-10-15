@@ -22,3 +22,27 @@ describe('funnel math', () => {
     assert.equal(north, 1);
   });
 });
+
+describe('R3 norte definition', () => {
+  it('gps_ok sin coords MX no entra al set GPS del embudo', () => {
+    const rows = [
+      { sessionId: 'a', tipo: 'gps_ok', lat: 20.6, lng: -103.3 },
+      { sessionId: 'b', tipo: 'gps_ok', lat: null, lng: null },
+      { sessionId: 'c', tipo: 'gps_ok', lat: 40.4, lng: -3.7 },
+    ];
+    const gpsOk = rows.filter(
+      (r) =>
+        r.tipo === 'gps_ok' &&
+        r.lat != null &&
+        r.lng != null &&
+        r.lat >= 14 &&
+        r.lat <= 33 &&
+        r.lng >= -119 &&
+        r.lng <= -86
+    );
+    assert.deepEqual(
+      gpsOk.map((r) => r.sessionId),
+      ['a']
+    );
+  });
+});
