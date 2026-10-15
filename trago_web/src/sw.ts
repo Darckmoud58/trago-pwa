@@ -12,19 +12,18 @@ import {
   StaleWhileRevalidate,
 } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
+import { ICON_192, SW_ICON_TAG } from './lib/iconVersion';
 
 declare let self: ServiceWorkerGlobalScope;
 
-/** Bump al cambiar iconos/manifest para forzar actualización del SW en clientes. */
-const SW_RELEASE = 'trago-icons-v3';
+/** Cambia con ICON_VERSION → nuevo SW → autoUpdate en clientes. */
+const SW_RELEASE = SW_ICON_TAG;
+void SW_RELEASE;
 
 self.skipWaiting();
 clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
-
-// Referencia para que el bundle del SW cambie cuando SW_RELEASE cambia
-void SW_RELEASE;
 
 registerRoute(
   new NavigationRoute(createHandlerBoundToURL('index.html'), {
@@ -42,6 +41,24 @@ registerRoute(
     networkTimeoutSeconds: 4,
     plugins: [
       new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 60 * 30 }),
+    ],
+  })
+);
+
+/** Logos / manifest: red primero para que un deploy nuevo se vea en el teléfono. */
+registerRoute(
+  ({ url }) =>
+    /\/(icon-\d+[^/]*\.png|apple-touch-icon\.png|favicon\.(png|ico|svg)|manifest\.webmanifest)$/i.test(
+      url.pathname
+    ),
+  new NetworkFirst({
+    cacheName: 'trago-pwa-icons',
+    networkTimeoutSeconds: 3,
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 16,
+        maxAgeSeconds: 60 * 60, // 1 h
+      }),
     ],
   })
 );
@@ -69,8 +86,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'TraGo';
   const options: NotificationOptions = {
     body: data.body || '',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: ICON_192,
+    badge: ICON_192,
     tag: data.tag || 'trago-push',
     data: { url: data.url || '/' },
   };
@@ -82,14 +99,16 @@ self.addEventListener('notificationclick', (event) => {
   const url =
     (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client && 'navigate' in client) {
-          void client.focus();
-          return (client as WindowClient).navigate(url);
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ('focus' in client && 'navigate' in client) {
+            void client.focus();
+            return (client as WindowClient).navigate(url);
+          }
         }
-      }
-      if (self.clients.openWindow) return self.clients.openWindow(url);
-    })
+        if (self.clients.openWindow) return self.clients.openWindow(url);
+      })
   );
 });
