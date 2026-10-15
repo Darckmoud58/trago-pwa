@@ -5,6 +5,7 @@ import './index.css';
 import { I18nProvider } from './lib/i18n';
 import { hookInstallPromptEarly } from './lib/installPrompt';
 import Layout from './Layout';
+import RequireAuth from './components/RequireAuth';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -35,9 +36,30 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/promos/:promoId" element={<PromoDetalle />} />
             <Route path="/cerca" element={<Cerca />} />
             <Route path="/negocios" element={<Negocios />} />
-            <Route path="/favoritos" element={<Favoritos />} />
-            <Route path="/cuenta" element={<Cuenta />} />
-            <Route path="/cadena" element={<Cadena />} />
+            <Route
+              path="/favoritos"
+              element={
+                <RequireAuth reason="favorite">
+                  <Favoritos />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/cuenta"
+              element={
+                <RequireAuth reason="account">
+                  <Cuenta />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/cadena"
+              element={
+                <RequireAuth reason="chain">
+                  <Cadena />
+                </RequireAuth>
+              }
+            />
             <Route path="/idioma" element={<Idioma />} />
             <Route path="/instalar" element={<Instalar />} />
             <Route path="/terminos" element={<Terminos />} />

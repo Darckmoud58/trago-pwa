@@ -33,8 +33,12 @@ export function shouldShowAgeSheet(): boolean {
   return !hasAgeAccepted();
 }
 
-/** Adulto con cuenta: no mostrar chips 18+/Nocturno (la edad ya aplica). */
+/**
+ * ¿Ocultar chips 18+/Nocturno?
+ * Sí si no hay cuenta, o si la cuenta es teen.
+ * Solo cuenta adult los ve.
+ */
 export function hideAdultAgeFilters(): boolean {
-  if (!hasAccount()) return false;
-  return localStorage.getItem('trago_band') !== 'teen';
+  if (!hasAccount()) return true;
+  return localStorage.getItem('trago_band') === 'teen';
 }

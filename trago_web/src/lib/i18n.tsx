@@ -246,6 +246,10 @@ const messages = {
     favTitleOff: 'Guardar en favoritos',
     favNeedLogin: 'Inicia sesión para guardar en favoritos',
     favLoginHint: 'Al entrar, guardaremos este lugar en tus favoritos.',
+    voteLoginHint: 'Entra con tu cuenta para reportar vigencia en piso (con GPS).',
+    alcoholLoginHint:
+      'Alcohol y nocturno solo con cuenta 18+. Entra o regístrate con tu fecha de nacimiento.',
+    chainLoginHint: 'El panel de cadena requiere una cuenta TraGo.',
     filterAll: 'Todas',
     filterFeatured: 'Destacadas',
     filterFood: 'Comida',
@@ -358,7 +362,8 @@ const messages = {
     promoNotFound: 'Promoción no encontrada',
     promoMissing: 'No encontramos esa promoción.',
     backToPromos: 'Volver a promos',
-    promo18Only: 'Esta promo es solo para mayores de 18.',
+    promo18Only:
+      'Esta promo es solo para cuentas 18+. Inicia sesión con tu fecha de nacimiento.',
     seeTerms: 'Ver términos',
     promoFallback: 'Promoción',
     myFavorites: 'Mis favoritos',
@@ -609,6 +614,10 @@ const messages = {
     favTitleOff: 'Save to favorites',
     favNeedLogin: 'Sign in to save favorites',
     favLoginHint: 'After you sign in, we’ll save this place to your favorites.',
+    voteLoginHint: 'Sign in to report floor validity (with GPS).',
+    alcoholLoginHint:
+      'Alcohol and nightlife need an 18+ account. Sign in or register with your birth date.',
+    chainLoginHint: 'The chain panel requires a TraGo account.',
     filterAll: 'All',
     filterFeatured: 'Featured',
     filterFood: 'Food',
@@ -719,7 +728,8 @@ const messages = {
     promoNotFound: 'Deal not found',
     promoMissing: 'We could not find that deal.',
     backToPromos: 'Back to deals',
-    promo18Only: 'This deal is only for ages 18+.',
+    promo18Only:
+      'This deal is only for 18+ accounts. Sign in with your birth date.',
     seeTerms: 'See terms',
     promoFallback: 'Deal',
     myFavorites: 'My favorites',

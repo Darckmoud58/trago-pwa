@@ -202,7 +202,10 @@ export default function Promos() {
       {hide18 && (
         <aside className="promos-note">
           {t('promosAdultLoginNote')}
-          {hiddenCount > 0 ? ` (${hiddenCount})` : ''}.
+          {hiddenCount > 0 ? ` (${hiddenCount})` : ''}.{' '}
+          <Link to="/entrar" state={{ from: '/promos', reason: 'alcohol' }}>
+            {t('quickLogin')}
+          </Link>
         </aside>
       )}
 

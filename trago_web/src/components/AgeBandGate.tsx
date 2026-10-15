@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
-import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { clearAgeBand, setAgeBand, type AgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
+import { hasSession } from '../lib/viewerAccess';
 import './AgeBandGate.css';
 
 const PAGELOAD_DONE = 'trago:pageload-done';
@@ -72,7 +73,14 @@ export default function AgeBandGate() {
         setError(t('ageGateError'));
         return;
       }
-      setAgeBand(data.band as AgeBand);
+      // Teen se guarda en local para filtrar UI. Adult sin cuenta no desbloquea 18+.
+      if (data.band === 'teen') {
+        setAgeBand('teen');
+      } else if (hasSession()) {
+        setAgeBand(data.band as AgeBand);
+      } else {
+        clearAgeBand();
+      }
       setNeedsGate(false);
       // Sin reload: cookie httpOnly ya quedó en la respuesta.
     } catch (err: unknown) {

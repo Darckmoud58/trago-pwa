@@ -56,6 +56,15 @@ export default function Login() {
         {authState.reason === 'favorite' && (
           <p className="meta auth-fav-hint">{t('favLoginHint')}</p>
         )}
+        {authState.reason === 'vote' && (
+          <p className="meta auth-fav-hint">{t('voteLoginHint')}</p>
+        )}
+        {authState.reason === 'alcohol' && (
+          <p className="meta auth-fav-hint">{t('alcoholLoginHint')}</p>
+        )}
+        {authState.reason === 'chain' && (
+          <p className="meta auth-fav-hint">{t('chainLoginHint')}</p>
+        )}
         <label>
           {t('email')}
           <input

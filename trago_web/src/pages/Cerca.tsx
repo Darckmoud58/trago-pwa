@@ -368,7 +368,14 @@ export default function Cerca() {
           <p>{t('nearEmpty')}</p>
           <p className="muted">
             {t('nearEmptyHint')}{' '}
-            <Link to="/favoritos">{t('navFavorites')}</Link>.
+            {localStorage.getItem('token') ? (
+              <Link to="/favoritos">{t('navFavorites')}</Link>
+            ) : (
+              <Link to="/entrar" state={{ from: '/cerca', reason: 'favorite' }}>
+                {t('quickLogin')}
+              </Link>
+            )}
+            .
           </p>
           <button
             type="button"

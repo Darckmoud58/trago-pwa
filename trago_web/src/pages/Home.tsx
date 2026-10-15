@@ -243,11 +243,17 @@ export default function Home() {
           <Link className="quick-chip" to="/promos" viewTransition>
             {t('quickPromos')}
           </Link>
-          <Link className="quick-chip" to="/favoritos" viewTransition>
-            {t('quickFavorites')}
-          </Link>
-          {!token && (
-            <Link className="quick-chip" to="/entrar" viewTransition>
+          {token ? (
+            <Link className="quick-chip" to="/favoritos" viewTransition>
+              {t('quickFavorites')}
+            </Link>
+          ) : (
+            <Link
+              className="quick-chip"
+              to="/entrar"
+              state={{ from: '/', reason: 'account' }}
+              viewTransition
+            >
               {t('quickLogin')}
             </Link>
           )}

@@ -77,8 +77,9 @@ export default function BottomNav({ hasSession }: Props) {
     <nav className="bottom-nav" aria-label={t('navAria')}>
       <div className="bottom-nav-inner">
         {items.map((item) => {
-          const to =
-            item.to === '/cuenta' && !hasSession ? '/entrar' : item.to;
+          const needsAuth =
+            item.to === '/cuenta' || item.to === '/favoritos';
+          const to = needsAuth && !hasSession ? '/entrar' : item.to;
           const forceActive =
             item.to === '/cuenta' &&
             (pathname.startsWith('/cuenta') ||
@@ -90,6 +91,14 @@ export default function BottomNav({ hasSession }: Props) {
             <NavLink
               key={item.to}
               to={to}
+              state={
+                needsAuth && !hasSession
+                  ? {
+                      from: item.to,
+                      reason: item.to === '/favoritos' ? 'favorite' : 'account',
+                    }
+                  : undefined
+              }
               end={item.to === '/'}
               viewTransition
               className={({ isActive }) =>

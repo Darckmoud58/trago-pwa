@@ -106,7 +106,13 @@ export default function PromoDetalle() {
     return (
       <section className="promo-detail">
         <aside className="promos-note">
-          {t('promo18Only')} <Link to="/entrar">{t('quickLogin')}</Link>
+          {t('promo18Only')}{' '}
+          <Link
+            to="/entrar"
+            state={{ from: `/promos/${promoId}`, reason: 'alcohol' }}
+          >
+            {t('quickLogin')}
+          </Link>
           {' · '}
           <Link to="/terminos">{t('seeTerms')}</Link>
         </aside>
@@ -141,7 +147,13 @@ export default function PromoDetalle() {
     return (
       <section className="promo-detail">
         <aside className="promos-note">
-          {t('promo18Only')} <Link to="/entrar">{t('quickLogin')}</Link>
+          {t('promo18Only')}{' '}
+          <Link
+            to="/entrar"
+            state={{ from: `/promos/${promoId}`, reason: 'alcohol' }}
+          >
+            {t('quickLogin')}
+          </Link>
           {' · '}
           <Link to="/terminos">{t('seeTerms')}</Link>
         </aside>
@@ -354,9 +366,23 @@ export default function PromoDetalle() {
       </article>
 
       <div className="detail-actions">
-        <Link className="btn ghost" to="/favoritos" viewTransition>
-          {t('myFavorites')}
-        </Link>
+        {localStorage.getItem('token') ? (
+          <Link className="btn ghost" to="/favoritos" viewTransition>
+            {t('myFavorites')}
+          </Link>
+        ) : (
+          <Link
+            className="btn ghost"
+            to="/entrar"
+            state={{
+              from: `/promos/${promo.slug || promo._id}`,
+              reason: 'favorite',
+            }}
+            viewTransition
+          >
+            {t('quickLogin')}
+          </Link>
+        )}
         <Link className="btn ghost" to="/promos" viewTransition>
           {t('backToPromos')}
         </Link>

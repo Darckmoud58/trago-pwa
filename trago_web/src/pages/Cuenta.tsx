@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
-import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { clearAgeBand, setAgeBand, type AgeBand } from '../lib/ageBand';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 import { enableWebPush, pushSupported } from '../lib/pushSubscribe';
@@ -74,6 +74,7 @@ export default function Cuenta() {
 
   function logout() {
     localStorage.removeItem('token');
+    clearAgeBand();
     setAuth(null);
     navigate('/entrar', { replace: true });
   }

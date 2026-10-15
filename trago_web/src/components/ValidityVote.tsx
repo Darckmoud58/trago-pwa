@@ -158,7 +158,14 @@ export default function ValidityVote({
           : t('voteGpsOff')}
       </p>
       {!token ? (
-        <Link className="validity-login" to="/entrar">
+        <Link
+          className="validity-login"
+          to="/entrar"
+          state={{
+            from: `/promos/${promoId}`,
+            reason: 'vote',
+          }}
+        >
           {t('voteNeedLogin')}
         </Link>
       ) : (
