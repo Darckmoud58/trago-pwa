@@ -298,6 +298,10 @@ export async function nearbyPromos(req, res) {
         message: 'maxMeters debe ser numérico (se cuantiza a 1000/2000/2500/5000/8000)',
       });
     }
+    const birthdayOnly =
+      req.query.birthday === '1' ||
+      req.query.cumpleanos === '1' ||
+      req.query.cumple === '1';
 
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
     let branches = discovery.branches;
@@ -350,11 +354,13 @@ export async function nearbyPromos(req, res) {
           }));
 
     const now = new Date();
+    const promoQuery = {
+      ...officialPromoFilter(now),
+      id_empresa: { $in: sourceCompanies.map((c) => c._id) },
+      ...(birthdayOnly ? { cumpleanos: true } : {}),
+    };
     const promos = sourceCompanies.length
-      ? await Promocion.find({
-          ...officialPromoFilter(now),
-          id_empresa: { $in: sourceCompanies.map((c) => c._id) },
-        })
+      ? await Promocion.find(promoQuery)
           .sort({ destacada: -1, termina_en: 1 })
           .limit(200)
           .lean()
@@ -398,6 +404,7 @@ export async function nearbyPromos(req, res) {
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
+      birthdayOnly,
       promos: mapped,
       ageGate: {
         band: req.viewer?.band || null,

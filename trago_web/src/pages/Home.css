@@ -79,6 +79,13 @@
   color: #f7e5b5 !important;
 }
 
+button.quick-chip {
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
 .home-block {
   display: flex;
   flex-direction: column;
@@ -131,6 +138,60 @@
 
 .cat-chip:active {
   border-color: var(--line);
+}
+
+.home-bday {
+  padding: 1.1rem 1.15rem 1.2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, #f7e5b5 28%, var(--line));
+  background:
+    radial-gradient(
+      110% 80% at 0% 0%,
+      color-mix(in srgb, var(--rojo) 28%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--surface) 88%, #3b0b13),
+      var(--surface)
+    );
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.home-bday h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.home-bday .meta {
+  margin: 0 0 0.35rem;
+}
+
+.home-bday-note {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.home-bday-note p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--fg-soft);
+}
+
+.home-bday-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.home-bday-actions .btn {
+  flex: 1 1 auto;
+  text-align: center;
 }
 
 .cache-hint {

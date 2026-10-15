@@ -14,6 +14,7 @@ import {
   registerSchema,
   zodErrorMessage,
 } from '../lib/authValidate.js';
+import { birthDateIso } from '../lib/birthday.js';
 import { signAccessToken } from '../lib/jwt.js';
 
 function splitName(fullName) {
@@ -39,6 +40,9 @@ function publicUser(user, extras = {}) {
     .join(' ');
   const age = resolveUserAge(user);
   const band = bandFromAge(age) || 'teen';
+  const birthDate = user.fecha_nacimiento
+    ? birthDateIso(user.fecha_nacimiento)
+    : null;
   return {
     id: user._id,
     name: nombreCompleto,
@@ -48,6 +52,8 @@ function publicUser(user, extras = {}) {
     email: user.correo,
     correo: user.correo,
     edad: age,
+    birthDate: birthDate || undefined,
+    fecha_nacimiento: birthDate || undefined,
     puntos: user.puntos ?? 0,
     estatus: user.estatus,
     band,

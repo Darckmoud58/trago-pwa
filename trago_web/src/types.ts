@@ -10,6 +10,9 @@ export type AuthUser = {
   email?: string;
   correo?: string;
   edad?: number;
+  /** ISO YYYY-MM-DD (UTC mediodía al registrar). */
+  birthDate?: string;
+  fecha_nacimiento?: string;
   band?: Band;
   points?: number;
   puntos?: number;
