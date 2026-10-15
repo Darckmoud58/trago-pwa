@@ -10,6 +10,7 @@ import {
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
+import { canSeeAlcoholUi } from '../lib/viewerAccess';
 import type { AuthUser, Promo } from '../types';
 import './Home.css';
 
@@ -64,12 +65,16 @@ export default function Home() {
     (user?.name ? String(user.name).split(/\s+/)[0] : '') ||
     '';
 
-  // Categorías = atajos de catálogo. Cumple no va aquí: es momento del día.
+  const showAlcoholCat = canSeeAlcoholUi();
+
+  // Categorías = atajos de catálogo. 18+ solo con sesión adulta. Cumple = momento del día.
   const categories = [
     { id: 'todas', label: t('catAll'), to: '/promos' },
     { id: 'comida', label: t('catFood'), to: '/promos?f=comida' },
     { id: 'cafe', label: t('catCafe'), to: '/promos?f=cafe' },
-    { id: 'alcohol', label: t('catAlcohol'), to: '/promos?f=alcohol' },
+    ...(showAlcoholCat
+      ? [{ id: 'alcohol', label: t('catAlcohol'), to: '/promos?f=alcohol' }]
+      : []),
   ];
 
   useEffect(() => {

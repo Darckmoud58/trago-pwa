@@ -3,11 +3,11 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import ValidityVote from '../components/ValidityVote';
-import { getAgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
+import { canSeeAlcoholUi } from '../lib/viewerAccess';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 import './PromoDetalle.css';
@@ -21,7 +21,7 @@ export default function PromoDetalle() {
   const [error, setError] = useState('');
   const [ageBlocked, setAgeBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const isTeen = getAgeBand() === 'teen';
+  const allowRestricted = canSeeAlcoholUi();
 
   useEffect(() => {
     if (!promoId) return;
@@ -102,11 +102,13 @@ export default function PromoDetalle() {
     );
   }
 
-  if (ageBlocked || (isTeen && !promo && !error)) {
+  if (ageBlocked || (!allowRestricted && !promo && !error)) {
     return (
       <section className="promo-detail">
         <aside className="promos-note">
-          {t('promo18Only')} <Link to="/terminos">{t('seeTerms')}</Link>
+          {t('promo18Only')} <Link to="/entrar">{t('quickLogin')}</Link>
+          {' · '}
+          <Link to="/terminos">{t('seeTerms')}</Link>
         </aside>
         <Link className="btn ghost" to="/promos" viewTransition>
           {t('backToPromos')}
@@ -126,19 +128,22 @@ export default function PromoDetalle() {
     );
   }
 
-  const blocked =
-    isTeen &&
-    (promo.alcohol ||
+  const isRestricted =
+    !!(
+      promo.alcohol ||
       promo.audience === 'adult' ||
       promo.audiencia === 'adulto' ||
       promo.nocturno ||
-      promo.isNocturno);
+      promo.isNocturno
+    );
 
-  if (blocked || ageBlocked) {
+  if ((!allowRestricted && isRestricted) || ageBlocked) {
     return (
       <section className="promo-detail">
         <aside className="promos-note">
-          {t('promo18Only')} <Link to="/terminos">{t('seeTerms')}</Link>
+          {t('promo18Only')} <Link to="/entrar">{t('quickLogin')}</Link>
+          {' · '}
+          <Link to="/terminos">{t('seeTerms')}</Link>
         </aside>
         <Link className="btn ghost" to="/promos" viewTransition>
           {t('backToPromos')}

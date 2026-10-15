@@ -64,7 +64,7 @@ export async function ageStatus(req, res) {
         return res.json({
           band,
           source: 'auth',
-          canSeeRestricted: band === 'adult',
+          canSeeRestricted: band === 'adult', // solo auth 18+
         });
       }
     } catch {
@@ -77,7 +77,8 @@ export async function ageStatus(req, res) {
     return res.json({
       band: cookieBand,
       source: 'cookie',
-      canSeeRestricted: cookieBand === 'adult',
+      // Cookie no desbloquea alcohol: hace falta cuenta 18+.
+      canSeeRestricted: false,
     });
   }
 

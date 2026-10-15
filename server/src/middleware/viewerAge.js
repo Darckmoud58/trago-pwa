@@ -10,6 +10,7 @@ import { verifyAccessToken } from '../lib/jwt.js';
 /**
  * Auth opcional + banda de edad.
  * Prioridad: JWT (fecha_nacimiento en DB) > cookie firmada age_ok > anon.
+ * Alcohol/nocturno: solo source=auth + 18+ (la cookie no desbloquea).
  * NO confía en X-Trago-Band ni ?band= (el cliente no puede saltarse el gate).
  */
 export async function attachViewerAge(req, res, next) {

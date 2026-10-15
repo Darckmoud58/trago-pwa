@@ -9,6 +9,7 @@ import {
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
+import { canSeeAlcoholUi, hideRestrictedFilters } from '../lib/viewerAccess';
 import type { Promo } from '../types';
 import './Promos.css';
 
@@ -77,11 +78,19 @@ export default function Promos() {
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'))
   );
-  const isTeen = localStorage.getItem('trago_band') === 'teen';
+  const hide18 = hideRestrictedFilters();
+  const showAlcohol = canSeeAlcoholUi();
 
   useEffect(() => {
-    setFilter(parseFilter(searchParams.get('f')));
-  }, [searchParams]);
+    const next = parseFilter(searchParams.get('f'));
+    // Sin sesión adulta no hay atajo alcohol/nocturno.
+    if (hide18 && (next === 'alcohol' || next === 'nocturno')) {
+      setFilter('todas');
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    setFilter(next);
+  }, [searchParams, hide18, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,9 +136,9 @@ export default function Promos() {
   }
 
   const ageSafe = useMemo(() => {
-    if (!isTeen) return promos;
+    if (showAlcohol) return promos;
     return promos.filter((p) => !isAlcoholRestricted(p));
-  }, [promos, isTeen]);
+  }, [promos, showAlcohol]);
 
   const hiddenCount = promos.length - ageSafe.length;
 
@@ -167,14 +176,14 @@ export default function Promos() {
     });
   }, [ageSafe, filter, query]);
 
-  const filters: { id: FilterId; label: string; hideForTeen?: boolean }[] = [
+  const filters: { id: FilterId; label: string; needsAdult?: boolean }[] = [
     { id: 'todas', label: t('filterAll') },
     { id: 'destacadas', label: t('filterFeatured') },
     { id: 'comida', label: t('filterFood') },
     { id: 'cafe', label: t('filterCafe') },
     { id: 'cumple', label: t('filterBday') },
-    { id: 'nocturno', label: t('filterNight'), hideForTeen: true },
-    { id: 'alcohol', label: t('filterAlcohol'), hideForTeen: true },
+    { id: 'nocturno', label: t('filterNight'), needsAdult: true },
+    { id: 'alcohol', label: t('filterAlcohol'), needsAdult: true },
   ];
 
   const countLabel =
@@ -190,9 +199,9 @@ export default function Promos() {
         <p className="meta">{countLabel}</p>
       </header>
 
-      {isTeen && (
+      {hide18 && (
         <aside className="promos-note">
-          {t('promosTeenNote')}
+          {t('promosAdultLoginNote')}
           {hiddenCount > 0 ? ` (${hiddenCount})` : ''}.
         </aside>
       )}
@@ -214,7 +223,7 @@ export default function Promos() {
           aria-label={t('filtersAria')}
         >
           {filters
-            .filter((f) => !(isTeen && f.hideForTeen))
+            .filter((f) => !(f.needsAdult && hide18))
             .map((f) => (
               <button
                 key={f.id}

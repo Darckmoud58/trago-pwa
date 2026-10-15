@@ -63,7 +63,7 @@ const messages = {
     teenNote: 'Perfil 13–17: ocultamos alcohol y nocturno.',
     ageGateTitle: '¿Tienes 18 años o más?',
     ageGateBody:
-      'TraGo muestra alcohol y nocturno solo a mayores de 18. Es una declaración (no verificación de identidad); el servidor la guarda en una cookie firmada.',
+      'Alcohol y nocturno solo con cuenta 18+. Esta pregunta es una declaración rápida; al entrar con tu fecha de nacimiento el servidor confirma.',
     ageGateAdult: 'Sí, soy mayor de 18',
     ageGateTeen: 'Tengo entre 13 y 17',
     ageGateSaving: 'Guardando…',
@@ -72,7 +72,7 @@ const messages = {
     ageGateErrorApi:
       'El servidor no respondió. Si estás en local, asegúrate de que la API esté en marcha.',
     ageGateNote:
-      'Al iniciar sesión, tu fecha de nacimiento manda. Una cuenta 13–17 nunca ve alcohol aunque declares lo contrario.',
+      'Para ver alcohol y nocturno: inicia sesión con cuenta 18+. Una cuenta 13–17 nunca los ve.',
     ageDialog: 'Aviso de edad',
     ageBody:
       'Hay promos con alcohol solo 18+. Al continuar aceptas los términos y el aviso de privacidad.',
@@ -257,6 +257,8 @@ const messages = {
     search: 'Buscar',
     searchPlaceholder: 'Buscar nombre o cadena…',
     promosTeenNote: 'Perfil 13–17: ocultamos alcohol y nocturno',
+    promosAdultLoginNote:
+      'Alcohol y nocturno solo con sesión 18+. Entra con tu cuenta para verlos',
     promoCount: '{n} promo',
     promoCountPlural: '{n} promos',
     localCache: ' · caché local',
@@ -424,7 +426,7 @@ const messages = {
     teenNote: 'Ages 13–17: we hide alcohol and nightlife.',
     ageGateTitle: 'Are you 18 or older?',
     ageGateBody:
-      'TraGo shows alcohol and nightlife only to ages 18+. This is a declaration (not identity verification); the server stores it in a signed cookie.',
+      'Alcohol and nightlife need an 18+ account. This is a quick declaration; signing in with your birth date confirms it on the server.',
     ageGateAdult: 'Yes, I am 18+',
     ageGateTeen: 'I am 13–17',
     ageGateSaving: 'Saving…',
@@ -433,7 +435,7 @@ const messages = {
     ageGateErrorApi:
       'The server didn’t respond. If you’re local, make sure the API is running.',
     ageGateNote:
-      'When you sign in, your birth date wins. A 13–17 account never sees alcohol even if a cookie says otherwise.',
+      'To see alcohol and nightlife: sign in with an 18+ account. Ages 13–17 never see them.',
     ageDialog: 'Age notice',
     ageBody:
       'Some deals include alcohol for 18+ only. By continuing you accept the terms and privacy notice.',
@@ -618,6 +620,8 @@ const messages = {
     search: 'Search',
     searchPlaceholder: 'Search name or chain…',
     promosTeenNote: 'Ages 13–17: alcohol and nightlife are hidden',
+    promosAdultLoginNote:
+      'Alcohol and nightlife need an 18+ session. Sign in to see them',
     promoCount: '{n} deal',
     promoCountPlural: '{n} deals',
     localCache: ' · local cache',

@@ -49,13 +49,14 @@ export function isRestrictedPromo(promo) {
 }
 
 /**
- * Anónimo sin declaración → NO ve alcohol/nocturno.
- * Solo `band === 'adult'` (auth o cookie firmada) ve restringido.
- * Cuenta teen nunca, aunque haya cookie adult.
+ * Alcohol / nocturno: solo cuenta autenticada 18+.
+ * Cookie de declaración o anónimo → NO desbloquean contenido restringido.
+ * Cuenta teen nunca, aunque declare adult en cookie.
  */
 export function canSeeRestricted(viewer) {
   if (!viewer) return false;
-  if (viewer.canSeeAlcohol === false) return false;
+  const authed = viewer.source === 'auth' || Boolean(viewer.userId);
+  if (!authed) return false;
   if (viewer.band === 'teen' || viewer.band === 'anon') return false;
   if (viewer.age != null && Number.isFinite(viewer.age)) {
     return viewer.age >= MIN_ALCOHOL_AGE;

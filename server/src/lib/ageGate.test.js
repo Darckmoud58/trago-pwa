@@ -54,21 +54,43 @@ describe('filterPromosForViewer', () => {
     assert.equal(out[0].nombre, 'agua');
   });
 
-  it('adult ve todo', () => {
-    assert.equal(filterPromosForViewer(list, { band: 'adult' }).length, 3);
+  it('adult autenticado ve todo', () => {
+    assert.equal(
+      filterPromosForViewer(list, {
+        band: 'adult',
+        source: 'auth',
+        userId: 'u1',
+        age: 21,
+      }).length,
+      3
+    );
   });
 
-  it('anónimo no ve restringido', () => {
+  it('anónimo y cookie adult no ven restringido', () => {
     assert.equal(canSeeRestricted(null), false);
     assert.equal(canSeeRestricted({ band: 'anon' }), false);
+    assert.equal(
+      canSeeRestricted({ band: 'adult', source: 'cookie', age: 18 }),
+      false
+    );
     assert.equal(filterPromosForViewer(list, { band: 'anon' }).length, 1);
+    assert.equal(
+      filterPromosForViewer(list, { band: 'adult', source: 'cookie' }).length,
+      1
+    );
   });
 
-  it('canSeeRestricted respeta constantes', () => {
+  it('canSeeRestricted exige auth 18+', () => {
     assert.equal(MIN_ACCOUNT_AGE, 13);
     assert.equal(MIN_ALCOHOL_AGE, 18);
-    assert.equal(canSeeRestricted({ band: 'teen' }), false);
-    assert.equal(canSeeRestricted({ band: 'adult', age: 21 }), true);
-    assert.equal(canSeeRestricted({ age: 21, band: 'adult' }), true);
+    assert.equal(canSeeRestricted({ band: 'teen', source: 'auth' }), false);
+    assert.equal(
+      canSeeRestricted({ band: 'adult', source: 'auth', age: 21, userId: 'u' }),
+      true
+    );
+    assert.equal(
+      canSeeRestricted({ band: 'adult', source: 'auth', age: 17, userId: 'u' }),
+      false
+    );
   });
 });
