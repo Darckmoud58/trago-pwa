@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  isFavoritesSession,
   listFavorites,
   removeFavorite,
   syncFavorites,
@@ -27,12 +28,17 @@ function brandTone(name: string) {
 
 export default function Favoritos() {
   const { t } = useI18n();
+  const loggedIn = isFavoritesSession();
   const [items, setItems] = useState<FavoritePlace[]>([]);
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
   async function refresh() {
+    if (!isFavoritesSession()) {
+      setItems([]);
+      return;
+    }
     await syncFavorites();
     setItems(await listFavorites());
   }
@@ -50,11 +56,35 @@ export default function Favoritos() {
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
     };
-  }, []);
+  }, [loggedIn]);
 
   async function onRemove(id: string, type: FavoritePlace['type']) {
+    if (!isFavoritesSession()) return;
     await removeFavorite(id, type);
     await refresh();
+  }
+
+  if (!loggedIn) {
+    return (
+      <section className="favs-page">
+        <header className="ui-hero favs-hero">
+          <p className="ui-kicker">{t('navFavorites')}</p>
+          <h2>{t('myFavorites')}</h2>
+        </header>
+        <div className="empty-state favs-empty">
+          <p>{t('favNeedLogin')}</p>
+          <p className="muted">{t('favLoginHint')}</p>
+          <Link
+            className="btn primary"
+            to="/entrar"
+            state={{ from: '/favoritos', reason: 'favorite' }}
+            viewTransition
+          >
+            {t('loginSubmit')}
+          </Link>
+        </div>
+      </section>
+    );
   }
 
   return (
@@ -87,8 +117,7 @@ export default function Favoritos() {
           {items.map((f) => {
             const mark = f.subtitulo || f.nombre;
             return (
-              <li key={f.id} className="fav-card">
-
+              <li key={`${f.type}:${f.id}`} className="fav-card">
                 <div
                   className="fav-mark"
                   style={{ background: brandTone(mark) }}

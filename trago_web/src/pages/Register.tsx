@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
 import {
   ageFromBirthDate,
@@ -8,12 +8,20 @@ import {
   MIN_AGE,
 } from '../lib/age';
 import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { consumePendingFavorite } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 import './Legal.css';
 
+type AuthLocationState = {
+  from?: string;
+  reason?: string;
+};
+
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useI18n();
+  const authState = (location.state || {}) as AuthLocationState;
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,7 +71,9 @@ export default function Register() {
         setAgeBand(data.user.band as AgeBand);
       }
       setAuth(data.token);
-      navigate('/cuenta', { replace: true });
+      const pendingTo = await consumePendingFavorite();
+      const dest = pendingTo || authState.from || '/cuenta';
+      navigate(dest, { replace: true });
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -85,6 +95,9 @@ export default function Register() {
       </div>
       <form className="card-form auth-card" onSubmit={onSubmit}>
         <h2 className="auth-form-title">{t('registerTitle')}</h2>
+        {authState.reason === 'favorite' && (
+          <p className="meta auth-fav-hint">{t('favLoginHint')}</p>
+        )}
         <label>
           {t('name')}
           <input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -183,7 +196,7 @@ export default function Register() {
       </form>
       <p className="muted">
         {t('hasAccount')}{' '}
-        <Link to="/entrar" viewTransition>
+        <Link to="/entrar" state={authState} viewTransition>
           {t('loginSubmit')}
         </Link>
       </p>

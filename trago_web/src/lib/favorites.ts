@@ -31,8 +31,11 @@ function ownerKey() {
     if (!token) return 'guest';
     const encoded = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
     if (!encoded) return 'guest';
-    const payload = JSON.parse(atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '=')));
-    return payload.id || payload.sub ? `user:${payload.id || payload.sub}` : 'guest';
+    const payload = JSON.parse(
+      atob(encoded.padEnd(Math.ceil(encoded.length / 4) * 4, '='))
+    );
+    const uid = payload.id || payload._id || payload.sub || payload.userId;
+    return uid ? `user:${uid}` : 'guest';
   } catch {
     return 'guest';
   }
@@ -40,6 +43,66 @@ function ownerKey() {
 
 function hasSession() {
   return Boolean(localStorage.getItem('token')) && ownerKey() !== 'guest';
+}
+
+/** True solo con cuenta real (no invitado). Favoritos requieren sesión. */
+export function isFavoritesSession(): boolean {
+  return hasSession();
+}
+
+const PENDING_FAV_KEY = 'trago_pending_favorite_v1';
+
+export type PendingFavorite = {
+  place: Omit<FavoritePlace, 'savedAt'>;
+  returnTo: string;
+};
+
+/** Guarda el lugar para agregarlo justo después de iniciar sesión / registrarse. */
+export function stashPendingFavorite(
+  place: Omit<FavoritePlace, 'savedAt'>,
+  returnTo: string
+): void {
+  try {
+    const payload: PendingFavorite = { place, returnTo: returnTo || '/' };
+    sessionStorage.setItem(PENDING_FAV_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+export function peekPendingFavorite(): PendingFavorite | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_FAV_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingFavorite;
+    if (!parsed?.place?.id || !parsed.place.type) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingFavorite(): void {
+  try {
+    sessionStorage.removeItem(PENDING_FAV_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Si hay favorito pendiente y sesión, lo agrega y limpia el stash.
+ * Devuelve la ruta a la que volver (o null si no había pendiente).
+ */
+export async function consumePendingFavorite(): Promise<string | null> {
+  const pending = peekPendingFavorite();
+  if (!pending) return null;
+  clearPendingFavorite();
+  if (!hasSession()) return pending.returnTo;
+  if (!(await isFavorite(pending.place.id, pending.place.type))) {
+    await addFavorite(pending.place);
+  }
+  return pending.returnTo || '/';
 }
 
 function recordKey(user: string, type: FavoritePlace['type'], id: string) {
@@ -254,14 +317,22 @@ export async function syncFavorites(): Promise<void> {
 }
 
 export async function listFavorites(): Promise<FavoritePlace[]> {
+  // Sin cuenta no hay favoritos visibles (ni los viejos de invitado).
+  if (!hasSession()) return [];
   return localRows();
 }
 
 export async function isFavorite(id: string, type?: FavoritePlace['type']): Promise<boolean> {
-  return (await listFavorites()).some((favorite) => favorite.id === id && (!type || favorite.type === type));
+  if (!hasSession()) return false;
+  return (await listFavorites()).some(
+    (favorite) => favorite.id === id && (!type || favorite.type === type)
+  );
 }
 
 export async function addFavorite(place: Omit<FavoritePlace, 'savedAt'>): Promise<void> {
+  if (!hasSession()) {
+    throw new Error('login-required');
+  }
   const favorite: FavoritePlace = { ...place, savedAt: Date.now() };
   const user = ownerKey();
   await putLocal(favorite, user);
@@ -270,6 +341,9 @@ export async function addFavorite(place: Omit<FavoritePlace, 'savedAt'>): Promis
 }
 
 export async function removeFavorite(id: string, type?: FavoritePlace['type']): Promise<void> {
+  if (!hasSession()) {
+    throw new Error('login-required');
+  }
   const user = ownerKey();
   const existing = (await localRows(user)).filter((favorite) => favorite.id === id && (!type || favorite.type === type));
   for (const favorite of existing) {
@@ -280,6 +354,9 @@ export async function removeFavorite(id: string, type?: FavoritePlace['type']): 
 }
 
 export async function toggleFavorite(place: Omit<FavoritePlace, 'savedAt'>): Promise<boolean> {
+  if (!hasSession()) {
+    throw new Error('login-required');
+  }
   if (await isFavorite(place.id, place.type)) {
     await removeFavorite(place.id, place.type);
     return false;

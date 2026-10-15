@@ -1,12 +1,20 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
 import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { consumePendingFavorite } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
+
+type AuthLocationState = {
+  from?: string;
+  reason?: string;
+};
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useI18n();
+  const authState = (location.state || {}) as AuthLocationState;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,7 +31,9 @@ export default function Login() {
         setAgeBand(data.user.band as AgeBand);
       }
       setAuth(data.token);
-      navigate('/cuenta', { replace: true });
+      const pendingTo = await consumePendingFavorite();
+      const dest = pendingTo || authState.from || '/cuenta';
+      navigate(dest, { replace: true });
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
@@ -43,6 +53,9 @@ export default function Login() {
       </div>
       <form className="card-form auth-card" onSubmit={onSubmit}>
         <h2 className="auth-form-title">{t('loginTitle')}</h2>
+        {authState.reason === 'favorite' && (
+          <p className="meta auth-fav-hint">{t('favLoginHint')}</p>
+        )}
         <label>
           {t('email')}
           <input
@@ -70,7 +83,7 @@ export default function Login() {
       </form>
       <p className="muted">
         {t('noAccount')}{' '}
-        <Link to="/registro" viewTransition>
+        <Link to="/registro" state={authState} viewTransition>
           {t('registerLink')}
         </Link>
       </p>

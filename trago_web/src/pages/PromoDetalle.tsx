@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
+import FavoriteButton from '../components/FavoriteButton';
 import ValidityVote from '../components/ValidityVote';
 import { getAgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
@@ -151,19 +152,53 @@ export default function PromoDetalle() {
   const img = resolveMediaUrl(promo.imagen || promo.imageUrl);
   const officialHref = resolveOfficialPromoUrl(promo.url_fuente);
   const end = promo.termina_en || promo.endsAt;
-  const nearest = ubicaciones
-    .map((u) =>
-      typeof u.distanceMeters === 'number' ? u.distanceMeters : null
-    )
-    .filter((m): m is number => m != null)
-    .sort((a, b) => a - b)[0];
+  const nearestBranch = [...ubicaciones]
+    .filter((u) => u._id)
+    .sort((a, b) => {
+      const da =
+        typeof a.distanceMeters === 'number' ? a.distanceMeters : Infinity;
+      const db =
+        typeof b.distanceMeters === 'number' ? b.distanceMeters : Infinity;
+      return da - db;
+    })[0];
+  const nearest =
+    nearestBranch && typeof nearestBranch.distanceMeters === 'number'
+      ? nearestBranch.distanceMeters
+      : undefined;
   const showFacts = Boolean(end || nearest != null);
+
+  const chainName = promo.chainName || t('chainFallback');
+  const favPlace = nearestBranch
+    ? {
+        id: String(nearestBranch._id),
+        type: 'ubicacion' as const,
+        nombre: nearestBranch.nombre || nearestBranch.name || chainName,
+        subtitulo: nearestBranch.chainName || chainName,
+        direccion: nearestBranch.address,
+        colonia: nearestBranch.colonia,
+        municipio: nearestBranch.city,
+        horario: nearestBranch.hours,
+        distanciaKm:
+          typeof nearestBranch.distanceMeters === 'number'
+            ? nearestBranch.distanceMeters / 1000
+            : undefined,
+        imagen: img || undefined,
+      }
+    : promo.chainId
+      ? {
+          id: String(promo.chainId),
+          type: 'empresa' as const,
+          nombre: chainName,
+          subtitulo: title,
+          imagen: img || undefined,
+        }
+      : null;
 
   return (
     <section className="promo-detail">
       <div className="detail-stage rise">
         {img ? (
-          <div className="detail-cover" aria-hidden>
+          <div className="detail-cover">
             <img
               src={img}
               alt=""
@@ -176,6 +211,13 @@ export default function PromoDetalle() {
           <div className="detail-cover detail-cover-fallback" aria-hidden>
             <span>{(promo.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
           </div>
+        )}
+        {favPlace && (
+          <FavoriteButton
+            variant="overlay"
+            className="detail-fav"
+            place={favPlace}
+          />
         )}
       </div>
 
