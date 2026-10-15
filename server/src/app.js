@@ -45,6 +45,23 @@ export function createApp() {
     })
   );
   app.use(express.json({ limit: '20kb' }));
+  // Netlify/serverless: body a veces llega como string o Buffer
+  app.use((req, _res, next) => {
+    if (typeof req.body === 'string' && req.body.length) {
+      try {
+        req.body = JSON.parse(req.body);
+      } catch {
+        /* dejar string; validadores responderán 400 */
+      }
+    } else if (Buffer.isBuffer(req.body) && req.body.length) {
+      try {
+        req.body = JSON.parse(req.body.toString('utf8'));
+      } catch {
+        /* ignore */
+      }
+    }
+    next();
+  });
 
   if (env.NETLIFY !== 'true') {
     app.use(

@@ -14,7 +14,42 @@ try {
 }
 
 const app = createApp();
-const awsHandler = serverless(app);
+
+/**
+ * Express 5 + serverless-http en Netlify a veces deja req.body vacío
+ * (express.json no lee el stream del event). Parseamos el JSON aquí y
+ * marcamos _body para que body-parser no lo pise con {}.
+ */
+const awsHandler = serverless(app, {
+  request(req, event) {
+    if (event.body == null || event.body === '') return;
+
+    let raw = event.body;
+    if (event.isBase64Encoded) {
+      raw = Buffer.from(raw, 'base64').toString('utf8');
+    }
+    if (typeof raw !== 'string') return;
+
+    const headers = event.headers || {};
+    const ct = String(
+      headers['content-type'] || headers['Content-Type'] || ''
+    ).toLowerCase();
+    const looksJson =
+      ct.includes('application/json') ||
+      ct.includes('+json') ||
+      raw.trim().startsWith('{') ||
+      raw.trim().startsWith('[');
+
+    if (!looksJson) return;
+
+    try {
+      req.body = JSON.parse(raw);
+      req._body = true;
+    } catch {
+      /* express.json intentará de nuevo si el stream funciona */
+    }
+  },
+});
 
 let dbReady;
 
