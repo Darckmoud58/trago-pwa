@@ -18,6 +18,33 @@
     />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
     <title>TraGo</title>
+    <!-- Tema noche antes del splash (hora México), evita flash blanco. -->
+    <script>
+      (function () {
+        try {
+          var hour = Number(
+            new Intl.DateTimeFormat('en-GB', {
+              timeZone: 'America/Mexico_City',
+              hour: '2-digit',
+              hourCycle: 'h23',
+            })
+              .formatToParts(new Date())
+              .find(function (p) {
+                return p.type === 'hour';
+              }).value
+          );
+          if (hour >= 19 || hour < 6) {
+            document.documentElement.setAttribute('data-theme', 'night');
+            var meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', '#000000');
+            var bar = document.querySelector(
+              'meta[name="apple-mobile-web-app-status-bar-style"]'
+            );
+            if (bar) bar.setAttribute('content', 'black');
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

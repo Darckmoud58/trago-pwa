@@ -8,6 +8,7 @@ import {
   filterActivePromos,
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
+import { resolveMediaUrl } from '../lib/mediaUrl';
 import type { Promo } from '../types';
 import './Promos.css';
 
@@ -183,6 +184,12 @@ export default function Promos() {
 
   return (
     <section className="promos-page">
+      <header className="ui-hero promos-hero rise">
+        <p className="ui-kicker">{t('titlePromos')}</p>
+        <h2>{t('featured')}</h2>
+        <p className="meta">{countLabel}</p>
+      </header>
+
       {isTeen && (
         <aside className="promos-note">
           {t('promosTeenNote')}
@@ -190,7 +197,7 @@ export default function Promos() {
         </aside>
       )}
 
-      <div className="promos-toolbar">
+      <div className="promos-toolbar" data-reveal>
         <label className="promos-search">
           <span className="sr-only">{t('search')}</span>
           <input
@@ -201,7 +208,11 @@ export default function Promos() {
             enterKeyHint="search"
           />
         </label>
-        <div className="promos-filters" role="tablist" aria-label={t('filtersAria')}>
+        <div
+          className="promos-filters scroll-rail"
+          role="tablist"
+          aria-label={t('filtersAria')}
+        >
           {filters
             .filter((f) => !(isTeen && f.hideForTeen))
             .map((f) => (
@@ -227,27 +238,31 @@ export default function Promos() {
 
       {error && <p className="error">{error}</p>}
 
-      <div className="promo-grid promos-grid">
-        {visible.map((p, i) => {
+      <div className="promo-grid promos-grid stagger" data-reveal data-reveal-delay="1">
+        {visible.map((p) => {
           const title = p.nombre || p.title || t('promoFallback');
           const desc = p.descripcion || p.subtitle;
           const end = p.termina_en || p.endsAt;
           const left = daysLeft(end);
-          const img = p.imagen || p.imageUrl;
+          const img = resolveMediaUrl(p.imagen || p.imageUrl);
 
           return (
-            <article
-              key={p._id}
-              className="promo-card promo-rich rise"
-              style={{ animationDelay: `${Math.min(i, 8) * 0.04}s` }}
-            >
+            <article key={p._id} className="promo-card promo-rich">
               <Link
                 to={`/promos/${p.slug || p._id}`}
                 className={`promo-cover${img ? '' : ' promo-cover-fallback'}`}
-                style={img ? { backgroundImage: `url(${img})` } : undefined}
                 aria-label={title}
+                viewTransition
               >
-                {!img && (
+                {img ? (
+                  <img
+                    src={img}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
                   <span>{(p.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
                 )}
               </Link>
@@ -265,6 +280,7 @@ export default function Promos() {
                   <Link
                     to={`/promos/${p.slug || p._id}`}
                     className="promo-title-link"
+                    viewTransition
                   >
                     {title}
                   </Link>
@@ -293,7 +309,7 @@ export default function Promos() {
         <div className="empty-state promos-empty">
           <p>{emptyOfficial ? t('promosEmptyOfficial') : t('promosEmpty')}</p>
           {emptyOfficial ? (
-            <Link className="btn primary" to="/cerca">
+            <Link className="btn primary" to="/cerca" viewTransition>
               {t('openNear')}
             </Link>
           ) : (

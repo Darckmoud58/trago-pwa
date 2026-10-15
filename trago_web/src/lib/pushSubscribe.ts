@@ -42,8 +42,8 @@ export async function enableWebPush(): Promise<PushEnableResult> {
       ok: false,
       message:
         perm === 'granted'
-          ? 'Push VAPID no está en el servidor. Permiso local listo: genera claves con npm run vapid en server/.'
-          : 'Push VAPID no configurado y sin permiso de notificaciones.',
+          ? 'Avisos listos en este dispositivo; el servidor aún no puede enviarlos.'
+          : 'No se pudieron activar los avisos. Revisa el permiso de notificaciones.',
     };
   }
 

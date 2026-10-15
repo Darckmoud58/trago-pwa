@@ -91,6 +91,7 @@ export default function BottomNav({ hasSession }: Props) {
               key={item.to}
               to={to}
               end={item.to === '/'}
+              viewTransition
               className={({ isActive }) =>
                 `bottom-nav-item${isActive || forceActive ? ' is-active' : ''}`
               }

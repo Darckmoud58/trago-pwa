@@ -242,15 +242,21 @@ export async function ensureOfficialCompanies(places = [], opts = {}) {
           estatus: 'activo',
           sitio_web:
             brand.sitio_web ||
+            OFFICIAL_BRANDS[brand.slug]?.sitio_web ||
             (brand.urls?.[0]?.startsWith('http') ? brand.urls[0] : ''),
         },
         $setOnInsert: {
           descripcion: `Cadena con promociones oficiales en TraGo (${brand.nombre}).`,
-          imagen: brand.slug.slice(0, 2).toUpperCase(),
+          imagen: '',
         },
       },
       { upsert: true, new: true }
     ).lean();
+    // Iniciales tipo "BU"/"OX" no son URLs — no sirven como fallback de imagen.
+    if (doc?.imagen && !/^https?:\/\//i.test(String(doc.imagen))) {
+      await Empresa.updateOne({ _id: doc._id }, { $set: { imagen: '' } });
+      doc.imagen = '';
+    }
     companies.push(doc);
   }
   return companies;
@@ -300,13 +306,119 @@ function classify(text) {
 
 function absUrl(src, pageUrl) {
   if (!src) return '';
-  if (src.startsWith('//')) return `https:${src}`;
-  if (src.startsWith('http')) return src;
-  try {
-    return new URL(src, pageUrl).href;
-  } catch {
-    return src;
+  let cleaned = String(src)
+    .replace(/&amp;/gi, '&')
+    .trim()
+    .split(/\s+/)[0];
+  if (cleaned.includes(',')) {
+    cleaned = cleaned.split(',')[0].trim().split(/\s+/)[0];
   }
+  if (cleaned.startsWith('//')) cleaned = `https:${cleaned}`;
+  if (cleaned.startsWith('http')) return cleaned;
+  if (!pageUrl) return '';
+  try {
+    return new URL(cleaned, pageUrl).href;
+  } catch {
+    return '';
+  }
+}
+
+/** Solo persiste URLs http(s) de imagen; nunca iniciales de marca ni paths rotos. */
+function sanitizePromoImage(src, pageUrl = '') {
+  const href = absUrl(src, pageUrl);
+  if (!/^https?:\/\//i.test(href)) return '';
+  if (/\.(svg)(?:$|\?)/i.test(href) && /logo|icon|sprite/i.test(href)) return '';
+  return href;
+}
+
+function pageOgImage(body, pageUrl) {
+  if (!body) return '';
+  const og =
+    body.match(
+      /property=["']og:image(?::secure_url)?["']\s+content=["']([^"']+)["']/i
+    )?.[1] ||
+    body.match(
+      /content=["']([^"']+)["']\s+property=["']og:image(?::secure_url)?["']/i
+    )?.[1] ||
+    body.match(/name=["']twitter:image["']\s+content=["']([^"']+)["']/i)?.[1] ||
+    '';
+  return sanitizePromoImage(og, pageUrl);
+}
+
+function imageNearMatch(body, index, pageUrl) {
+  if (!body || index == null || index < 0) return '';
+  const windowStart = Math.max(0, index - 1800);
+  const before = body.slice(windowStart, index);
+  const patterns = [
+    /(?:src|data-src|data-lazy-src)=["']([^"']+)["'][^>]*>?\s*$/i,
+    /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi,
+  ];
+  const lastSrc = before.match(
+    /(?:src|data-src|data-lazy-src)=["']([^"']+)["'](?![^<]*<img)/gi
+  );
+  if (lastSrc?.length) {
+    const m = lastSrc[lastSrc.length - 1].match(/["']([^"']+)["']/);
+    const img = sanitizePromoImage(m?.[1] || '', pageUrl);
+    if (img) return img;
+  }
+  for (const re of patterns) {
+    re.lastIndex = 0;
+    let match;
+    let best = '';
+    while ((match = re.exec(before))) {
+      best = sanitizePromoImage(match[1], pageUrl) || best;
+    }
+    if (best) return best;
+  }
+  return '';
+}
+
+/**
+ * Si la fuente es solo el home de la cadena, manda a la sección de ofertas.
+ * Si ya es una URL profunda (producto/campaña), se respeta.
+ */
+function deepenOfficialSourceUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    const u = new URL(url);
+    const host = u.hostname.replace(/^www\./, '');
+    const path = u.pathname.replace(/\/+$/, '') || '/';
+    const isHome = path === '/' || path === '';
+
+    const deepLinks = {
+      'burgerking.com.mx': 'https://www.burgerking.com.mx/cuponeras',
+      'mcdonalds.com.mx': 'https://www.mcdonalds.com.mx/promociones',
+      'starbucks.com.mx': 'https://www.starbucks.com.mx/',
+      'vips.com.mx': 'https://www.vips.com.mx/menu',
+      'walmart.com.mx': 'https://www.walmart.com.mx/content/ofertas',
+      'kfc.com.mx': 'https://kfc.com.mx/',
+      'oxxo.com': 'https://www.oxxo.com/promociones',
+      'heb.com.mx': 'https://www.heb.com.mx/promociones',
+      'circlek.com.mx': 'https://circlek.com.mx/promociones/',
+      '7-eleven.com.mx': 'https://7-eleven.com.mx/ofertas/',
+      'laeuropea.com.mx': 'https://laeuropea.com.mx/collections/promociones',
+      'krispykreme.mx': 'https://www.krispykreme.mx/promociones/',
+      'italiannis.com.mx': 'https://www.italiannis.com.mx/',
+      'chedraui.com.mx': 'https://www.chedraui.com.mx/',
+    };
+
+    if (isHome && deepLinks[host]) return deepLinks[host];
+    return u.href;
+  } catch {
+    return url;
+  }
+}
+
+function finalizeHit(hit, pageUrl, pageBody = '') {
+  const sourceUrl = deepenOfficialSourceUrl(hit.sourceUrl || pageUrl || '');
+  let image = sanitizePromoImage(hit.image, pageUrl || sourceUrl);
+  if (!image && pageBody) {
+    image =
+      imageNearMatch(pageBody, hit._matchIndex, pageUrl) ||
+      pageOgImage(pageBody, pageUrl);
+  }
+  const { _matchIndex, ...rest } = hit;
+  return { ...rest, sourceUrl, image };
 }
 
 function parseCircleK(body, url) {
@@ -341,6 +453,7 @@ function parseCircleK(body, url) {
         ? `${deal}. Oferta válida hasta el ${until}.`
         : `${deal}. Consulta vigencia en Circle K.`,
       sourceUrl: url,
+      image: pageOgImage(body, url),
       evidence: `${title} ${deal} ${until} promoción oferta`,
     });
     i++;
@@ -359,7 +472,9 @@ function parseHeb(body, url) {
       title,
       description: `Promoción publicada en heb.com.mx. Confirma vigencia en tienda.`,
       sourceUrl: url,
+      image: imageNearMatch(body, m.index, url) || pageOgImage(body, url),
       evidence: `${title} promoción oferta`,
+      _matchIndex: m.index,
     });
   }
   return found;
@@ -448,6 +563,45 @@ function parseSevenElevenOfertas(body, url) {
   });
 }
 
+const BK_SANITY_PROJECT = 'czqk28jt';
+const BK_SANITY_DATASET = 'prod_bk_mx';
+
+/** Resuelve URLs de imagen CMS (Sanity) a partir de sanityId de cada oferta BK. */
+async function fetchBurgerKingSanityImages(sanityIds = []) {
+  const ids = [...new Set(sanityIds.filter(Boolean))];
+  if (!ids.length) return new Map();
+  const byId = new Map();
+  const chunkSize = 40;
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    const query = `*[_id in $ids]{
+      _id,
+      "image": coalesce(
+        localizedImage.es.app.asset->url,
+        localizedImage.en.app.asset->url,
+        localizedImage.es.app.asset->url,
+        backgroundImage.asset->url
+      )
+    }`;
+    const url = new URL(
+      `https://${BK_SANITY_PROJECT}.apicdn.sanity.io/v2023-08-01/data/query/${BK_SANITY_DATASET}`
+    );
+    url.searchParams.set('query', query);
+    url.searchParams.set('$ids', JSON.stringify(chunk));
+    const res = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) continue;
+    const payload = await res.json();
+    for (const row of payload.result || []) {
+      const img = sanitizePromoImage(row?.image || '');
+      if (row?._id && img) byId.set(row._id, img);
+    }
+  }
+  return byId;
+}
+
 async function fetchBurgerKingOffers() {
   const sourceUrl = 'https://www.burgerking.com.mx/';
   const response = await fetch('https://use2-prod-bk-gateway.rbictg.com/graphql', {
@@ -464,7 +618,7 @@ async function fetchBurgerKingOffers() {
     },
     body: JSON.stringify({
       query:
-        'query { loyaltyOffers(omitInvalids: true) { id name startDate endDate type redemptionType } }',
+        'query { loyaltyOffers(omitInvalids: true) { id name sanityId startDate endDate type redemptionType } }',
     }),
     signal: AbortSignal.timeout(12000),
   });
@@ -474,6 +628,9 @@ async function fetchBurgerKingOffers() {
     throw new Error(payload.errors[0]?.message || 'GraphQL error');
   }
   const offers = payload.data?.loyaltyOffers || [];
+  const images = await fetchBurgerKingSanityImages(
+    offers.map((o) => o.sanityId).filter(Boolean)
+  );
   return offers
     .map((offer) => {
       const title = clean(offer.name || '');
@@ -487,7 +644,8 @@ async function fetchBurgerKingOffers() {
       return {
         title,
         description: `Oferta oficial Burger King (app/web).${endLabel} Confirma vigencia y sucursal participante.`,
-        sourceUrl,
+        sourceUrl: deepenOfficialSourceUrl(sourceUrl),
+        image: images.get(offer.sanityId) || '',
         evidence: `${title} promoción oferta burger king ${offer.startDate || ''} ${offer.endDate || ''}`,
         start,
         end: end && end.getFullYear() < 9000 ? end : null,
@@ -678,20 +836,28 @@ function parsePage(body, url, company) {
     found.push(...parseHeb(body, url));
   }
 
-  // OXXO: cards vía open_promo_image(...)
+  // OXXO: cards vía open_promo_image(img, title, category, link?, terms)
   for (const m of body.matchAll(
     /open_promo_image\('([^']+)','([^']*)','([^']*)','([^']*)','([^']*)'/g
   )) {
     const title = clean(m[2]);
     const category = clean(m[3]);
+    const maybeLink = clean(m[4] || '');
     const terms = clean(m[5]);
     if (title.length >= 4) {
+      const deep =
+        /^https?:\/\//i.test(maybeLink)
+          ? maybeLink
+          : maybeLink.startsWith('/')
+            ? absUrl(maybeLink, url)
+            : url;
       found.push({
         title,
         description: `${category}${terms ? ` · ${terms}` : ''}`.slice(0, 500),
-        sourceUrl: url,
-        image: absUrl(m[1], url),
+        sourceUrl: deep || url,
+        image: sanitizePromoImage(m[1], url),
         evidence: `${title} ${category} ${terms}`,
+        _matchIndex: m.index,
       });
     }
   }
@@ -740,7 +906,9 @@ function parsePage(body, url, company) {
       title,
       description: desc.slice(0, 500),
       sourceUrl: url,
+      image: imageNearMatch(body, m.index, url),
       evidence: `${title} ${desc}`,
+      _matchIndex: m.index,
     });
   }
 
@@ -752,6 +920,7 @@ function parsePage(body, url, company) {
       seen.add(k);
       return true;
     })
+    .map((hit) => finalizeHit(hit, url, body))
     .slice(0, 40);
 }
 
@@ -770,13 +939,22 @@ async function fetchStarbucksNext() {
     const text = clean(grid.text || '');
     if (title.length < 4) continue;
     if (/undefined|^$/.test(title)) continue;
+    const link =
+      grid.link ||
+      grid.url ||
+      grid.href ||
+      grid.cta?.url ||
+      grid.image?.link ||
+      sourceUrl;
     found.push({
       title,
       description:
         text.slice(0, 400) ||
         'Campaña publicada en starbucks.com.mx. Confirma vigencia en tienda o app.',
-      sourceUrl,
-      image: grid.image?.url || '',
+      sourceUrl: deepenOfficialSourceUrl(
+        typeof link === 'string' ? absUrl(link, sourceUrl) : sourceUrl
+      ),
+      image: sanitizePromoImage(grid.image?.url || '', sourceUrl),
       evidence: `${title} ${text} promoción oferta starbucks`,
     });
   }
@@ -823,20 +1001,26 @@ async function fetchWalmartTempoCampaigns() {
   const found = [];
   const seen = new Set();
 
-  const push = (title, description, image) => {
+  const push = (title, description, image, link) => {
     const cleanTitle = clean(title);
     const cleanDesc = clean(description || '');
     if (!isWalmartPromoTitle(cleanTitle, cleanDesc)) return;
     const key = slugify(cleanTitle);
     if (!key || seen.has(key)) return;
     seen.add(key);
+    const deep =
+      typeof link === 'string' && /^https?:\/\//i.test(link)
+        ? link
+        : typeof link === 'string' && link.startsWith('/')
+          ? absUrl(link, 'https://www.walmart.com.mx')
+          : 'https://www.walmart.com.mx/content/ofertas';
     found.push({
       title: cleanTitle,
       description:
         cleanDesc.slice(0, 400) ||
         'Campaña publicada en walmart.com.mx. Confirma vigencia y disponibilidad en tienda o línea.',
-      sourceUrl: 'https://www.walmart.com.mx/content/ofertas',
-      image: image || '',
+      sourceUrl: deepenOfficialSourceUrl(deep),
+      image: sanitizePromoImage(image || '', 'https://www.walmart.com.mx'),
       evidence: `${cleanTitle} ${cleanDesc} promoción oferta walmart`,
     });
   };
@@ -869,7 +1053,17 @@ async function fetchWalmartTempoCampaigns() {
       node.desktopImage?.src ||
       node.mobileImage?.src ||
       '';
-    if (typeof title === 'string') push(title, typeof desc === 'string' ? desc : '', image);
+    const link =
+      node.clickThrough?.value ||
+      node.clickThrough?.clickThrough ||
+      node.ctaLink ||
+      node.link ||
+      node.url ||
+      node.href ||
+      '';
+    if (typeof title === 'string') {
+      push(title, typeof desc === 'string' ? desc : '', image, link);
+    }
     for (const [k, v] of Object.entries(node)) {
       if (['__typename', '_rawConfigs', 'athModule', 'spBeaconInfo'].includes(k)) continue;
       if (typeof v === 'object') walk(v);
@@ -1035,9 +1229,15 @@ export async function collectNearbyPromos(companies) {
                     ? 'Vigencia extraída del texto publicado.'
                     : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'
                 }`,
-                imagen: hit.image || company.imagen || '',
+                imagen: sanitizePromoImage(
+                  hit.image ||
+                    ( /^https?:\/\//i.test(company.imagen || '')
+                      ? company.imagen
+                      : '' ),
+                  hit.sourceUrl || ''
+                ),
                 origen: 'oficial',
-                url_fuente: hit.sourceUrl,
+                url_fuente: deepenOfficialSourceUrl(hit.sourceUrl || ''),
                 inicia_en: start,
                 termina_en: end,
                 alcohol: flags.alcohol,

@@ -104,3 +104,15 @@
   color: #fff8f6;
   border-color: #3b0b13;
 }
+
+html[data-theme='night'] .cadena-status-chips button {
+  background: #2a0810;
+  border-color: rgba(247, 229, 181, 0.22);
+  color: #f7e5b5;
+}
+
+html[data-theme='night'] .cadena-status-chips button.is-active {
+  background: #d81a1c;
+  border-color: #d81a1c;
+  color: #f7e5b5;
+}

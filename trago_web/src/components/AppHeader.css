@@ -2,11 +2,16 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--chrome);
+  background: color-mix(in srgb, var(--chrome) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: var(--chrome-fg);
   padding-top: env(safe-area-inset-top, 0px);
-  border-bottom: 1px solid rgba(247, 229, 181, 0.12);
-  transition: background-color 0.45s ease;
+  border-bottom: 1px solid rgba(247, 229, 181, 0.14);
+  transition:
+    background-color 0.45s ease,
+    box-shadow 0.35s ease,
+    backdrop-filter 0.35s ease;
 }
 
 .app-header-inner {
@@ -14,10 +19,12 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 0.5rem;
-  min-height: 3.1rem;
-  padding: 0.45rem 0.85rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 0.95rem;
   max-width: 720px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .app-header-spacer {
@@ -34,7 +41,7 @@
   height: 2.4rem;
   border: none;
   border-radius: 999px;
-  background: rgba(247, 229, 181, 0.1);
+  background: rgba(247, 229, 181, 0.12);
   color: #f7e5b5;
   font-size: 1.6rem;
   line-height: 1;
@@ -43,11 +50,12 @@
   align-items: center;
   justify-content: center;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, transform 0.12s ease;
 }
 
 .app-header-back:active {
   transform: scale(0.94);
-  background: rgba(247, 229, 181, 0.18);
+  background: rgba(247, 229, 181, 0.2);
 }
 
 .app-header-titles {
@@ -58,7 +66,7 @@
 .app-header-title {
   margin: 0;
   font-family: var(--display);
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   font-weight: 600;
   color: #f7e5b5;
   letter-spacing: -0.02em;
@@ -94,10 +102,35 @@
   color: #f7e5b5;
 }
 
+/* Misma columna centrada que el contenido (junto al nav lateral) */
 @media (min-width: 900px) {
   .app-header-inner {
     max-width: none;
-    padding-left: calc(5.5rem + 1rem);
-    padding-right: 1.25rem;
+    margin: 0;
+    padding:
+      0.55rem
+      clamp(1.25rem, 4vw, 2.5rem)
+      0.55rem
+      calc(5.25rem + clamp(1.25rem, 4vw, 2.5rem));
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 640px) 1fr;
+    align-items: center;
+  }
+
+  .app-header-back,
+  .app-header-spacer {
+    grid-column: 1;
+    justify-self: end;
+    margin-right: 0.65rem;
+  }
+
+  .app-header-titles {
+    grid-column: 2;
+  }
+
+  .app-header-conn {
+    grid-column: 3;
+    justify-self: start;
+    margin-left: 0.65rem;
   }
 }

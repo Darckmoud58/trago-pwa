@@ -24,6 +24,17 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const years =
+    birthDate.length >= 8 ? ageFromBirthDate(new Date(`${birthDate}T12:00:00`)) : null;
+  const ageBandPreview =
+    years == null || Number.isNaN(years)
+      ? null
+      : years < MIN_ACCOUNT_AGE
+        ? 'too_young'
+        : years < MIN_AGE
+          ? 'teen'
+          : 'adult';
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -64,12 +75,16 @@ export default function Register() {
   }
 
   return (
-    <section className="auth">
-      <h1>{t('registerTitle')}</h1>
-      <p className="lead">
-        {t('registerLead', { minAccount: MIN_ACCOUNT_AGE, minAge: MIN_AGE })}
-      </p>
-      <form className="card-form" onSubmit={onSubmit}>
+    <section className="auth auth-shell">
+      <div className="auth-brand rise">
+        <p className="ui-kicker">TraGo</p>
+        <h1 className="brand-mark">TraGo</h1>
+        <p className="lead">
+          {t('registerLead', { minAccount: MIN_ACCOUNT_AGE, minAge: MIN_AGE })}
+        </p>
+      </div>
+      <form className="card-form auth-card" onSubmit={onSubmit}>
+        <h2 className="auth-form-title">{t('registerTitle')}</h2>
         <label>
           {t('name')}
           <input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -106,6 +121,15 @@ export default function Register() {
             max={maxBirthDateForAccount()}
           />
         </label>
+        {ageBandPreview === 'teen' && (
+          <p className="register-age-note">{t('registerTeenNote')}</p>
+        )}
+        {ageBandPreview === 'adult' && (
+          <p className="register-age-note is-adult">{t('registerAdultNote')}</p>
+        )}
+        {ageBandPreview === 'too_young' && (
+          <p className="error">{t('minAgeError', { n: MIN_ACCOUNT_AGE })}</p>
+        )}
 
         <div className="legal-checks">
           <label>
@@ -142,7 +166,13 @@ export default function Register() {
               checked={confirmAge}
               onChange={(e) => setConfirmAge(e.target.checked)}
             />
-            <span>{t('confirmAge', { n: MIN_AGE })}</span>
+            <span>
+              {ageBandPreview === 'teen'
+                ? t('confirmAgeTeen', { n: MIN_AGE })
+                : ageBandPreview === 'adult'
+                  ? t('confirmAgeAdult', { n: MIN_AGE })
+                  : t('confirmAge', { n: MIN_AGE })}
+            </span>
           </label>
         </div>
 
@@ -152,10 +182,15 @@ export default function Register() {
         {error && <p className="error">{error}</p>}
       </form>
       <p className="muted">
-        {t('hasAccount')} <Link to="/entrar">{t('loginSubmit')}</Link>
+        {t('hasAccount')}{' '}
+        <Link to="/entrar" viewTransition>
+          {t('loginSubmit')}
+        </Link>
       </p>
       <p className="muted">
-        <Link to="/idioma">{t('languageLink')}</Link>
+        <Link to="/idioma" viewTransition>
+          {t('languageLink')}
+        </Link>
       </p>
     </section>
   );

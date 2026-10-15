@@ -26,12 +26,37 @@
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Desktop: columna centrada en el hueco a la derecha del nav lateral */
 @media (min-width: 900px) {
   .app-shell:not(.is-auth) .app-main {
-    width: min(calc(100% - 5.25rem), 1280px);
-    max-width: 1280px;
-    margin-left: max(5.25rem, calc((100vw - 1280px + 5.25rem) / 2));
-    margin-right: 0;
-    padding: 1.15rem 1.5rem 1.5rem;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding:
+      1.25rem
+      clamp(1.25rem, 4vw, 2.5rem)
+      1.75rem
+      calc(5.25rem + clamp(1.25rem, 4vw, 2.5rem));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app-shell:not(.is-auth) .app-main > * {
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .app-shell:not(.is-auth) .app-main > .promos-page:not(.promo-detail),
+  .app-shell:not(.is-auth) .app-main > .cerca-page {
+    max-width: 880px;
+  }
+
+  .app-shell:not(.is-auth) .app-main > .promo-detail {
+    max-width: 560px;
+  }
+
+  .app-shell:not(.is-auth) .app-main > .legal {
+    max-width: 42rem;
   }
 }

@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import AgeBandGate from './components/AgeBandGate';
 import AppHeader from './components/AppHeader';
-import BottomNav from './components/BottomNav';import InstallBanner from './components/InstallBanner';
+import BottomNav from './components/BottomNav';
+import InstallBanner from './components/InstallBanner';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
+import PageTransition from './components/PageTransition';
 import { syncFavorites } from './lib/favorites';
+import { useImmersiveScroll } from './hooks/useImmersiveScroll';
 import { useNightTheme } from './hooks/useNightTheme';
 import './Layout.css';
 
 export default function Layout() {
   const { pathname } = useLocation();
   const night = useNightTheme();
+  useImmersiveScroll();
   const [token, setToken] = useState(() => localStorage.getItem('token'));
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -52,8 +56,10 @@ export default function Layout() {
       <AgeBandGate />
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}
-      <main className="app-main page-enter" id="main">
-        <Outlet />
+      <main className="app-main" id="main">
+        <PageTransition>
+          <Outlet />
+        </PageTransition>
       </main>
       <BottomNav hasSession={!!token} />
       <InstallBanner />

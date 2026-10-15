@@ -1,7 +1,7 @@
 .validity-vote {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
-  border-top: 1px solid rgba(59, 11, 19, 0.12);
+  border-top: 1px solid var(--line);
 }
 
 .validity-status {
@@ -9,7 +9,7 @@
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #d81a1c;
+  color: var(--rojo);
   font-weight: 700;
 }
 
@@ -17,7 +17,12 @@
 .validity-geo {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
-  color: rgba(59, 11, 19, 0.72);
+  color: var(--fg-soft);
+}
+
+html[data-theme='night'] .validity-counts,
+html[data-theme='night'] .validity-geo {
+  color: rgba(247, 229, 181, 0.75);
 }
 
 .validity-actions {

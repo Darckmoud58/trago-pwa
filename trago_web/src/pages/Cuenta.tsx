@@ -86,53 +86,59 @@ export default function Cuenta() {
 
   return (
     <section className="cuenta-app">
-      <p className={`status-pill ${online ? 'on' : 'off'}`}>
-        {online ? t('online') : t('offline')}
-      </p>
-
       {error && <p className="error">{error}</p>}
       {!user && !error && <p className="muted">{t('loading')}</p>}
 
       {user && (
         <>
-          <article className="cuenta-profile">
+          <article className="cuenta-profile rise" data-reveal>
             <div className="cuenta-avatar" aria-hidden>
               {initials(name)}
             </div>
             <div>
+              <p className="ui-kicker">
+                {online ? t('online') : t('offline')}
+              </p>
               <h2>{name}</h2>
               <p className="meta">{user.correo || user.email}</p>
               <div className="cuenta-badges">
                 <span className="badge">{bandLabel}</span>
-                <span className="badge soft">{points} pts</span>
+                {points > 0 ? (
+                  <span className="badge soft">{points} pts</span>
+                ) : null}
               </div>
             </div>
           </article>
 
-          <nav className="settings-list" aria-label={t('settingsAria')}>
-            <Link className="settings-row" to="/idioma">
+          <nav
+            className="settings-list stagger"
+            aria-label={t('settingsAria')}
+            data-reveal
+            data-reveal-delay="1"
+          >
+            <Link className="settings-row" to="/idioma" viewTransition>
               <span>{t('settingsLanguage')}</span>
               <em>
                 {langLabel} ›
               </em>
             </Link>
-            <Link className="settings-row" to="/instalar">
+            <Link className="settings-row" to="/instalar" viewTransition>
               <span>{t('installTitle')}</span>
               <em>›</em>
             </Link>
-            <Link className="settings-row" to="/favoritos">
+            <Link className="settings-row" to="/favoritos" viewTransition>
               <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>
             </Link>
-            <Link className="settings-row" to="/cadena">
+            <Link className="settings-row" to="/cadena" viewTransition>
               <span>{t('titleChain')}</span>
               <em>›</em>
             </Link>
-            <Link className="settings-row" to="/promos">
+            <Link className="settings-row" to="/promos" viewTransition>
               <span>{t('settingsPromos')}</span>
               <em>›</em>
             </Link>
-            <Link className="settings-row" to="/cerca">
+            <Link className="settings-row" to="/cerca" viewTransition>
               <span>{t('settingsNear')}</span>
               <em>›</em>
             </Link>
@@ -161,11 +167,15 @@ export default function Cuenta() {
                 <em className="soon">{t('settingsSoon')}</em>
               </div>
             )}
-            <Link className="settings-row" to="/aviso-de-privacidad">
+            <Link
+              className="settings-row"
+              to="/aviso-de-privacidad"
+              viewTransition
+            >
               <span>{t('settingsPrivacy')}</span>
               <em>›</em>
             </Link>
-            <Link className="settings-row" to="/terminos">
+            <Link className="settings-row" to="/terminos" viewTransition>
               <span>{t('settingsTerms')}</span>
               <em>›</em>
             </Link>

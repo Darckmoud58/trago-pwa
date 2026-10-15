@@ -1,0 +1,304 @@
+/* TraGo motion system — presencia, no ruido */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 0.16s;
+  --dur: 0.42s;
+  --dur-slow: 0.7s;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Marca con presencia viva */
+.home-brand,
+.brand-mark {
+  animation: brand-in 0.85s var(--ease-out) both;
+}
+
+@keyframes brand-in {
+  from {
+    opacity: 0;
+    letter-spacing: 0.18em;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: normal;
+    transform: translateY(0);
+  }
+}
+
+/* Sheet 18+ / diálogos */
+.age-sheet {
+  animation: sheet-in 0.4s var(--ease-out) both;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Auth / empty states */
+.auth-shell,
+.empty-state {
+  animation: rise-in var(--dur) var(--ease-out) both;
+}
+
+/* ——— Entrada de página ——— */
+.page-motion {
+  animation: page-in var(--dur) var(--ease-out) both;
+  transform-origin: 50% 0%;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ——— Rise / stagger ——— */
+.rise {
+  animation: rise-in var(--dur-slow) var(--ease-out) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger > * {
+  animation: rise-in var(--dur) var(--ease-out) both;
+}
+
+.stagger > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.14s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.18s;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 0.22s;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 0.26s;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 0.3s;
+}
+.stagger > *:nth-child(9) {
+  animation-delay: 0.34s;
+}
+.stagger > *:nth-child(10) {
+  animation-delay: 0.38s;
+}
+.stagger > *:nth-child(n + 11) {
+  animation-delay: 0.42s;
+}
+
+/* ——— Microinteracciones ——— */
+.btn,
+.quick-chip,
+.filter-chip,
+.cat-chip,
+.bottom-nav-item,
+.settings-row,
+.fav-btn {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) ease,
+    border-color var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    box-shadow var(--dur-fast) ease,
+    opacity var(--dur-fast) ease;
+}
+
+.btn:active:not(:disabled),
+.quick-chip:active,
+.filter-chip:active,
+.cat-chip:active,
+.bottom-nav-item:active {
+  transform: scale(0.96);
+}
+
+.btn.primary {
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--rojo) 35%, transparent);
+}
+
+.btn.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--rojo) 42%, transparent);
+}
+
+.btn.primary:active:not(:disabled) {
+  transform: translateY(0) scale(0.97);
+}
+
+/* Cards con presencia */
+.promo-card,
+.feed-card,
+.cerca-place-card,
+.cerca-offer-card,
+.fav-card,
+.detail-fact,
+.detail-branch,
+.detail-panel,
+.legal-section,
+.cuenta-profile,
+.ui-hero,
+.home-hero,
+.home-cta-card {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur-fast) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .promo-card:hover,
+  .feed-card:hover,
+  .cerca-place-card:hover,
+  .cerca-offer-card:hover,
+  .fav-card:hover,
+  .detail-branch:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--chrome) 22%, transparent);
+  }
+}
+
+/* Imágenes: zoom suave al hover */
+.promo-cover img,
+.feed-media img,
+.cerca-offer-media img,
+.detail-cover img {
+  transition: transform 0.55s var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .promo-cover:hover img,
+  .feed-card:hover .feed-media img,
+  .cerca-offer-card:hover .cerca-offer-media img {
+    transform: scale(1.04);
+  }
+}
+
+/* Nav activo: pulso suave */
+.bottom-nav-item.is-active .bottom-nav-ico {
+  animation: nav-pop 0.45s var(--ease-spring) both;
+}
+
+@keyframes nav-pop {
+  from {
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Skeleton breathe */
+.ui-skeleton,
+.cerca-skeleton-card {
+  animation: ui-shimmer 1.2s ease-in-out infinite;
+}
+
+/* View Transitions (Chrome / Safari recientes) */
+@supports (view-transition-name: none) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.32s;
+    animation-timing-function: var(--ease-out);
+  }
+
+  ::view-transition-old(root) {
+    animation-name: vt-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: vt-fade-in;
+  }
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+    filter: blur(3px);
+    transform: scale(0.99);
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: scale(1.01);
+  }
+}
+
+/* Accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .page-motion,
+  .rise,
+  .stagger > *,
+  .home-brand,
+  .brand-mark,
+  .age-sheet,
+  .auth-shell,
+  .empty-state {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

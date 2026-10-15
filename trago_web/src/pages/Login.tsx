@@ -35,12 +35,14 @@ export default function Login() {
   }
 
   return (
-    <section className="auth">
-      <h1>{t('loginTitle')}</h1>
-      <p className="lead">
-        {t('loginLead')} <code>demo@trago.app</code> / <code>TraGo123!</code>
-      </p>
-      <form className="card-form" onSubmit={onSubmit}>
+    <section className="auth auth-shell">
+      <div className="auth-brand rise">
+        <p className="ui-kicker">TraGo</p>
+        <h1 className="brand-mark">TraGo</h1>
+        <p className="lead">{t('loginLead')}</p>
+      </div>
+      <form className="card-form auth-card" onSubmit={onSubmit}>
+        <h2 className="auth-form-title">{t('loginTitle')}</h2>
         <label>
           {t('email')}
           <input
@@ -67,10 +69,15 @@ export default function Login() {
         {error && <p className="error">{error}</p>}
       </form>
       <p className="muted">
-        {t('noAccount')} <Link to="/registro">{t('registerLink')}</Link>
+        {t('noAccount')}{' '}
+        <Link to="/registro" viewTransition>
+          {t('registerLink')}
+        </Link>
       </p>
       <p className="muted">
-        <Link to="/idioma">{t('languageLink')}</Link>
+        <Link to="/idioma" viewTransition>
+          {t('languageLink')}
+        </Link>
       </p>
     </section>
   );

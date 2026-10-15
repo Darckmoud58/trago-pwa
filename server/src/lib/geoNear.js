@@ -1,5 +1,5 @@
 /** Radios permitidos para /cerca (cuantizados). */
-export const ALLOWED_NEAR_RADII = [1000, 2500, 5000, 8000];
+export const ALLOWED_NEAR_RADII = [1000, 2000, 2500, 5000, 8000];
 
 /** Caja aproximada de México (rechaza resto del planeta). */
 export const MEXICO_BOUNDS = {
@@ -9,7 +9,7 @@ export const MEXICO_BOUNDS = {
   lngMax: -86,
 };
 
-export function quantizeMaxMeters(raw, fallback = 8000) {
+export function quantizeMaxMeters(raw, fallback = 2000) {
   if (raw == null || raw === '') return fallback;
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;

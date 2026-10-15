@@ -1,4 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&family=Syne:wght@500;600;700&display=swap');
+@import './styles/motion.css';
+@import './styles/scroll.css';
 
 /*
   Paleta TraGo — uso correcto
@@ -24,8 +26,12 @@
   --fg-soft: var(--tinto-soft);
   --line: var(--tinto-line);
   --surface: var(--beige-soft);
+  --surface-elevated: #fff8e8;
   --chrome: #3b0b13;
   --chrome-fg: #f7e5b5;
+  --shadow: 0 10px 28px color-mix(in srgb, var(--chrome) 14%, transparent);
+  --radius-lg: 1.15rem;
+  --radius-md: 0.95rem;
 
   --sans: 'Figtree', system-ui, sans-serif;
   --display: 'Syne', system-ui, sans-serif;
@@ -54,9 +60,11 @@ html[data-theme='night'] {
   --fg: #f7e5b5;
   --fg-soft: rgba(247, 229, 181, 0.75);
   --line: rgba(247, 229, 181, 0.16);
-  --surface: #3b0b13;
+  --surface: #2e0a12;
+  --surface-elevated: #451018;
   --chrome: #000000;
   --chrome-fg: #f7e5b5;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 
   color: var(--fg);
   background: var(--bg);
@@ -73,7 +81,7 @@ body {
   min-height: 100%;
   background-color: var(--bg);
   color: var(--fg);
-  overscroll-behavior-y: none;
+  overscroll-behavior-y: contain;
 }
 
 body {
@@ -308,9 +316,7 @@ p {
   text-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
-.rise {
-  animation: rise 0.9s ease-out both;
-}
+/* .rise definido en styles/motion.css */
 
 .motors {
   padding: 0.5rem 0 2rem;
@@ -342,16 +348,79 @@ p {
 
 .promo-card {
   padding: 1.05rem 1.15rem;
-  border: 1px solid var(--tinto-line);
-  border-radius: 0.85rem;
-  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--surface) 94%, #fff 6%),
+      var(--surface)
+    );
   list-style: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.35s ease;
+  box-shadow: var(--shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .promo-card:hover {
-  border-color: var(--line);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--chrome) 18%, transparent);
+  border-color: color-mix(in srgb, var(--rojo) 35%, var(--line));
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--chrome) 18%, transparent);
+}
+
+.ui-hero {
+  padding: 1.05rem 1.1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(
+      120% 90% at 100% 0%,
+      color-mix(in srgb, var(--rojo) 22%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--surface) 92%, #000 8%),
+      var(--surface)
+    );
+  box-shadow: var(--shadow);
+}
+
+.ui-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-soft);
+  font-weight: 600;
+}
+
+.ui-skeleton {
+  height: 5.2rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    color-mix(in srgb, var(--surface) 70%, var(--fg) 8%) 45%,
+    var(--surface) 100%
+  );
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes ui-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.brand-mark {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
 }
 
 .feature-card {
@@ -425,9 +494,7 @@ p {
   background: var(--surface);
 }
 
-.page-enter {
-  animation: rise 0.45s ease-out both;
-}
+/* page-enter reemplazado por PageTransition + .page-motion */
 
 .branch-list {
   list-style: none;
@@ -439,6 +506,30 @@ p {
 
 .auth {
   max-width: 420px;
+}
+
+.auth-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auth-brand .brand-mark {
+  margin: 0.15rem 0 0.4rem;
+  font-size: clamp(2.4rem, 10vw, 3rem);
+}
+
+.auth-form-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+}
+
+.auth-card {
+  padding: 1.05rem 1.1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .card-form {
@@ -453,15 +544,19 @@ p {
   flex-direction: column;
   gap: 0.35rem;
   text-align: left;
-  color: var(--tinto-soft);
+  color: var(--fg-soft);
   font-size: 0.9rem;
 }
 
+.card-form .legal-checks label {
+  color: var(--fg);
+}
+
 .card-form input {
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.75rem;
   border: 1px solid var(--line);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--bg) 55%, var(--surface));
   color: var(--fg);
   font: inherit;
 }
@@ -494,16 +589,7 @@ p {
   }
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+/* @keyframes rise → styles/motion.css (rise-in) */
 
 /* ——— Modo noche: superficies hardcodeadas en páginas ——— */
 html[data-theme='night'] .app-header {
@@ -524,13 +610,8 @@ html[data-theme='night'] .quick-chip,
 html[data-theme='night'] .cat-chip,
 html[data-theme='night'] .filter-chip,
 html[data-theme='night'] .promos-search input,
-html[data-theme='night'] .cuenta-profile,
-html[data-theme='night'] .settings-list,
-html[data-theme='night'] .feed-card,
-html[data-theme='night'] .home-cta-card,
 html[data-theme='night'] .age-sheet,
-html[data-theme='night'] .promo-body,
-html[data-theme='night'] .detail-block,
+html[data-theme='night'] .auth-card,
 html[data-theme='night'] .idioma-page {
   background: var(--surface) !important;
   color: var(--fg) !important;
@@ -544,9 +625,8 @@ html[data-theme='night'] .filter-chip.is-on {
   border-color: rgba(247, 229, 181, 0.35) !important;
 }
 
-html[data-theme='night'] .feed-thumb,
 html[data-theme='night'] .cuenta-avatar {
-  background: #000 !important;
+  background-color: #1a060a !important;
   color: #f7e5b5 !important;
 }
 
@@ -563,12 +643,9 @@ html[data-theme='night'] .lead {
   color: var(--fg-soft) !important;
 }
 
-html[data-theme='night'] .pageload {
-  background: #050203;
-}
-
-html[data-theme='night'] .pageload-status {
-  color: #f7e5b5;
+html[data-theme='night'] .text-link {
+  color: #f7e5b5 !important;
+  opacity: 0.85;
 }
 
 html[data-theme='night'] .promo-title-link,
@@ -591,4 +668,16 @@ html[data-theme='night'] .tag {
 html[data-theme='night'] .install-sheet-card {
   background: #000;
   border-color: rgba(247, 229, 181, 0.28);
+}
+
+/* Legal: contraste fuerte (el CSS de página ya usa tokens; refuerzo global) */
+html[data-theme='night'] .legal,
+html[data-theme='night'] .legal-section,
+html[data-theme='night'] .legal-hero {
+  color: #f7e5b5;
+}
+
+html[data-theme='night'] .legal p,
+html[data-theme='night'] .legal li {
+  color: rgba(247, 229, 181, 0.88) !important;
 }

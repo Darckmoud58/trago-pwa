@@ -124,3 +124,27 @@
   font-weight: 700;
   color: #3b0b13;
 }
+
+/* Modo noche */
+html[data-theme='night'] .cadena-page h1,
+html[data-theme='night'] .cadena-card h2,
+html[data-theme='night'] .cadena-info,
+html[data-theme='night'] .cadena-metric-value {
+  color: #f7e5b5 !important;
+}
+
+html[data-theme='night'] .cadena-card {
+  background: linear-gradient(160deg, #451018 0%, #2a0810 100%);
+  border-color: rgba(247, 229, 181, 0.16);
+}
+
+html[data-theme='night'] .cadena-card label {
+  color: rgba(247, 229, 181, 0.8);
+}
+
+html[data-theme='night'] .cadena-card input,
+html[data-theme='night'] .cadena-card textarea {
+  background: #1a060a;
+  border-color: rgba(247, 229, 181, 0.22);
+  color: #f7e5b5;
+}

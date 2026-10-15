@@ -8,6 +8,8 @@ import {
 
 describe('quantizeMaxMeters', () => {
   it('cuantiza a la lista fija', () => {
+    assert.equal(quantizeMaxMeters(undefined), 2000);
+    assert.equal(quantizeMaxMeters(2000), 2000);
     assert.equal(quantizeMaxMeters(8000), 8000);
     assert.equal(quantizeMaxMeters(9000), 8000);
     assert.equal(quantizeMaxMeters(1200), 1000);

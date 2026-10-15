@@ -24,6 +24,21 @@ import {
 } from '../lib/ageGate.js';
 import { assertMexicoCoords, quantizeMaxMeters } from '../lib/geoNear.js';
 
+/** Evita CastError cuando id_empresa viene null/undefined (String(undefined) === "undefined"). */
+function validObjectIds(values) {
+  const out = [];
+  const seen = new Set();
+  for (const value of values) {
+    if (value == null || value === '') continue;
+    const id = String(value);
+    if (id === 'undefined' || id === 'null' || seen.has(id)) continue;
+    if (!mongoose.isValidObjectId(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 function dateActiveFilter(now = new Date()) {
   return {
     estatus: 'activo',
@@ -236,9 +251,7 @@ export async function listPromos(req, res) {
       .sort({ destacada: -1, termina_en: 1 })
       .limit(100)
       .lean();
-    const empresaIds = [
-      ...new Set(promos.map((p) => String(p.id_empresa)).filter(Boolean)),
-    ];
+    const empresaIds = validObjectIds(promos.map((p) => p.id_empresa));
     const empresas = empresaIds.length
       ? await Empresa.find({ _id: { $in: empresaIds } }).lean()
       : [];
@@ -260,7 +273,7 @@ export async function listPromos(req, res) {
       },
       emptyReason:
         mapped.length === 0
-          ? 'Sin promociones oficiales guardadas aún. El recolector corre en segundo plano; vuelve en unos minutos o usa Cerca con GPS.'
+          ? 'Aún no hay ofertas disponibles. Prueba más tarde o mira Cerca.'
           : null,
     });
   } catch (e) {
@@ -279,10 +292,10 @@ export async function nearbyPromos(req, res) {
     if (!geo.ok) {
       return res.status(geo.status || 400).json({ message: geo.message });
     }
-    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 2000);
     if (maxMeters == null) {
       return res.status(400).json({
-        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2000/2500/5000/8000)',
       });
     }
 
@@ -419,10 +432,10 @@ export async function nearBranches(req, res) {
     if (!geo.ok) {
       return res.status(geo.status || 400).json({ message: geo.message });
     }
-    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 2000);
     if (maxMeters == null) {
       return res.status(400).json({
-        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2000/2500/5000/8000)',
       });
     }
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
@@ -442,8 +455,17 @@ export async function nearBranches(req, res) {
       partial: discovery.partial,
       branches: mapped,
       ubicaciones: mapped,
-      source: discovery.stale ? 'openstreetmap-cache-stale' : discovery.cached ? 'openstreetmap-cache' : 'openstreetmap',
-      attribution: '© OpenStreetMap contributors',
+      source:
+        discovery.source ||
+        (discovery.stale
+          ? 'openstreetmap-cache-stale'
+          : discovery.cached
+            ? 'openstreetmap-cache'
+            : 'openstreetmap'),
+      attribution:
+        discovery.source === 'catalog'
+          ? 'Catálogo TraGo (OpenStreetMap temporalmente no disponible)'
+          : '© OpenStreetMap contributors',
       attributionUrl: 'https://www.openstreetmap.org/copyright',
       officialBrandsSupported: officialSourceSlugs(),
     });

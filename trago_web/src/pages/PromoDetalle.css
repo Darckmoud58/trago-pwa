@@ -1,0 +1,309 @@
+.promo-detail {
+  --detail-surface: var(--surface);
+  --detail-ink: var(--fg);
+  --detail-muted: var(--fg-soft);
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 0.15rem 0 0.75rem;
+  box-sizing: border-box;
+}
+
+html[data-theme='night'] .promo-detail {
+  --detail-surface: #2e0a12;
+  --detail-ink: #f7e5b5;
+  --detail-muted: rgba(247, 229, 181, 0.78);
+}
+
+.detail-stage {
+  position: relative;
+  margin: 0;
+}
+
+.detail-cover {
+  position: relative;
+  height: clamp(200px, 48vw, 280px);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #1a060a;
+  box-shadow: var(--shadow);
+}
+
+.detail-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(5, 2, 3, 0.72) 0%,
+    rgba(5, 2, 3, 0.12) 48%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.detail-cover-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #3b0b13, #5c1822);
+}
+
+.detail-cover-fallback span {
+  font-family: var(--display);
+  font-size: 2.4rem;
+  color: #f7e5b5;
+  letter-spacing: 0.04em;
+}
+
+.detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.detail-head h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 5.5vw, 1.9rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--detail-ink);
+}
+
+.detail-head .lead {
+  margin: 0;
+  color: var(--detail-muted);
+  max-width: 40rem;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.detail-tags .tag {
+  background: color-mix(in srgb, var(--detail-ink) 10%, transparent);
+  color: var(--detail-ink);
+}
+
+.detail-tags .tag.accent {
+  background: var(--rojo);
+  color: #f7e5b5;
+}
+
+.detail-tags .tag.warn {
+  background: color-mix(in srgb, var(--rojo) 18%, transparent);
+  color: var(--danger);
+}
+
+/* Métricas — siempre tema, nunca beige duro en noche */
+.detail-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.detail-fact {
+  text-align: left;
+  padding: 0.85rem 0.9rem;
+  border-radius: 1rem;
+  background: var(--detail-surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  color: var(--detail-ink);
+}
+
+.detail-fact .label {
+  margin: 0 0 0.25rem;
+  color: var(--detail-muted);
+}
+
+.detail-fact-value {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--detail-ink);
+  letter-spacing: -0.02em;
+}
+
+html[data-theme='night'] .detail-fact {
+  background: linear-gradient(160deg, #451018 0%, #2a0810 100%) !important;
+  border-color: rgba(247, 229, 181, 0.16) !important;
+  color: #f7e5b5 !important;
+}
+
+html[data-theme='night'] .detail-fact .label,
+html[data-theme='night'] .detail-fact-value {
+  color: #f7e5b5 !important;
+}
+
+html[data-theme='night'] .detail-fact .label {
+  color: rgba(247, 229, 181, 0.72) !important;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: stretch;
+}
+
+.detail-actions .btn {
+  flex: 1 1 auto;
+  min-width: min(100%, 10rem);
+}
+
+@media (min-width: 900px) {
+  .promo-detail {
+    padding: 0.35rem 0 1rem;
+  }
+
+  .detail-cover {
+    height: 280px;
+  }
+
+  .detail-head h1 {
+    font-size: 1.75rem;
+  }
+}
+
+.detail-panel {
+  padding: 1rem 1.05rem;
+  border-radius: 1.1rem;
+  border: 1px solid var(--line);
+  background: var(--detail-surface);
+  box-shadow: var(--shadow);
+  color: var(--detail-ink);
+}
+
+.detail-panel .label,
+.detail-panel summary.label {
+  color: var(--detail-muted);
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.detail-panel summary.label::-webkit-details-marker {
+  display: none;
+}
+
+.detail-panel summary.label::after {
+  content: ' ›';
+  opacity: 0.7;
+}
+
+.detail-panel[open] summary.label::after {
+  content: ' ˅';
+}
+
+.detail-policies p {
+  margin: 0.55rem 0 0;
+}
+
+.detail-panel p {
+  margin: 0;
+  color: var(--detail-ink);
+  line-height: 1.45;
+}
+
+html[data-theme='night'] .detail-panel {
+  background: linear-gradient(160deg, #451018 0%, #2a0810 100%) !important;
+  border-color: rgba(247, 229, 181, 0.16) !important;
+}
+
+html[data-theme='night'] .detail-panel p,
+html[data-theme='night'] .detail-panel h2,
+html[data-theme='night'] .detail-panel h3 {
+  color: #f7e5b5 !important;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.detail-section h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--detail-ink);
+}
+
+.detail-branch-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.detail-branch {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.95rem 1rem;
+  border-radius: 1.05rem;
+  border: 1px solid var(--line);
+  background: var(--detail-surface);
+  box-shadow: var(--shadow);
+  color: var(--detail-ink);
+}
+
+.detail-branch h3 {
+  margin: 0.05rem 0;
+  font-size: 1.05rem;
+  color: var(--detail-ink);
+}
+
+.detail-branch .meta,
+.detail-branch .label {
+  color: var(--detail-muted);
+}
+
+.detail-dist {
+  display: inline-flex;
+  align-self: start;
+  margin-top: 0.2rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--rojo) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rojo) 28%, transparent);
+  color: var(--detail-ink);
+}
+
+html[data-theme='night'] .detail-branch {
+  background: linear-gradient(160deg, #451018 0%, #2a0810 100%) !important;
+  border-color: rgba(247, 229, 181, 0.16) !important;
+}
+
+html[data-theme='night'] .detail-branch h3,
+html[data-theme='night'] .detail-dist {
+  color: #f7e5b5 !important;
+}
+
+.detail-loading {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detail-loading .ui-skeleton {
+  height: 10rem;
+}
+
+.detail-loading .ui-skeleton.sm {
+  height: 3.2rem;
+}
