@@ -19,19 +19,22 @@ URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md) · Prompt: [`PROMPT-LEER-PRS.md`]
 | #9 | `cursor/seguridad-p1-e557` | Seguridad P1 (JWT, helmet, CORS, zod) | no |
 | #10 | `cursor/seguridad-p7-ci-e557` | CI, Dependabot, seed seguro | no |
 | #11 | `cursor/seguridad-r1-age-cookie-e557` | Gate 18+ cookie firmada (cierra R-01) | no |
+| #12 | `cursor/seguridad-r2-limits-e557` | Rate limit Mongo + job Netlify + /cerca MX | no |
+| #13 | `cursor/web-push-vapid-e557` | Web Push / VAPID (paridad Todo_pwa) | no |
+| #14 | `cursor/seguridad-r3-metricas-e557` | **R3** métricas anti-contaminación | no |
 
 ## Seguridad — revisión Claude post-PRs
 
 | Hallazgo | Estado |
 |----------|--------|
 | R-01 Gate saltable con header/`?band=` | **#11** cookie `age_ok` firmada; anon no ve alcohol |
-| R-02 P2 rate limit + job Netlify | **R2** Mongo rate limit + Scheduled Function + /cerca México |
-| R-03 Métricas contaminables / lat | abierto |
+| R-02 P2 rate limit + job Netlify | **#12** Mongo rate limit + Scheduled Function + /cerca México |
+| R-03 Métricas contaminables / lat | **#14** gps_ok MX + dedupe 24h + rate limit + strip empresaId |
 | R-04 Flag auto-verify + seed | parcial en #10 (seed); falta audit_log / flag prod |
 | R-05 P6 CSP/SW + zip gitignore | parcial (#10 CI); falta P6 |
 | S-01 JWT changeme | cerrado en #9 |
 
-**Siguiente:** R3 (métricas) · R4 (cadena/audit) · R5/P6 (CSP/SW).
+**Siguiente:** R4 (cadena/audit) · R5/P6 (CSP/SW).
 
 ## Operativo (humano)
 

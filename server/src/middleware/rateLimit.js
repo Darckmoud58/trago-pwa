@@ -72,4 +72,6 @@ export const LIMITS = {
   cerca: { max: 20, windowMs: 60 * 1000 },
   api: { max: 120, windowMs: 60 * 1000 },
   vote: { max: 12, windowMs: 60 * 60 * 1000 },
+  /** Beacon métricas: anti-flood R-03 (por IP). */
+  metrics: { max: 30, windowMs: 60 * 1000 },
 };

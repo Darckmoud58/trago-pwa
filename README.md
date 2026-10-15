@@ -159,11 +159,12 @@ PRs para Claude: `docs/claude-project/PRS-EN-GITHUB.md` · prompt `PROMPT-LEER-P
 - Auth recalcula edad desde `fecha_nacimiento` y pone `band` en el JWT.
 - Front: diálogo de declaración + interceptor que envía `X-Trago-Band`.
 
-## Métrica norte (#6)
+## Métrica norte (#6 + R3)
 
-Definición: **sesiones con `gps_ok` × `promo_open` × `sucursal_vista`** (no likes).
+Definición: **sesiones con `gps_ok` (coords MX) × `promo_open` × `sucursal_vista`** (no likes).
 
-- `POST /api/metricas/eventos` — beacon público (auth opcional); batch hasta 40.
+- `POST /api/metricas/eventos` — beacon público (auth opcional); batch hasta 40; rate limit 30/min/IP.
+- **R3:** `gps_ok` exige lat/lng en México; se ignora `empresaId` del cliente; dedupe 24h por sesión×tipo×promo×sucursal; la agregación norte solo cuenta GPS con coords MX.
 - `GET /api/metricas/norte?days=7` — agregado global (JWT).
 - `GET /api/metricas/cadena?days=7` — filtrado por empresa del dueño.
 - Front: `trago_web/src/lib/metrics.ts` instrumenta Cerca (GPS) y detalle (promo + sucursales).

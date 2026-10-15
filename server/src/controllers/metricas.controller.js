@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
 import EventoMetrica, { METRICA_EVENT_TYPES } from '../models/EventoMetrica.js';
 import Promocion from '../models/Promocion.js';
+import {
+  gpsOkMatchExtra,
+  validateMetricEvent,
+} from '../lib/metricasValidate.js';
 
 const MAX_BATCH = 40;
+/** Ventana de dedupe servidor: un mismo evento clave no se reinserta. */
+const DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function parseDays(raw) {
   const n = Number(raw || 7);
@@ -18,12 +24,18 @@ async function aggregateNorthStar({ since, empresaId = null }) {
   const match = { createdAt: { $gte: since } };
   if (empresaId) match.id_empresa = new mongoose.Types.ObjectId(String(empresaId));
 
+  const gpsMatch = {
+    ...match,
+    tipo: 'gps_ok',
+    ...gpsOkMatchExtra(),
+  };
+
   const [byType, sessionsGps, sessionsPromo, sessionsBranch] = await Promise.all([
     EventoMetrica.aggregate([
       { $match: match },
       { $group: { _id: '$tipo', count: { $sum: 1 } } },
     ]),
-    EventoMetrica.distinct('sessionId', { ...match, tipo: 'gps_ok' }),
+    EventoMetrica.distinct('sessionId', gpsMatch),
     EventoMetrica.distinct('sessionId', { ...match, tipo: 'promo_open' }),
     EventoMetrica.distinct('sessionId', { ...match, tipo: 'sucursal_vista' }),
   ]);
@@ -37,9 +49,7 @@ async function aggregateNorthStar({ since, empresaId = null }) {
     if (promoSet.has(sid) && branchSet.has(sid)) northStarSessions += 1;
   }
 
-  const counts = Object.fromEntries(
-    METRICA_EVENT_TYPES.map((t) => [t, 0])
-  );
+  const counts = Object.fromEntries(METRICA_EVENT_TYPES.map((t) => [t, 0]));
   for (const row of byType) {
     if (row._id in counts) counts[row._id] = row.count;
   }
@@ -76,7 +86,7 @@ async function aggregateNorthStar({ since, empresaId = null }) {
             ) / 10,
     },
     definition:
-      'Métrica norte = sesiones distintas con gps_ok + promo_open + sucursal_vista (no likes).',
+      'Métrica norte = sesiones distintas con gps_ok (coords MX) + promo_open + sucursal_vista (no likes).',
   };
 }
 
@@ -113,48 +123,79 @@ export async function postEvents(req, res) {
       }
     }
 
-    const docs = [];
+    const validated = [];
+    let rejected = 0;
     for (const ev of raw) {
-      const tipo = String(ev.tipo || '').trim();
-      if (!METRICA_EVENT_TYPES.includes(tipo)) continue;
-      const sessionId = String(ev.sessionId || '').trim().slice(0, 80);
-      if (!sessionId) continue;
-
-      let id_promo = null;
-      let id_ubicacion = null;
-      let id_empresa = ev.empresaId || ev.id_empresa || null;
-
-      if (ev.promoId && mongoose.isValidObjectId(ev.promoId)) {
-        id_promo = ev.promoId;
-        if (!id_empresa) id_empresa = promoEmpresa[String(ev.promoId)] || null;
+      const result = validateMetricEvent(ev, { promoEmpresa });
+      if (!result.ok) {
+        rejected += 1;
+        continue;
       }
-      if (ev.ubicacionId && mongoose.isValidObjectId(ev.ubicacionId)) {
-        id_ubicacion = ev.ubicacionId;
+      validated.push(result.doc);
+    }
+
+    if (!validated.length) {
+      return res.status(400).json({
+        message: 'Ningún evento válido',
+        rejected,
+      });
+    }
+
+    // Dedupe en ventana 24h (anti-contaminación de la norte).
+    const sinceDedupe = new Date(Date.now() - DEDUPE_WINDOW_MS);
+    const existing = await EventoMetrica.find({
+      createdAt: { $gte: sinceDedupe },
+      sessionId: { $in: [...new Set(validated.map((d) => d.sessionId))] },
+      tipo: { $in: [...new Set(validated.map((d) => d.tipo))] },
+    })
+      .select('sessionId tipo id_promo id_ubicacion')
+      .lean();
+
+    const seen = new Set(
+      existing.map(
+        (e) =>
+          `${e.sessionId}|${e.tipo}|${e.id_promo || ''}|${e.id_ubicacion || ''}`
+      )
+    );
+
+    const docs = [];
+    const batchSeen = new Set();
+    for (const d of validated) {
+      if (seen.has(d.dedupeKey) || batchSeen.has(d.dedupeKey)) {
+        rejected += 1;
+        continue;
       }
-
-      const lat = Number(ev.lat);
-      const lng = Number(ev.lng ?? ev.long);
-
+      batchSeen.add(d.dedupeKey);
+      seen.add(d.dedupeKey);
       docs.push({
-        tipo,
-        sessionId,
+        tipo: d.tipo,
+        sessionId: d.sessionId,
         id_usuario: req.userId || null,
-        id_promo,
-        id_ubicacion,
-        id_empresa: mongoose.isValidObjectId(id_empresa) ? id_empresa : null,
-        lat: Number.isFinite(lat) ? lat : null,
-        lng: Number.isFinite(lng) ? lng : null,
-        path: String(ev.path || '').slice(0, 200),
-        meta: typeof ev.meta === 'object' && ev.meta ? ev.meta : {},
+        id_promo: d.id_promo,
+        id_ubicacion: d.id_ubicacion,
+        id_empresa: d.id_empresa,
+        lat: d.lat,
+        lng: d.lng,
+        path: d.path,
+        meta: d.meta,
       });
     }
 
     if (!docs.length) {
-      return res.status(400).json({ message: 'Ningún evento válido' });
+      return res.status(200).json({
+        ok: true,
+        accepted: 0,
+        rejected,
+        deduped: true,
+      });
     }
 
     await EventoMetrica.insertMany(docs, { ordered: false });
-    return res.status(201).json({ ok: true, accepted: docs.length });
+    return res.status(201).json({
+      ok: true,
+      accepted: docs.length,
+      rejected,
+    });
   } catch (e) {
     console.error('postEvents:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
