@@ -50,14 +50,33 @@ export function verifyAgeDeclaration(token) {
 
 export function ageCookieOptions() {
   const secure =
-    process.env.NODE_ENV === 'production' || process.env.NETLIFY === 'true';
+    process.env.NODE_ENV === 'production' ||
+    process.env.NETLIFY === 'true' ||
+    process.env.CONTEXT === 'production';
+  // Netlify Function (mismo origen vía /api): Lax basta.
+  // Cross-site (front y API en hosts distintos) necesita None+Secure.
+  const crossSite = process.env.AGE_COOKIE_SAMESITE === 'none';
   return {
     httpOnly: true,
-    secure,
-    sameSite: 'lax',
+    secure: crossSite ? true : secure,
+    sameSite: crossSite ? 'none' : 'lax',
     maxAge: COOKIE_MAX_AGE_SEC * 1000,
     path: '/',
   };
+}
+
+/** Header Set-Cookie explícito (serverless a veces pierde res.cookie). */
+export function ageSetCookieHeader(token) {
+  const opts = ageCookieOptions();
+  const parts = [
+    `${AGE_COOKIE}=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    `Max-Age=${COOKIE_MAX_AGE_SEC}`,
+    `SameSite=${opts.sameSite === 'none' ? 'None' : 'Lax'}`,
+  ];
+  if (opts.secure) parts.push('Secure');
+  return parts.join('; ');
 }
 
 export function readAgeBandFromRequest(req) {

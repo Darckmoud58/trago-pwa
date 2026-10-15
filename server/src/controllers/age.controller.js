@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   AGE_COOKIE,
   ageCookieOptions,
+  ageSetCookieHeader,
   readAgeBandFromRequest,
   signAgeDeclaration,
 } from '../lib/ageCookie.js';
@@ -30,6 +31,9 @@ export async function declareAge(req, res) {
   const band = parsed.data.adult ? 'adult' : 'teen';
   const token = signAgeDeclaration(band);
   res.cookie(AGE_COOKIE, token, ageCookieOptions());
+  // Refuerzo para Netlify/serverless-http
+  res.setHeader('Set-Cookie', ageSetCookieHeader(token));
+  res.setHeader('Cache-Control', 'no-store');
 
   return res.json({
     ok: true,

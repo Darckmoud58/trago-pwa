@@ -1,7 +1,8 @@
 .age-gate {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  /* Debajo del pageload (9999); solo se monta cuando el loading terminó */
+  z-index: 90;
   display: grid;
   place-items: center;
   padding: 1.25rem;
@@ -9,6 +10,7 @@
     radial-gradient(circle at 20% 10%, rgba(180, 40, 55, 0.35), transparent 45%),
     rgba(18, 8, 10, 0.72);
   backdrop-filter: blur(4px);
+  pointer-events: auto;
 }
 
 .age-gate-panel {
@@ -51,4 +53,15 @@ html[data-theme='night'] .age-gate-panel {
   margin: 0.85rem 0 0;
   font-size: 0.78rem;
   opacity: 0.75;
+}
+
+.age-gate-error {
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
+}
+
+.age-gate-actions .btn {
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }

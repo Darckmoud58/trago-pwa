@@ -83,6 +83,11 @@ export default function PageLoadOverlay() {
           /* ignore */
         }
       }
+      // El gate 18+ espera esto para no tapar el loading
+      (
+        window as Window & { __tragoPageloadDone?: boolean }
+      ).__tragoPageloadDone = true;
+      window.dispatchEvent(new CustomEvent('trago:pageload-done'));
     }, FADE_MS);
   }
 

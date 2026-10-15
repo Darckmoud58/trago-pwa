@@ -66,6 +66,11 @@ const messages = {
       'TraGo muestra alcohol y nocturno solo a mayores de 18. Es una declaración (no verificación de identidad); el servidor la guarda en una cookie firmada.',
     ageGateAdult: 'Sí, soy mayor de 18',
     ageGateTeen: 'Tengo entre 13 y 17',
+    ageGateSaving: 'Guardando…',
+    ageGateError:
+      'No pudimos guardar tu declaración. Revisa la conexión e inténtalo de nuevo.',
+    ageGateErrorApi:
+      'El servidor no respondió. Si estás en local, asegúrate de que la API esté en marcha.',
     ageGateNote:
       'Al iniciar sesión, tu fecha de nacimiento manda. Una cuenta 13–17 nunca ve alcohol aunque declares lo contrario.',
     ageDialog: 'Aviso de edad',
@@ -410,6 +415,11 @@ const messages = {
       'TraGo shows alcohol and nightlife only to ages 18+. This is a declaration (not identity verification); the server stores it in a signed cookie.',
     ageGateAdult: 'Yes, I am 18+',
     ageGateTeen: 'I am 13–17',
+    ageGateSaving: 'Saving…',
+    ageGateError:
+      'We couldn’t save your declaration. Check your connection and try again.',
+    ageGateErrorApi:
+      'The server didn’t respond. If you’re local, make sure the API is running.',
     ageGateNote:
       'When you sign in, your birth date wins. A 13–17 account never sees alcohol even if a cookie says otherwise.',
     ageDialog: 'Age notice',
