@@ -51,6 +51,11 @@ const messages = {
     settingsNear: 'Cerca de ti',
     settingsNotif: 'Notificaciones',
     settingsSoon: 'Próximamente',
+    settingsNotifEnable: 'Activar avisos',
+    settingsNotifBusy: 'Activando…',
+    settingsNotifOk:
+      'Listo. Te avisamos el día de tu cumple aunque TraGo esté cerrado.',
+    settingsNotifFail: 'No se pudo activar el push. Prueba en Chrome/Edge con HTTPS o localhost.',
     settingsPrivacy: 'Privacidad',
     settingsTerms: 'Términos',
     logout: 'Cerrar sesión',
@@ -379,6 +384,12 @@ const messages = {
     settingsNear: 'Near you',
     settingsNotif: 'Notifications',
     settingsSoon: 'Coming soon',
+    settingsNotifEnable: 'Enable alerts',
+    settingsNotifBusy: 'Enabling…',
+    settingsNotifOk:
+      'Done. We’ll notify you on your birthday even if TraGo is closed.',
+    settingsNotifFail:
+      'Couldn’t enable push. Try Chrome/Edge with HTTPS or localhost.',
     settingsPrivacy: 'Privacy',
     settingsTerms: 'Terms',
     logout: 'Sign out',

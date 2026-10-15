@@ -4,6 +4,7 @@ import { api, setAuth } from '../api';
 import { setAgeBand, type AgeBand } from '../lib/ageBand';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
+import { enableWebPush, pushSupported } from '../lib/pushSubscribe';
 import type { AuthUser } from '../types';
 import './Cuenta.css';
 
@@ -24,6 +25,9 @@ export default function Cuenta() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNote, setPushNote] = useState<string | null>(null);
+  const canPush = pushSupported();
 
   useEffect(() => {
     if (!token) return;
@@ -132,10 +136,31 @@ export default function Cuenta() {
               <span>{t('settingsNear')}</span>
               <em>›</em>
             </Link>
-            <div className="settings-row is-static">
-              <span>{t('settingsNotif')}</span>
-              <em className="soon">{t('settingsSoon')}</em>
-            </div>
+            {canPush ? (
+              <button
+                type="button"
+                className="settings-row"
+                disabled={pushBusy}
+                onClick={() => {
+                  setPushBusy(true);
+                  setPushNote(null);
+                  void enableWebPush()
+                    .then((r) => {
+                      setPushNote(r.ok ? t('settingsNotifOk') : r.message);
+                    })
+                    .catch(() => setPushNote(t('settingsNotifFail')))
+                    .finally(() => setPushBusy(false));
+                }}
+              >
+                <span>{t('settingsNotif')}</span>
+                <em>{pushBusy ? t('settingsNotifBusy') : t('settingsNotifEnable')}</em>
+              </button>
+            ) : (
+              <div className="settings-row is-static">
+                <span>{t('settingsNotif')}</span>
+                <em className="soon">{t('settingsSoon')}</em>
+              </div>
+            )}
             <Link className="settings-row" to="/aviso-de-privacidad">
               <span>{t('settingsPrivacy')}</span>
               <em>›</em>
@@ -145,6 +170,8 @@ export default function Cuenta() {
               <em>›</em>
             </Link>
           </nav>
+
+          {pushNote && <aside className="cuenta-note">{pushNote}</aside>}
 
           {band === 'teen' && (
             <aside className="cuenta-note">{t('teenNote')}</aside>
