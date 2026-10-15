@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
+import { setAgeBand, type AgeBand } from '../lib/ageBand';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
+import { enableWebPush, pushSupported } from '../lib/pushSubscribe';
 import type { AuthUser } from '../types';
 import './Cuenta.css';
 
@@ -23,6 +25,9 @@ export default function Cuenta() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushNote, setPushNote] = useState<string | null>(null);
+  const canPush = pushSupported();
 
   useEffect(() => {
     if (!token) return;
@@ -33,11 +38,10 @@ export default function Cuenta() {
         const u = res.data.user as AuthUser;
         setUser(u);
         const b = u?.band || u?.age?.band;
-        if (b) localStorage.setItem('trago_band', b);
+        if (b === 'teen' || b === 'adult') setAgeBand(b as AgeBand);
       })
       .catch(() => {
         localStorage.removeItem('token');
-        localStorage.removeItem('trago_band');
         setAuth(null);
         setError(t('sessionInvalid'));
       });
@@ -70,7 +74,6 @@ export default function Cuenta() {
 
   function logout() {
     localStorage.removeItem('token');
-    localStorage.removeItem('trago_band');
     setAuth(null);
     navigate('/entrar', { replace: true });
   }
@@ -121,6 +124,10 @@ export default function Cuenta() {
               <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>
             </Link>
+            <Link className="settings-row" to="/cadena">
+              <span>{t('titleChain')}</span>
+              <em>›</em>
+            </Link>
             <Link className="settings-row" to="/promos">
               <span>{t('settingsPromos')}</span>
               <em>›</em>
@@ -129,10 +136,31 @@ export default function Cuenta() {
               <span>{t('settingsNear')}</span>
               <em>›</em>
             </Link>
-            <div className="settings-row is-static">
-              <span>{t('settingsNotif')}</span>
-              <em className="soon">{t('settingsSoon')}</em>
-            </div>
+            {canPush ? (
+              <button
+                type="button"
+                className="settings-row"
+                disabled={pushBusy}
+                onClick={() => {
+                  setPushBusy(true);
+                  setPushNote(null);
+                  void enableWebPush()
+                    .then((r) => {
+                      setPushNote(r.ok ? t('settingsNotifOk') : r.message);
+                    })
+                    .catch(() => setPushNote(t('settingsNotifFail')))
+                    .finally(() => setPushBusy(false));
+                }}
+              >
+                <span>{t('settingsNotif')}</span>
+                <em>{pushBusy ? t('settingsNotifBusy') : t('settingsNotifEnable')}</em>
+              </button>
+            ) : (
+              <div className="settings-row is-static">
+                <span>{t('settingsNotif')}</span>
+                <em className="soon">{t('settingsSoon')}</em>
+              </div>
+            )}
             <Link className="settings-row" to="/aviso-de-privacidad">
               <span>{t('settingsPrivacy')}</span>
               <em>›</em>
@@ -142,6 +170,8 @@ export default function Cuenta() {
               <em>›</em>
             </Link>
           </nav>
+
+          {pushNote && <aside className="cuenta-note">{pushNote}</aside>}
 
           {band === 'teen' && (
             <aside className="cuenta-note">{t('teenNote')}</aside>

@@ -25,6 +25,9 @@ web_next_legacy/.next/
 .DS_Store
 *.pem
 
+# Generar con: bash scripts/pack-claude-context.sh
+docs/claude-project/trago-claude-context.zip
+
 # debug
 npm-debug.log*
 yarn-debug.log*

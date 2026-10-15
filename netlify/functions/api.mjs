@@ -1,6 +1,17 @@
+import dotenv from 'dotenv';
 import serverless from 'serverless-http';
+import { requireEnv } from '../../server/src/config/env.js';
 import { createApp } from '../../server/src/app.js';
 import { connectDB } from '../../server/src/db/connect.js';
+
+dotenv.config();
+
+try {
+  requireEnv();
+} catch (e) {
+  console.error(e.message);
+  throw e;
+}
 
 const app = createApp();
 const awsHandler = serverless(app);

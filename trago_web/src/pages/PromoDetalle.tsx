@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api } from '../api';
 import ValidityVote from '../components/ValidityVote';
+import { getAgeBand } from '../lib/ageBand';
 import { useI18n } from '../lib/i18n';
+import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 
@@ -11,28 +13,95 @@ export default function PromoDetalle() {
   const { t, locale } = useI18n();
   const [promo, setPromo] = useState<Promo | null>(null);
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
+  const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [ageBlocked, setAgeBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const band = localStorage.getItem('trago_band');
-  const isTeen = band === 'teen';
+  const isTeen = getAgeBand() === 'teen';
 
   useEffect(() => {
     if (!promoId) return;
     setLoading(true);
-    api
-      .get(`/api/promociones/${promoId}`)
-      .then((res) => {
-        setPromo(res.data.promo);
-        setUbicaciones(res.data.ubicaciones ?? []);
-      })
-      .catch(() => setError(t('promoMissing')))
-      .finally(() => setLoading(false));
+    setAgeBlocked(false);
+    setError('');
+
+    const onFail = (err: unknown) => {
+      const status = (err as { response?: { status?: number; data?: { code?: string } } })
+        ?.response?.status;
+      const code = (err as { response?: { data?: { code?: string } } })?.response
+        ?.data?.code;
+      if (status === 403 && code === 'AGE_RESTRICTED') {
+        setAgeBlocked(true);
+        setPromo(null);
+        return;
+      }
+      setError(t('promoMissing'));
+    };
+
+    const load = (lat?: number, lng?: number) => {
+      const params =
+        lat != null && lng != null ? { params: { lat, lng } } : undefined;
+      return api
+        .get(`/api/promociones/${promoId}`, params)
+        .then((res) => {
+          const p = res.data.promo as Promo;
+          const ubis = (res.data.sucursalesParticipantes ??
+            res.data.ubicaciones ??
+            []) as Branch[];
+          setPromo(p);
+          setUbicaciones(ubis);
+          setVinculoMsg(res.data.vinculoSucursales?.mensaje || null);
+          if (p?._id) {
+            void trackPromoOpen(p._id, p.chainId ? String(p.chainId) : undefined);
+            for (const u of ubis) {
+              if (u._id) {
+                void trackSucursalVista(
+                  p._id,
+                  u._id,
+                  p.chainId ? String(p.chainId) : undefined
+                );
+              }
+            }
+          }
+        });
+    };
+
+    const finish = () => setLoading(false);
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          void load(pos.coords.latitude, pos.coords.longitude)
+            .catch(onFail)
+            .finally(finish);
+        },
+        () => {
+          void load().catch(onFail).finally(finish);
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+      );
+    } else {
+      void load().catch(onFail).finally(finish);
+    }
   }, [promoId, t]);
 
   if (loading) {
     return (
       <section className="promos-page">
         <p className="muted">{t('loadingPromo')}</p>
+      </section>
+    );
+  }
+
+  if (ageBlocked || (isTeen && !promo && !error)) {
+    return (
+      <section className="promos-page">
+        <aside className="promos-note">
+          {t('promo18Only')} <Link to="/terminos">{t('seeTerms')}</Link>
+        </aside>
+        <Link className="btn ghost" to="/promos">
+          {t('backToPromos')}
+        </Link>
       </section>
     );
   }
@@ -56,7 +125,7 @@ export default function PromoDetalle() {
       promo.nocturno ||
       promo.isNocturno);
 
-  if (blocked) {
+  if (blocked || ageBlocked) {
     return (
       <section className="promos-page">
         <aside className="promos-note">
@@ -143,8 +212,9 @@ export default function PromoDetalle() {
 
       <article className="detail-block">
         <h2>{t('whereApplies')}</h2>
+        {vinculoMsg && <p className="meta">{vinculoMsg}</p>}
         {ubicaciones.length === 0 ? (
-          <p className="muted">{t('noBranches')}</p>
+          <p className="muted">{t('noBranchesLinked')}</p>
         ) : (
           <ul className="branch-list">
             {ubicaciones.map((u) => {
@@ -163,6 +233,14 @@ export default function PromoDetalle() {
                     </p>
                   )}
                   {u.hours && <p className="meta">{u.hours}</p>}
+                  {typeof u.distanceMeters === 'number' && (
+                    <p className="meta">
+                      {t('branchDistance').replace(
+                        '{m}',
+                        String(Math.round(u.distanceMeters))
+                      )}
+                    </p>
+                  )}
                   {canVote && u.officialActive !== false ? (
                     <ValidityVote
                       promoId={promo._id}

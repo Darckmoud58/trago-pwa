@@ -76,8 +76,7 @@ export default function Promos() {
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'))
   );
-  const band = localStorage.getItem('trago_band');
-  const isTeen = band === 'teen';
+  const isTeen = localStorage.getItem('trago_band') === 'teen';
 
   useEffect(() => {
     setFilter(parseFilter(searchParams.get('f')));

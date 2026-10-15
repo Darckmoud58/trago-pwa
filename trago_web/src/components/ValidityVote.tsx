@@ -193,6 +193,11 @@ export default function ValidityVote({
       {(error || geoError) && (
         <p className="validity-error">{error || geoError}</p>
       )}
+      {(crowd === 'en_duda' ||
+        crowd === 'en-duda' ||
+        crowd === 'caduco') && (
+        <p className="validity-geo">{t('voteModerationNote')}</p>
+      )}
     </div>
   );
 }

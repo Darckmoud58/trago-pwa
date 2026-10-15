@@ -1,0 +1,34 @@
+---
+description: Visión, límites y anti-patrones de producto TraGo (siempre activa)
+alwaysApply: true
+---
+
+# TraGo — visión de producto
+
+**Tesis:** TraGo vende certeza — qué promo sigue vigente, en cuál local, a cuántos metros.
+
+**Fórmula:** `promo oficial × sucursales participantes × GPS × verdad de piso (voto)`.
+
+Fuente comercial: `docs/PITCH-TRAGO.md`. Stack y arranque: `README.md`.
+
+## Dual market
+
+- **Demanda:** cazador de promo / grupo que sale / comprador de destilado — no moverse de balde.
+- **Oferta:** cadena, licorería, antro, marca — aparecer cerca con vigencia real; no clics huecos.
+- **No es:** directorio de lugares, delivery, feed social, marketplace de alcohol.
+
+## Promesas al construir
+
+- Oficial + local + vivo. La promo es el producto.
+- PWA (Vite + Express). No revivir Next como app principal (`web_next_legacy/` solo referencia).
+- Código ancla **GDL**; pitch comercial puede hablar CDMX.
+- Alcohol: información de promo, gate/copy **18+**. No vender alcohol.
+- Catálogo público: solo `origen: oficial`. Si no hay lectura legible, no inventar ofertas.
+- GPS fallido: informar y permitir demo explícito; nunca sustituir ubicación en silencio.
+- Métrica norte: **GPS × promo abierta × sucursal vista** (no likes).
+
+## Anti-patrones
+
+- Convertir TraGo en “lugares bonitos” o scraper genérico.
+- Inventar promos, inventario o sucursal de aplicación.
+- Priorizar engagement vacío sobre pies en la puerta / vigencia por local.

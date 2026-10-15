@@ -93,7 +93,7 @@ El monolitico Next quedó en `web_next_legacy/` solo como referencia. El flujo d
 
 ## Recolección de promociones cercanas
 
-`GET /api/sucursales/cerca?lng=...&lat=...&maxMeters=8000` consulta lugares registrados en OpenStreetMap alrededor de las coordenadas recibidas: bares y sitios de comida hasta el radio solicitado, además de tiendas dentro de 2 km para mantener la consulta rápida. La pantalla **Cerca** obtiene el GPS del navegador; si falla, informa el problema y permite abrir explícitamente la zona Demo Centro GDL. No reemplaza la ubicación fallida con Guadalajara sin avisar. Los resultados se cachean 15 minutos y no se agregan al catálogo permanente de sucursales. La cobertura depende de los negocios registrados en OpenStreetMap y no garantiza encontrar todos los establecimientos. Los resultados muestran atribución y enlace de OpenStreetMap.
+`GET /api/sucursales/cerca?lng=...&lat=...&maxMeters=8000` consulta lugares registrados en OpenStreetMap alrededor de las coordenadas recibidas: bares y sitios de comida hasta el radio solicitado, además de tiendas dentro de 2 km para mantener la consulta rápida. La pantalla **Cerca** pide el GPS al entrar y carga el radio (~8 km) en automático; si falla el permiso, muestra error y “Reintentar ubicación” (sin fallback silencioso a Guadalajara). Los resultados se cachean 15 minutos y no se agregan al catálogo permanente de sucursales. La cobertura depende de los negocios registrados en OpenStreetMap y no garantiza encontrar todos los establecimientos. Los resultados muestran atribución y enlace de OpenStreetMap.
 
 `GET /api/promociones/cerca?lng=...&lat=...&maxMeters=8000` descubre primero lugares en el radio. Solo cuando un lugar se puede asociar con una empresa conocida consulta sus páginas oficiales configuradas e importa resultados en MongoDB (`origen: oficial`, `url_fuente`). Muestra sucursales OSM cercanas de esa empresa; la página oficial puede no especificar en cuál sucursal aplica.
 
@@ -102,6 +102,97 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 ## Voto de vigencia en piso
 
 `POST /api/reportes` (JWT) con `{ promoId, ubicacionId, stillValid, lat, lng }` exige estar a ≤400 m de la sucursal. Actualiza contadores en `promo_ubicaciones` y nunca toca `activa_oficial`. `GET /api/reportes?promoId=&ubicacionId=` devuelve el voto propio. En el detalle de promo, cada sucursal ligada muestra “Sigue vigente” / “Ya no aplica”.
+
+## Promo ↔ sucursales (sin inventar)
+
+- Vínculos solo en `promo_ubicaciones` (`origen_vinculo`: `empresa` | `fuente` | `manual`).
+- Scrapers **no** asignan todas las tiendas de la marca: solo si el texto oficial nombra una sucursal ya conocida.
+- `GET /api/promociones/:id` devuelve `sucursalesParticipantes` + `vinculoSucursales` (mensaje claro si la fuente no especifica). Query opcional `?lat=&lng=` para distancia.
+- En **Cerca**, `ubicacionesCercanas` OSM son candidatas (`participacionConfirmada: false`), no participantes.
+
+## Rate limits + refresco Netlify (R2)
+
+- Rate limit en Mongo (`rate_limits` + TTL): login 5/15min, registro 5/h, `/cerca` 20/min, API 120/min.
+- `/cerca`: radio cuantizado `{1000,2500,5000,8000}`, coords solo México (422 si no), single-flight Overpass.
+- Scrapers **fuera** del hot path; `npm run refresh` + Scheduled Function `netlify/functions/refresh-official.mjs` (cada 6 h).
+- Estado en colección `official_refresh` (sirve en Functions sin `setInterval`).
+- McDonald’s: sin intermediario `r.jina.ai` (no se inventa como oficial).
+- Límites alineados a `web_next_legacy` / patrones Todo_pwa (`LOGIN_MAX_FAILURES`, etc.).
+
+## Web Push / VAPID (paridad Todo_pwa)
+
+- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Netlify).
+- `GET/POST /api/push/subscribe` — clave pública + guardar suscripción (JWT).
+- `POST /api/push/birthday` — cron con `x-cron-secret` (`CRON_SECRET`) o admin JWT.
+- Scheduled Function `netlify/functions/push-birthday.mjs` (diario ~09:00 CDMX).
+- Front: Cuenta → Notificaciones; SW maneja `push` / `notificationclick`.
+
+## Gate 18+ (R1)
+
+- Anónimo **sin** cookie firmada `age_ok` → no ve alcohol/nocturno.
+- `POST /api/age/declare { adult: true|false }` → cookie httpOnly (HMAC con JWT_SECRET, 30 días).
+- JWT de cuenta 13–17 gana sobre cualquier cookie.
+- Ya no se confía en `X-Trago-Band` ni `?band=`.
+- Es **declaración**, no verificación de identidad (copy + Aviso).
+
+## CI / calidad (P7)
+
+- `.github/workflows/ci.yml` — install, lint, `server` tests, build web, `npm audit --audit-level=high --omit=dev`, gitleaks  
+- `.github/dependabot.yml` — npm semanal en `server/` y `trago_web/`  
+- Seed: `cd server && npm run seed -- --yes` (bloqueado en `production`; password vía `SEED_DEMO_PASSWORD`)  
+- Root `package.json` solo scripts (deps en cada paquete)  
+- Docker Mongo publicado en `127.0.0.1:27018`
+
+PRs para Claude: `docs/claude-project/PRS-EN-GITHUB.md` · prompt `PROMPT-LEER-PRS.md`.
+
+## Seguridad P1 (base del servidor)
+
+- `JWT_SECRET` obligatorio (≥32), sin fallback `changeme`.
+- `helmet`, CORS allowlist (`CORS_ORIGINS`), body JSON 20kb, `GET /` → `{ ok: true }`.
+- Auth con zod (`birthDate` obligatoria; se ignora `edad` del cliente), JWT 24h + `tokenVersion`.
+- Eliminado `token_login`. Migración: `npm run migrate:drop-token-login` en `server/`.
+- Verifica en Netlify que `JWT_SECRET` esté definido (las sesiones se invalidan al rotarlo).
+
+## Mapa de vigencia (#8)
+
+- `GET /api/cadena/vigencia` incluye `lat`/`lng`, `byStatus` y `withCoords`.
+- Panel `/cadena`: mapa OSM (Leaflet) con pines por estado (`vigente` / `en_duda` / `caduco` / `fuera`), filtros y sincronía lista↔pin.
+- Reafirmar / pausar participación siguen en la lista bajo el mapa.
+
+## Gate 18+ server (#7)
+
+- `attachViewerAge`: JWT (edad en DB) > header `X-Trago-Band` > query `band`.
+- Catálogo / cerca filtran alcohol + nocturno para `teen`.
+- Detalle de promo restringida → `403 AGE_RESTRICTED`.
+- Auth recalcula edad desde `fecha_nacimiento` y pone `band` en el JWT.
+- Front: diálogo de declaración + interceptor que envía `X-Trago-Band`.
+
+## Métrica norte (#6 + R3)
+
+Definición: **sesiones con `gps_ok` (coords MX) × `promo_open` × `sucursal_vista`** (no likes).
+
+- `POST /api/metricas/eventos` — beacon público (auth opcional); batch hasta 40; rate limit 30/min/IP.
+- **R3:** `gps_ok` exige lat/lng en México; se ignora `empresaId` del cliente; dedupe 24h por sesión×tipo×promo×sucursal; la agregación norte solo cuenta GPS con coords MX.
+- `GET /api/metricas/norte?days=7` — agregado global (JWT).
+- `GET /api/metricas/cadena?days=7` — filtrado por empresa del dueño.
+- Front: `trago_web/src/lib/metrics.ts` instrumenta Cerca (GPS) y detalle (promo + sucursales).
+- Panel `/cadena` muestra el embudo de 7 días.
+
+## Moderación de reportes (#5)
+
+- Límites: 12/h, 30/día, máx 3 flip-flops/24 h; ráfaga en memoria; ban temporal `reportes_bloqueado_hasta`.
+- El voto **matiza** (`en_duda` / `caduco`); **nunca** borra el folio.
+- Cadena: `GET /api/cadena/vigencia`, `POST .../reafirmar`, `POST .../participacion` (pausar sucursal).
+- Admin: `POST /api/cadena/admin/bloquear-reportes` `{ userId, hours }`.
+- UI: sección “Vigencia por sucursal” en `/cadena`.
+
+## Panel de cadena (`/cadena`)
+
+- `POST /api/cadena/registro` — crea empresa + rol `empresa` (devuelve JWT nuevo).
+- `GET /api/cadena/me` — empresa, promos y sucursales del dueño.
+- `POST /api/cadena/sucursales` · `POST /api/cadena/promociones` · `PUT /api/cadena/promociones/:id`.
+- Promos con `origen: empresa`; **sin sucursales = borrador**; catálogo público solo si la cadena está `verificada` (admin: `POST /api/cadena/admin/verificar`).
+- Seed demo: `cadena@trago.app` / `TraGo123!`. Auto-verificar altas: `TRAGO_AUTO_VERIFY_CHAIN=true`.
 
 ## Favoritos de usuario y modo offline
 

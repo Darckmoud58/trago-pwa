@@ -4,6 +4,7 @@ import axios from 'axios';
 // Alternativa explícita: VITE_API_URL=http://localhost:4000
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '',
+  withCredentials: true,
 });
 
 export function setAuth(token: string | null) {

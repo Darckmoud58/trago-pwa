@@ -1,7 +1,15 @@
 /**
  * Seed TraGo alineado al diagrama ER (traGO.1.2.drawio).
- * Uso: cd server && npm run seed
- * Base: MONGODB_DB=trago (mismo Atlas que Todo_pwa / clase).
+ * Uso: cd server && npm run seed -- --yes
+ *
+ * Guardas:
+ * - No corre si NODE_ENV=production
+ * - Solo DB en lista permitida (trago, trago_dev, trago_test)
+ * - Requiere flag --yes para deleteMany parciales
+ * - Password demo desde SEED_DEMO_PASSWORD (default solo fuera de production)
+ *
+ * Nota: promos seed usan origen 'demo' y NO salen en el catálogo público
+ * (solo oficial + empresa verificada). Flag --demo documentado; nunca en prod.
  */
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -19,13 +27,28 @@ import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
+const ALLOWED_SEED_DBS = new Set(['trago', 'trago_dev', 'trago_test']);
+
+const DEMO_PASSWORD =
+  process.env.SEED_DEMO_PASSWORD ||
+  (process.env.NODE_ENV === 'production' ? '' : 'TraGo123!');
+
 const DEMO_USER = {
   correo: 'demo@trago.app',
-  password: 'TraGo123!',
+  password: DEMO_PASSWORD,
   nombre: 'Demo',
   ape_paterno: 'TraGo',
   ape_materno: 'ZMG',
   edad: 25,
+};
+
+const DEMO_CHAIN_USER = {
+  correo: 'cadena@trago.app',
+  password: DEMO_PASSWORD,
+  nombre: 'Gerente',
+  ape_paterno: 'Cadena',
+  ape_materno: 'Demo',
+  edad: 30,
 };
 
 const DEMO_POLITICAS =
@@ -286,7 +309,31 @@ const promosSeed = [
   },
 ];
 
+function assertSeedAllowed() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('Seed bloqueado: NODE_ENV=production');
+    process.exit(1);
+  }
+  const dbName = process.env.MONGODB_DB || 'trago';
+  if (!ALLOWED_SEED_DBS.has(dbName)) {
+    console.error(
+      `Seed bloqueado: MONGODB_DB="${dbName}" no está en ${[...ALLOWED_SEED_DBS].join(', ')}`
+    );
+    process.exit(1);
+  }
+  if (!process.argv.includes('--yes')) {
+    console.error('Seed requiere confirmación: npm run seed -- --yes');
+    process.exit(1);
+  }
+  if (!DEMO_PASSWORD || DEMO_PASSWORD.length < 8) {
+    console.error('Define SEED_DEMO_PASSWORD (≥8) para crear usuarios demo');
+    process.exit(1);
+  }
+}
+
 async function main() {
+  assertSeedAllowed();
+
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.error('Falta MONGODB_URI en server/.env');
@@ -307,7 +354,9 @@ async function main() {
     Promocion.deleteMany({ origen: { $in: ['demo', 'usuario'] } }),
     PromoUbicacion.deleteMany({ id_promo: { $nin: officialPromoIds } }),
     Cupon.deleteMany({ fuente: 'seed-demo' }),
-    Usuario.deleteMany({ correo: DEMO_USER.correo }),
+    Usuario.deleteMany({
+      correo: { $in: [DEMO_USER.correo, DEMO_CHAIN_USER.correo] },
+    }),
   ]);
 
   const [roles, niveles, categorias, insignias] = await Promise.all([
@@ -430,6 +479,7 @@ async function main() {
   await Cupon.insertMany(cupones);
 
   const roleUser = roles.find((r) => r.codigo === 'user');
+  const roleEmpresa = roles.find((r) => r.codigo === 'empresa');
   const nivelBronce = niveles.find((n) => n.nombre === 'Bronce');
   const passwordHash = await bcrypt.hash(DEMO_USER.password, 10);
   await Usuario.create({
@@ -445,6 +495,59 @@ async function main() {
     id_nivel: nivelBronce?._id || null,
     fecha_nacimiento: new Date('2000-01-15'),
   });
+
+  const chainHash = await bcrypt.hash(DEMO_CHAIN_USER.password, 10);
+  const chainUser = await Usuario.create({
+    nombre: DEMO_CHAIN_USER.nombre,
+    ape_paterno: DEMO_CHAIN_USER.ape_paterno,
+    ape_materno: DEMO_CHAIN_USER.ape_materno,
+    correo: DEMO_CHAIN_USER.correo,
+    password: chainHash,
+    edad: DEMO_CHAIN_USER.edad,
+    puntos: 0,
+    estatus: 'activo',
+    id_rol: roleEmpresa?._id || null,
+    id_nivel: nivelBronce?._id || null,
+    fecha_nacimiento: new Date('1994-06-01'),
+  });
+
+  // Cadena demo verificada (panel /cadena) — no mezclar con scrapes oficiales.
+  const cadenaDemo = await Empresa.findOneAndUpdate(
+    { slug: 'cadena-demo-trago' },
+    {
+      $set: {
+        nombre: 'Cadena Demo TraGo',
+        descripcion: 'Negocio de prueba para el panel de cadena.',
+        id_dueno: chainUser._id,
+        verificada: true,
+        plan: 'pro',
+        estatus: 'activo',
+      },
+      $setOnInsert: { slug: 'cadena-demo-trago' },
+    },
+    { upsert: true, new: true }
+  );
+  await Ubicacion.findOneAndUpdate(
+    { slug: 'cadena-demo-centro' },
+    {
+      $set: {
+        nombre: 'Cadena Demo Centro',
+        calle: 'Av. Juárez',
+        num_ext: '100',
+        colonia: 'Centro',
+        municipio: 'Guadalajara',
+        estado: 'Jalisco',
+        lat: 20.6767,
+        long: -103.347,
+        location: { type: 'Point', coordinates: [-103.347, 20.6767] },
+        id_empresa: cadenaDemo._id,
+        horario: '10:00–22:00',
+        estatus: 'activo',
+      },
+      $setOnInsert: { slug: 'cadena-demo-centro' },
+    },
+    { upsert: true, new: true }
+  );
 
   // Índice geo: crear solo si no existe (puede llamarse geo_ubicaciones o location_2dsphere)
   try {
@@ -463,9 +566,12 @@ async function main() {
   console.log(`  promociones:      ${promociones.length} (origen: demo — NO salen en catálogo público)`);
   console.log(`  promo_ubicaciones:${links.length}`);
   console.log(`  cupones:          ${cupones.length}`);
-  console.log(`  usuario demo:     ${DEMO_USER.correo} / ${DEMO_USER.password}`);
+  console.log(`  usuario demo:     ${DEMO_USER.correo} / (SEED_DEMO_PASSWORD)`);
   console.log(
-    '  Nota: GET /api/promociones solo lista origen=oficial (scrapers/job). El seed no inventa oficiales.'
+    `  usuario cadena:   ${DEMO_CHAIN_USER.correo} / (SEED_DEMO_PASSWORD) · panel /cadena`
+  );
+  console.log(
+    '  Nota: origen demo NO sale en catálogo público. Oficiales = scraper/job. Nunca uses --demo en producción.'
   );
 
   await mongoose.disconnect();
