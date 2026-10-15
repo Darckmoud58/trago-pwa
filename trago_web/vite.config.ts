@@ -1,7 +1,21 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { ICON_192, ICON_512, ICON_VERSION } from './src/lib/iconVersion';
+
+/** Lee ICON_VERSION desde src/lib/iconVersion.ts (evita imports TS en tsc -b). */
+function readIconVersion(): number {
+  const root = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(root, 'src/lib/iconVersion.ts'), 'utf8');
+  const m = src.match(/export const ICON_VERSION = (\d+)/);
+  return m ? Number(m[1]) : 1;
+}
+
+const ICON_VERSION = readIconVersion();
+const ICON_192 = `/icon-192-v2.png?v=${ICON_VERSION}`;
+const ICON_512 = `/icon-512-v2.png?v=${ICON_VERSION}`;
 
 export default defineConfig({
   server: {
@@ -19,7 +33,6 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      // SW nuevo → se activa solo (como Duolingo web: assets frescos en la próxima visita).
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       includeAssets: [
@@ -46,7 +59,6 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         categories: ['lifestyle', 'shopping', 'food'],
-        // Query ?v=N: al subir ICON_VERSION el manifest apunta a “otro” recurso.
         icons: [
           {
             src: ICON_192,
@@ -69,7 +81,6 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        // Iconos fuera del precache: NetworkFirst en sw.ts (deploy = logo fresco).
         globPatterns: ['**/*.{js,css,html,svg,ico,woff2}'],
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globIgnores: [
@@ -86,7 +97,4 @@ export default defineConfig({
       },
     }),
   ],
-  define: {
-    __TRAGO_ICON_VERSION__: JSON.stringify(ICON_VERSION),
-  },
 });
