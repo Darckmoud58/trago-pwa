@@ -36,11 +36,15 @@ URLs: [`PRS-EN-GITHUB.md`](./PRS-EN-GITHUB.md) · Prompt: [`PROMPT-LEER-PRS.md`]
 
 **Siguiente:** R4 (cadena/audit) · R5/P6 (CSP/SW).
 
+## Deploy a main / Netlify
+
+Rama `cursor/deploy-main-e557`: merge de la punta (producto + R1–R3 + Cerca auto-GPS + VAPID) sobre `main`, resolviendo el solape del squash de #2.
+
 ## Operativo (humano)
 
-- Netlify: `JWT_SECRET` ≥32  
+- Netlify: `JWT_SECRET` ≥32 · VAPID_* · CRON_SECRET opcional  
 - Atlas: usuario solo TraGo  
-- Rebase punta sobre `main` descartando el commit ya squash del #2 (ver revisión Claude)
+- Tras merge a `main`, Netlify redeploy automático (si el site apunta a `main`)
 
 ## Métrica norte
 
