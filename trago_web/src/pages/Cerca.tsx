@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
@@ -8,18 +8,35 @@ import { track, trackGps } from '../lib/metrics';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
-const GDL = { lng: -103.3496, lat: 20.6767 };
+const NEAR_RADIUS_M = 8000;
+
+function readGps(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('no-geo'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 12000,
+      maximumAge: 30_000,
+    });
+  });
+}
 
 export default function Cerca() {
   const { t } = useI18n();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
-  const [sources, setSources] = useState<{ empresa: string; ok: boolean; count: number; reason?: string }[]>([]);
+  const [sources, setSources] = useState<
+    { empresa: string; ok: boolean; count: number; reason?: string }[]
+  >([]);
   const [promosError, setPromosError] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
+  const bootstrapped = useRef(false);
 
   async function loadNear(lng: number, lat: number, label: string) {
     setLoading(true);
@@ -33,7 +50,7 @@ export default function Cerca() {
     void track({ tipo: 'cerca_open', lat, lng, meta: { label } });
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
-        params: { lng, lat, maxMeters: 8000 },
+        params: { lng, lat, maxMeters: NEAR_RADIUS_M },
       });
       const list = (data.branches ?? data.ubicaciones ?? []) as Branch[];
       setBranches(list);
@@ -44,7 +61,9 @@ export default function Cerca() {
         setNote(`${label} · ${reducedNote}`);
       }
       try {
-        const promoRes = await api.get('/api/promociones/cerca', { params: { lng, lat, maxMeters: 8000 } });
+        const promoRes = await api.get('/api/promociones/cerca', {
+          params: { lng, lat, maxMeters: NEAR_RADIUS_M },
+        });
         setPromos((promoRes.data.promos ?? []) as Promo[]);
         setSources(promoRes.data.sources ?? []);
         setPromosError(false);
@@ -53,16 +72,23 @@ export default function Cerca() {
         setSources([]);
         setPromosError(true);
       }
-      const savedNote = data.partial && data.searchedRadiusMeters
-        ? `${label} · ${t('osmReducedRadius').replace('{km}', (data.searchedRadiusMeters / 1000).toFixed(1))}`
-        : label;
+      const savedNote =
+        data.partial && data.searchedRadiusMeters
+          ? `${label} · ${t('osmReducedRadius').replace('{km}', (data.searchedRadiusMeters / 1000).toFixed(1))}`
+          : label;
       await cacheSet(CACHE_KEYS.lastNear, { branches: list, note: savedNote, lat, lng });
     } catch {
-      const cached = await cacheGet<{ branches: Branch[]; note: string; lat?: number; lng?: number }>(CACHE_KEYS.lastNear);
+      const cached = await cacheGet<{
+        branches: Branch[];
+        note: string;
+        lat?: number;
+        lng?: number;
+      }>(CACHE_KEYS.lastNear);
       const cachedLat = cached?.data?.lat;
       const cachedLng = cached?.data?.lng;
       const latDelta = ((cachedLat ?? 999) - lat) * 111_000;
-      const lngDelta = ((cachedLng ?? 999) - lng) * 111_000 * Math.cos((lat * Math.PI) / 180);
+      const lngDelta =
+        ((cachedLng ?? 999) - lng) * 111_000 * Math.cos((lat * Math.PI) / 180);
       const sameArea = Math.hypot(latDelta, lngDelta) <= 1000;
       if (sameArea && cached?.data?.branches?.length) {
         setBranches(cached.data.branches);
@@ -86,55 +112,41 @@ export default function Cerca() {
     }
   }
 
-  function useGps() {
-    if (!navigator.geolocation) {
-      setError(t('noGeo'));
-      void trackGps(false);
-      return;
-    }
+  async function locateNear() {
     setLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        void trackGps(true, pos.coords.latitude, pos.coords.longitude);
-        void loadNear(
-          pos.coords.longitude,
-          pos.coords.latitude,
-          t('usingLocation')
-        );
-      },
-      () => {
-        void trackGps(false);
-        setLoading(false);
-        setBranches([]);
-        setPromos([]);
-        setSources([]);
-        setNote('');
-        setFromCache(false);
-        setError(t('locationPermissionError'));
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    setError('');
+    try {
+      const pos = await readGps();
+      void trackGps(true, pos.coords.latitude, pos.coords.longitude);
+      await loadNear(
+        pos.coords.longitude,
+        pos.coords.latitude,
+        t('usingLocation')
+      );
+    } catch (err) {
+      void trackGps(false);
+      setLoading(false);
+      setBranches([]);
+      setPromos([]);
+      setSources([]);
+      setNote('');
+      setFromCache(false);
+      setError(
+        err instanceof Error && err.message === 'no-geo'
+          ? t('noGeo')
+          : t('locationPermissionError')
+      );
+    }
   }
+
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    void locateNear();
+  }, []);
 
   return (
     <section className="cerca-page">
-      <div className="cerca-actions">
-        <button
-          type="button"
-          className="btn primary cerca-main-btn"
-          onClick={useGps}
-        >
-          {t('useMyLocation')}
-        </button>
-        <button
-          type="button"
-          className="btn ghost"
-          onClick={() => void loadNear(GDL.lng, GDL.lat, t('centerGdl'))}
-        >
-          {t('demoCenter')}
-        </button>
-      </div>
-
       {(note || fromCache) && (
         <p className="cerca-note meta">
           {note}
@@ -142,7 +154,18 @@ export default function Cerca() {
         </p>
       )}
       {loading && <p className="muted">{t('searching')}</p>}
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <div className="cerca-error-block">
+          <p className="error">{error}</p>
+          <button
+            type="button"
+            className="btn ghost cerca-retry"
+            onClick={() => void locateNear()}
+          >
+            {t('retryLocation')}
+          </button>
+        </div>
+      )}
 
       {(promos.length > 0 || sources.length > 0 || promosError) && (
         <section className="nearby-promos">
@@ -151,17 +174,27 @@ export default function Cerca() {
               <h2>{t('nearbyPromosTitle')}</h2>
               <p className="meta">{t('nearbyPromosSourceNote')}</p>
             </div>
-            <Link className="btn ghost btn-sm" to="/promos">{t('viewAllPromos')}</Link>
+            <Link className="btn ghost btn-sm" to="/promos">
+              {t('viewAllPromos')}
+            </Link>
           </div>
           {promosError && <p className="error">{t('nearbyPromosError')}</p>}
-          {!promosError && promos.length === 0 && <p className="muted">{t('nearbyPromosEmpty')}</p>}
+          {!promosError && promos.length === 0 && (
+            <p className="muted">{t('nearbyPromosEmpty')}</p>
+          )}
           {promos.length > 0 && (
             <ul className="branch-list nearby-promo-list">
               {promos.map((promo) => (
                 <li key={promo._id} className="promo-card nearby-promo-card">
                   <p className="label">{promo.chainName || 'Empresa'}</p>
-                  <h3><Link to={`/promos/${promo.slug || promo._id}`}>{promo.nombre || promo.title}</Link></h3>
-                  {(promo.descripcion || promo.subtitle) && <p>{promo.descripcion || promo.subtitle}</p>}
+                  <h3>
+                    <Link to={`/promos/${promo.slug || promo._id}`}>
+                      {promo.nombre || promo.title}
+                    </Link>
+                  </h3>
+                  {(promo.descripcion || promo.subtitle) && (
+                    <p>{promo.descripcion || promo.subtitle}</p>
+                  )}
                   {promo.ubicacionesCercanas?.length ? (
                     <p className="meta">
                       {t('nearbyBranchesLabel')}{' '}
@@ -178,21 +211,53 @@ export default function Cerca() {
                     </p>
                   ) : null}
                   <div className="nearby-promo-actions">
-                    <Link className="btn primary btn-sm" to={`/promos/${promo.slug || promo._id}`}>{t('seeOfferDetails')}</Link>
-                    {promo.url_fuente && <a href={promo.url_fuente} target="_blank" rel="noreferrer">{t('officialSource')} ↗</a>}
+                    <Link
+                      className="btn primary btn-sm"
+                      to={`/promos/${promo.slug || promo._id}`}
+                    >
+                      {t('seeOfferDetails')}
+                    </Link>
+                    {promo.url_fuente && (
+                      <a href={promo.url_fuente} target="_blank" rel="noreferrer">
+                        {t('officialSource')} ↗
+                      </a>
+                    )}
                   </div>
                 </li>
               ))}
             </ul>
           )}
-          {sources.length > 0 && <details>
-            <summary>{t('promoSourcesStatus')}</summary>
-            <ul>{sources.map((source) => <li key={source.empresa}>{source.empresa}: {source.ok ? `${source.count} promociones` : source.reason || 'sin lectura'}</li>)}</ul>
-          </details>}
+          {sources.length > 0 && (
+            <details>
+              <summary>{t('promoSourcesStatus')}</summary>
+              <ul>
+                {sources.map((source) => (
+                  <li key={source.empresa}>
+                    {source.empresa}:{' '}
+                    {source.ok
+                      ? `${source.count} promociones`
+                      : source.reason || 'sin lectura'}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       )}
 
-      {branches.length > 0 && <p className="meta">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>. {t('osmCoverageNote')}</p>}
+      {branches.length > 0 && (
+        <p className="meta">
+          ©{' '}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            target="_blank"
+            rel="noreferrer"
+          >
+            OpenStreetMap contributors
+          </a>
+          . {t('osmCoverageNote')}
+        </p>
+      )}
 
       <ul className="branch-list cerca-list">
         {branches.map((b) => {
@@ -206,9 +271,7 @@ export default function Cerca() {
             <li key={id} className="promo-card place-card cerca-card">
               <div className="place-card-top">
                 <div>
-                  <p className="label">
-                    {b.chainName || t('businessFallback')}
-                  </p>
+                  <p className="label">{b.chainName || t('businessFallback')}</p>
                   <h3>{nombre}</h3>
                 </div>
                 <div className="cerca-card-right">
@@ -243,7 +306,11 @@ export default function Cerca() {
               ) : (
                 <p className="meta cerca-offer-flag is-no">{t('nearbyNoOffers')}</p>
               )}
-              {b.osmUrl && <a className="meta" href={b.osmUrl} target="_blank" rel="noreferrer">Ver en OpenStreetMap ↗</a>}
+              {b.osmUrl && (
+                <a className="meta" href={b.osmUrl} target="_blank" rel="noreferrer">
+                  Ver en OpenStreetMap ↗
+                </a>
+              )}
             </li>
           );
         })}
