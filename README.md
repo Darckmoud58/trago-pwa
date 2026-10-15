@@ -119,6 +119,14 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 - McDonald’s: sin intermediario `r.jina.ai` (no se inventa como oficial).
 - Límites alineados a `web_next_legacy` / patrones Todo_pwa (`LOGIN_MAX_FAILURES`, etc.).
 
+## Web Push / VAPID (paridad Todo_pwa)
+
+- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Netlify).
+- `GET/POST /api/push/subscribe` — clave pública + guardar suscripción (JWT).
+- `POST /api/push/birthday` — cron con `x-cron-secret` (`CRON_SECRET`) o admin JWT.
+- Scheduled Function `netlify/functions/push-birthday.mjs` (diario ~09:00 CDMX).
+- Front: Cuenta → Notificaciones; SW maneja `push` / `notificationclick`.
+
 ## Gate 18+ (R1)
 
 - Anónimo **sin** cookie firmada `age_ok` → no ve alcohol/nocturno.

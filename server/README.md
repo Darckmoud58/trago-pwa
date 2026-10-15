@@ -29,6 +29,11 @@ Front: `../trago_web` → `npm run dev` (Vite, puerto 5173).
 | GET | `/api/negocios` | Negocios |
 | GET | `/api/sucursales/cerca?lng=&lat=` | GeoNear |
 | GET | `/api/promociones/:promoId/sucursales` | Links |
+| GET | `/api/push/subscribe` | Estado VAPID + clave pública |
+| POST | `/api/push/subscribe` | Guardar suscripción (Bearer) |
+| POST | `/api/push/birthday` | Enviar push de cumple (cron o admin) |
+
+Web Push: `npm run vapid` → pega claves en `.env`. Cron opcional con `CRON_SECRET`.
 
 ## Pareja con el front
 

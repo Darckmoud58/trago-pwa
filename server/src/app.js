@@ -12,6 +12,7 @@ import favoritosRoutes from './routes/favoritos.routes.js';
 import reportesRoutes from './routes/reportes.routes.js';
 import cadenaRoutes from './routes/cadena.routes.js';
 import metricasRoutes from './routes/metricas.routes.js';
+import pushRoutes from './routes/push.routes.js';
 
 /**
  * App Express (sin listen) — usable en local y en Netlify Functions.
@@ -67,6 +68,7 @@ export function createApp() {
   app.use('/api/reportes', reportesRoutes);
   app.use('/api/cadena', cadenaRoutes);
   app.use('/api/metricas', metricasRoutes);
+  app.use('/api/push', pushRoutes);
   app.use('/api', catalogoRoutes);
 
   app.use(notFoundHandler);
