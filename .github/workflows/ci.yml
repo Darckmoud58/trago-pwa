@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'cursor/**']
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            trago_web/package-lock.json
+
+      - name: Install server
+        working-directory: server
+        run: npm ci
+
+      - name: Install web
+        working-directory: trago_web
+        run: npm ci
+
+      - name: Lint web
+        working-directory: trago_web
+        run: npm run lint
+
+      - name: Test server
+        working-directory: server
+        env:
+          JWT_SECRET: ci-test-secret-minimum-32-characters!!
+          MONGODB_URI: mongodb://127.0.0.1:27018/trago
+          MONGODB_DB: trago
+          CORS_ORIGINS: http://localhost:5173
+          NETLIFY: 'true'
+        run: npm test
+
+      - name: Build web
+        working-directory: trago_web
+        run: npm run build
+
+      - name: npm audit (server)
+        working-directory: server
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: npm audit (web)
+        working-directory: trago_web
+        run: npm audit --audit-level=high --omit=dev
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

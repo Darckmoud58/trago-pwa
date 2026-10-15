@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import AgeBandGate from './components/AgeBandGate';
 import AppHeader from './components/AppHeader';
-import BottomNav from './components/BottomNav';
-import InstallBanner from './components/InstallBanner';
+import BottomNav from './components/BottomNav';import InstallBanner from './components/InstallBanner';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
 import { syncFavorites } from './lib/favorites';
@@ -49,6 +49,7 @@ export default function Layout() {
       className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}${night ? ' is-night' : ''}`}
     >
       <PageLoadOverlay />
+      <AgeBandGate />
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}
       <main className="app-main page-enter" id="main">

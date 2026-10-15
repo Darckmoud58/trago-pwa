@@ -7,6 +7,9 @@ const CACHE_MS = 15 * 60 * 1000;
 const GRID = 0.002;
 const MAX_RESULTS = 300;
 
+/** Single-flight: muchas peticiones iguales → 1 Overpass. */
+const inflight = new Map();
+
 function cell(value) {
   return Number((Math.round(value / GRID) * GRID).toFixed(4));
 }
@@ -69,13 +72,15 @@ function parseElements(elements = []) {
   });
 }
 
-async function requestOverpass(lat, lng, radius, timeoutSeconds = 3) {
+async function requestOverpassOnce(lat, lng, radius, timeoutSeconds = 3) {
+  const ua =
+    process.env.TRA_GO_USER_AGENT ||
+    'TraGo/0.1 (+https://github.com/Darckmoud58/trago-pwa; nearby)';
   const response = await fetch(OVERPASS_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      'User-Agent':
-        process.env.TRA_GO_USER_AGENT || 'TraGo/0.1 (nearby places search)',
+      'User-Agent': ua,
       Accept: 'application/json',
     },
     body: new URLSearchParams({
@@ -84,12 +89,26 @@ async function requestOverpass(lat, lng, radius, timeoutSeconds = 3) {
     signal: AbortSignal.timeout((timeoutSeconds + 1) * 1000),
   });
   if (!response.ok) throw new Error(`OpenStreetMap Overpass respondió ${response.status}`);
-  return parseElements((await response.json()).elements)
+  const text = await response.text();
+  if (text.length > 2_000_000) {
+    throw new Error('Respuesta Overpass demasiado grande');
+  }
+  const json = JSON.parse(text);
+  return parseElements(json.elements)
     .sort(
       (a, b) =>
         distanceMeters(lat, lng, a.lat, a.lng) - distanceMeters(lat, lng, b.lat, b.lng)
     )
     .slice(0, MAX_RESULTS);
+}
+
+async function requestOverpass(lat, lng, radius, timeoutSeconds = 3) {
+  try {
+    return await requestOverpassOnce(lat, lng, radius, timeoutSeconds);
+  } catch (err) {
+    await new Promise((r) => setTimeout(r, 400));
+    return requestOverpassOnce(lat, lng, radius, timeoutSeconds);
+  }
 }
 
 function matchCompany(place, companies) {
@@ -156,12 +175,7 @@ function mapPlace(place, company, lat, lng, maxMeters) {
   };
 }
 
-/** Descubre lugares OSM sin agregarlos al catálogo de sucursales de TraGo. */
-export async function discoverNearbyBranches(lat, lng, maxMeters) {
-  const searchLat = cell(lat);
-  const searchLng = cell(lng);
-  const key = cacheKey(lat, lng, maxMeters);
-  const previous = await NearbyPlaceCache.findOne({ key }).lean();
+async function fetchAndCachePlaces(searchLat, searchLng, maxMeters, previous) {
   let places = previous?.places || [];
   let searchedRadiusMeters = previous?.searchedRadiusMeters || maxMeters;
   let stale = false;
@@ -194,11 +208,31 @@ export async function discoverNearbyBranches(lat, lng, maxMeters) {
     }
     if (!stale) {
       const fetchedAt = new Date();
+      const key = cacheKey(searchLat, searchLng, maxMeters);
+      /** Solo campos usados por mapPlace (no JSON crudo Overpass). */
+      const slimPlaces = places.map((p) => ({
+        osmType: p.osmType,
+        osmId: p.osmId,
+        name: p.name,
+        brand: p.brand,
+        operator: p.operator,
+        lat: p.lat,
+        lng: p.lng,
+        amenity: p.amenity,
+        shop: p.shop,
+        street: p.street,
+        number: p.number,
+        suburb: p.suburb,
+        city: p.city,
+        hours: p.hours,
+        website: p.website,
+        osmUrl: p.osmUrl,
+      }));
       await NearbyPlaceCache.findOneAndUpdate(
         { key },
         {
           $set: {
-            places,
+            places: slimPlaces,
             searchedRadiusMeters,
             fetchedAt,
             expiresAt: new Date(Date.now() + CACHE_MS),
@@ -206,13 +240,56 @@ export async function discoverNearbyBranches(lat, lng, maxMeters) {
         },
         { upsert: true }
       );
+      places = slimPlaces;
       cached = false;
     }
   }
-  const companies = await Empresa.find({ estatus: 'activo' }).select('_id nombre slug').lean();
-  const branches = places
-    .map((place) => mapPlace(place, matchCompany(place, companies), lat, lng, maxMeters))
-    .filter((place) => place.withinRadius)
-    .sort((a, b) => a.distanceMeters - b.distanceMeters);
-  return { branches, stale, cached, partial, searchedRadiusMeters };
+  return { places, searchedRadiusMeters, stale, partial, cached };
+}
+
+/** Descubre lugares OSM sin agregarlos al catálogo de sucursales de TraGo. */
+export async function discoverNearbyBranches(lat, lng, maxMeters) {
+  const searchLat = cell(lat);
+  const searchLng = cell(lng);
+  const key = cacheKey(lat, lng, maxMeters);
+
+  if (inflight.has(key)) {
+    return inflight.get(key);
+  }
+
+  const promise = (async () => {
+    const previous = await NearbyPlaceCache.findOne({ key }).lean();
+    const fetched = await fetchAndCachePlaces(
+      searchLat,
+      searchLng,
+      maxMeters,
+      previous
+    );
+    const companies = await Empresa.find({ estatus: 'activo' })
+      .select('_id nombre slug')
+      .lean();
+    const branches = fetched.places
+      .map((place) =>
+        mapPlace(place, matchCompany(place, companies), lat, lng, maxMeters)
+      )
+      .filter((place) => place.withinRadius)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    return {
+      branches,
+      stale: fetched.stale,
+      cached: fetched.cached,
+      partial: fetched.partial,
+      searchedRadiusMeters: fetched.searchedRadiusMeters,
+    };
+  })().finally(() => {
+    inflight.delete(key);
+  });
+
+  inflight.set(key, promise);
+  return promise;
+}
+
+/** Solo tests: limpia single-flight. */
+export function clearNearbyInflight() {
+  inflight.clear();
 }

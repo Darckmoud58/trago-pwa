@@ -35,6 +35,7 @@ export type Promo = {
   subtitle?: string;
   descripcion?: string;
   chainName?: string;
+  chainId?: string;
   kind?: string;
   alcohol?: boolean;
   audience?: 'all' | 'adult';
@@ -52,7 +53,13 @@ export type Promo = {
   origin?: string;
   origen?: 'oficial' | 'empresa' | 'demo' | 'usuario' | string;
   url_fuente?: string;
-  ubicacionesCercanas?: { _id: string; nombre: string; distanceMeters: number }[];
+  ubicacionesCercanas?: {
+    _id: string;
+    nombre: string;
+    distanceMeters: number;
+    participacionConfirmada?: boolean;
+  }[];
+  sucursalesParticipantesCount?: number;
   puntos?: number;
   politicas?: string;
   terms?: string;
@@ -90,4 +97,7 @@ export type Branch = {
   reportsCaduco?: number;
   officialActive?: boolean;
   crowdStatus?: 'vigente' | 'en_duda' | 'caduco' | 'fuera' | string;
+  participacionConfirmada?: boolean;
+  origenVinculo?: string;
+  especificadoPorFuente?: boolean;
 };

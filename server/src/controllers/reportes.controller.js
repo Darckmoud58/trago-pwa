@@ -11,6 +11,18 @@ import {
   voteCutoff,
   VOTES_PER_HOUR,
 } from '../lib/validity.js';
+import {
+  FLIPFLOP_MAX_PER_DAY,
+  MODERATION_COPY,
+  voteBanStatus,
+  VOTES_PER_DAY,
+} from '../lib/moderation.js';
+import { consumeRateLimit } from '../middleware/rateLimit.js';
+import {
+  MIN_ALCOHOL_AGE,
+  isRestrictedPromo,
+  resolveUserAge,
+} from '../lib/ageGate.js';
 
 async function recountLink(promoId, ubicacionId) {
   const cutoff = voteCutoff();
@@ -36,6 +48,15 @@ async function recountLink(promoId, ubicacionId) {
   return { yes, no, link };
 }
 
+async function bumpAbuse(userId) {
+  const until = new Date(Date.now() + 60 * 60 * 1000);
+  await Usuario.findByIdAndUpdate(userId, {
+    $inc: { reportes_abuso_count: 1 },
+    $set: { reportes_bloqueado_hasta: until },
+  });
+  return until;
+}
+
 export async function getMyReport(req, res) {
   try {
     const promoId = req.query.promoId;
@@ -54,6 +75,7 @@ export async function getMyReport(req, res) {
     return res.json({
       vote: doc ? doc.sigue_vigente : null,
       updatedAt: doc?.updatedAt || null,
+      limits: MODERATION_COPY,
     });
   } catch (e) {
     console.error('getMyReport:', e.message);
@@ -90,15 +112,36 @@ export async function postReport(req, res) {
     }
 
     const [user, promo, ubicacion, link] = await Promise.all([
-      Usuario.findById(req.userId).lean(),
+      Usuario.findById(req.userId),
       Promocion.findById(promoId).lean(),
       Ubicacion.findById(ubicacionId).lean(),
       PromoUbicacion.findOne({ id_promo: promoId, id_ubicacion: ubicacionId }).lean(),
     ]);
 
-    if (!user || user.estatus !== 'activo') {
+    if (!user || user.estatus === 'inactivo') {
       return res.status(401).json({ message: 'Usuario no válido' });
     }
+
+    const ban = voteBanStatus(user);
+    if (ban.banned) {
+      return res.status(403).json({ message: ban.reason, until: ban.until || null });
+    }
+
+    // Ráfaga en memoria (anti-bot)
+    const burst = await consumeRateLimit(
+      `vote:${user._id}`,
+      VOTES_PER_HOUR,
+      60 * 60 * 1000
+    );
+    if (!burst.ok) {
+      const until = await bumpAbuse(user._id);
+      return res.status(429).json({
+        message: `Demasiados reportes. Espera ${burst.retryAfterSec}s.`,
+        retryAfterSec: burst.retryAfterSec,
+        blockedUntil: until,
+      });
+    }
+
     if (!promo || promo.estatus !== 'activo') {
       return res.status(404).json({ message: 'Promoción no encontrada' });
     }
@@ -107,13 +150,16 @@ export async function postReport(req, res) {
     }
     if (!link || link.activa_oficial === false) {
       return res.status(400).json({
-        message: 'Esta sucursal no participa en la promo (sin vínculo oficial).',
+        message: 'Esta sucursal no participa en la promo (sin vínculo oficial o pausada por la cadena).',
       });
     }
-    if (promo.alcohol || promo.audiencia === 'adulto') {
-      if ((user.edad ?? 0) < 18) {
+    if (isRestrictedPromo(promo)) {
+      const age = resolveUserAge(user);
+      if (age == null || age < MIN_ALCOHOL_AGE) {
         return res.status(403).json({
-          message: 'Solo mayores de 18 pueden reportar vigencia de promos con alcohol.',
+          code: 'AGE_RESTRICTED',
+          message: `Solo mayores de ${MIN_ALCOHOL_AGE} pueden reportar vigencia de promos con alcohol o nocturno.`,
+          minAge: MIN_ALCOHOL_AGE,
         });
       }
     }
@@ -131,22 +177,62 @@ export async function postReport(req, res) {
     }
 
     const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const prev = await ReporteVigencia.findOne({
       id_usuario: user._id,
       id_promo: promoId,
       id_ubicacion: ubicacionId,
-    }).lean();
+    });
+
     if (!prev) {
-      const recent = await ReporteVigencia.countDocuments({
-        id_usuario: user._id,
-        updatedAt: { $gte: hourAgo },
-      });
-      if (recent >= VOTES_PER_HOUR) {
+      const [recentHour, recentDay] = await Promise.all([
+        ReporteVigencia.countDocuments({
+          id_usuario: user._id,
+          updatedAt: { $gte: hourAgo },
+        }),
+        ReporteVigencia.countDocuments({
+          id_usuario: user._id,
+          createdAt: { $gte: dayAgo },
+        }),
+      ]);
+      if (recentHour >= VOTES_PER_HOUR) {
         return res.status(429).json({
           message: 'Demasiados reportes en una hora. Intenta más tarde.',
+          limits: MODERATION_COPY,
+        });
+      }
+      if (recentDay >= VOTES_PER_DAY) {
+        const until = await bumpAbuse(user._id);
+        return res.status(429).json({
+          message: `Límite diario de ${VOTES_PER_DAY} reportes. Vuelve mañana.`,
+          blockedUntil: until,
+          limits: MODERATION_COPY,
+        });
+      }
+    } else if (prev.sigue_vigente !== stillValid) {
+      // Flip-flop: contar cambios en ventana 24 h
+      const flips = Number(prev.cambios_voto || 0);
+      const lastFlip = prev.ultimo_cambio_en
+        ? new Date(prev.ultimo_cambio_en)
+        : null;
+      const flipsInWindow =
+        lastFlip && lastFlip >= dayAgo ? flips : 0;
+      if (flipsInWindow >= FLIPFLOP_MAX_PER_DAY) {
+        const until = await bumpAbuse(user._id);
+        return res.status(429).json({
+          message: `Demasiados cambios de voto en 24 h (máx ${FLIPFLOP_MAX_PER_DAY}). El voto matiza; no lo uses para trollar.`,
+          blockedUntil: until,
+          limits: MODERATION_COPY,
         });
       }
     }
+
+    const now = new Date();
+    const isFlip = Boolean(prev && prev.sigue_vigente !== stillValid);
+    const flipsBase =
+      prev && prev.ultimo_cambio_en && new Date(prev.ultimo_cambio_en) >= dayAgo
+        ? Number(prev.cambios_voto || 0)
+        : 0;
 
     await ReporteVigencia.findOneAndUpdate(
       {
@@ -160,20 +246,27 @@ export async function postReport(req, res) {
           lat,
           long: lng,
           distancia_m: Math.round(meters),
+          ...(isFlip
+            ? {
+                cambios_voto: flipsBase + 1,
+                ultimo_cambio_en: now,
+              }
+            : {}),
         },
         $setOnInsert: {
           id_usuario: user._id,
           id_promo: promoId,
           id_ubicacion: ubicacionId,
+          cambios_voto: 0,
         },
       },
       { upsert: true, new: true }
     );
 
     // Nunca toca activa_oficial ni el folio de la promo.
-    const { yes, no } = await recountLink(promoId, ubicacionId);
+    const { yes, no, link: liveLink } = await recountLink(promoId, ubicacionId);
     const status = crowdStatus({
-      officialActive: true,
+      officialActive: liveLink?.activa_oficial !== false,
       reportsVigente: yes,
       reportsCaduco: no,
     });
@@ -185,6 +278,12 @@ export async function postReport(req, res) {
       reportsCaduco: no,
       crowdStatus: status,
       distanceMeters: Math.round(meters),
+      reafirmadoEn: liveLink?.reafirmado_en || null,
+      limits: MODERATION_COPY,
+      note:
+        status === 'en_duda' || status === 'caduco'
+          ? 'El voto matiza la sucursal; no borra el folio oficial. La cadena puede reafirmar.'
+          : undefined,
     });
   } catch (e) {
     console.error('postReport:', e.message);

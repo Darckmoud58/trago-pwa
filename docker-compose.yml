@@ -3,8 +3,13 @@ services:
     image: mongo:7
     container_name: trago-mongo
     restart: unless-stopped
+    # Solo localhost (no 0.0.0.0). Para auth: define MONGO_INITDB_ROOT_USERNAME/PASSWORD en .env
+    # y descomenta el bloque environment abajo.
     ports:
-      - "27018:27017"
+      - "127.0.0.1:27018:27017"
+    # environment:
+    #   MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+    #   MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - trago_mongo:/data/db
     healthcheck:
@@ -32,7 +37,9 @@ services:
       PORT: "4000"
       MONGODB_URI: mongodb://mongo:27017/trago
       MONGODB_DB: trago
-      JWT_SECRET: trago-docker-jwt-dev
+      # ≥32 chars · override with JWT_SECRET in .env (never use in production)
+      JWT_SECRET: "${JWT_SECRET:-trago-docker-dev-secret-min-32-chars!!}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}"
     restart: unless-stopped
 
   # Front Vite (build local → dist). Antes: imagen Next legacy.

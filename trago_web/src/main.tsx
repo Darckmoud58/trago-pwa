@@ -14,6 +14,7 @@ import Cerca from './pages/Cerca';
 import Negocios from './pages/Negocios';
 import Favoritos from './pages/Favoritos';
 import Cuenta from './pages/Cuenta';
+import Cadena from './pages/Cadena';
 import Idioma from './pages/Idioma';
 import Instalar from './pages/Instalar';
 import Terminos from './pages/Terminos';
@@ -36,6 +37,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/negocios" element={<Negocios />} />
             <Route path="/favoritos" element={<Favoritos />} />
             <Route path="/cuenta" element={<Cuenta />} />
+            <Route path="/cadena" element={<Cadena />} />
             <Route path="/idioma" element={<Idioma />} />
             <Route path="/instalar" element={<Instalar />} />
             <Route path="/terminos" element={<Terminos />} />

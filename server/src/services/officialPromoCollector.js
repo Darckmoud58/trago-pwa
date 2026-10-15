@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import Promocion from '../models/Promocion.js';
 import Empresa from '../models/Empresa.js';
+import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
 
 const UA = 'Mozilla/5.0 (compatible; TraGoPromoCollector/1.0; +https://trago.app)';
 
@@ -495,62 +496,14 @@ async function fetchBurgerKingOffers() {
     .filter(Boolean);
 }
 
+/**
+ * McDonald’s: no usar terceros (r.jina.ai) como "oficial".
+ * Cloudflare bloquea Node; hasta tener lectura directa legible, no inventamos.
+ */
 async function fetchMcdonaldsViaReader() {
-  const sourceUrl = 'https://www.mcdonalds.com.mx/promociones';
-  // Cloudflare bloquea Node; el lector HTTP a veces obtiene el HTML renderizado.
-  const readerUrl = `https://r.jina.ai/http://www.mcdonalds.com.mx/promociones`;
-  const response = await fetch(readerUrl, {
-    headers: {
-      'User-Agent': UA,
-      Accept: 'text/plain',
-    },
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.text();
-  if (/just a moment|cloudflare|enable javascript/i.test(body)) {
-    throw new Error('Cloudflare bloquea la lectura automática de McDonald’s');
-  }
-  const found = [];
-  const skip =
-    /logo|header|sobre nosotros|trabaja|privacidad|restaurantes|quiénes|familia|receta|pedido|productos|markdown|image \d|https?:\/\//i;
-
-  for (const line of body.split('\n')) {
-    const raw = line.trim();
-    if (!raw || raw.startsWith('![') || raw.startsWith('http') || raw.startsWith('[')) continue;
-    const title = clean(raw.replace(/^#+\s*/, '').replace(/^\*\s*/, ''));
-    if (title.length < 10 || title.length > 100 || skip.test(title)) continue;
-    if (!/promo|cup[oó]n|2x1|descuento|oferta|combo|nugget|big mac|mcn[ií]fica|mcflurry|cajita/i.test(title)) {
-      continue;
-    }
-    found.push({
-      title,
-      description: 'Oferta detectada en mcdonalds.com.mx. Confirma vigencia en app o restaurante.',
-      sourceUrl,
-      evidence: `${title} promoción oferta mcdonalds`,
-    });
-  }
-
-  for (const m of body.matchAll(/!\[([^\]]{8,100})\]\((https?:\/\/[^)]+)\)/g)) {
-    const title = clean(m[1]);
-    if (skip.test(title)) continue;
-    if (!/promo|oferta|combo|cup[oó]n|2x1|descuento|nugget|big mac|mcflurry/i.test(title)) continue;
-    found.push({
-      title,
-      description: 'Promoción publicada en el sitio de McDonald’s México.',
-      sourceUrl,
-      image: m[2],
-      evidence: `${title} promoción oferta mcdonalds`,
-    });
-  }
-
-  const seen = new Set();
-  return found.filter((x) => {
-    const k = slugify(x.title);
-    if (!k || seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  throw new Error(
+    'McDonald’s: sin lectura directa legible (no se usa intermediario). Confirma en mcdonalds.com.mx.'
+  );
 }
 
 function parseKrispyMedia(body, url) {
@@ -961,11 +914,20 @@ async function fetchSourceHits(url, company) {
     return { url: 'https://www.burgerking.com.mx/', hits: await fetchBurgerKingOffers(), error: null };
   }
   if (url === 'special:mcdonalds-reader') {
-    return {
-      url: 'https://www.mcdonalds.com.mx/promociones',
-      hits: await fetchMcdonaldsViaReader(),
-      error: null,
-    };
+    try {
+      const hits = await fetchMcdonaldsViaReader();
+      return {
+        url: 'https://www.mcdonalds.com.mx/promociones',
+        hits,
+        error: null,
+      };
+    } catch (e) {
+      return {
+        url: 'https://www.mcdonalds.com.mx/promociones',
+        hits: [],
+        error: e.message || 'Sin lectura oficial legible',
+      };
+    }
   }
   if (url === 'special:starbucks-next') {
     return {
@@ -1045,6 +1007,7 @@ export async function collectNearbyPromos(companies) {
       }
 
       const now = new Date();
+      let linkedFromSource = 0;
       const operations = [...uniqueHits.values()].map((hit) => {
         const key = crypto
           .createHash('sha1')
@@ -1100,6 +1063,22 @@ export async function collectNearbyPromos(companies) {
           },
           { $set: { estatus: 'caduco' } }
         );
+        // Solo vincula si el texto de la fuente nombra una sucursal ya conocida. Nunca inventa.
+        const saved = await Promocion.find({
+          id_empresa: company._id,
+          origen: 'oficial',
+          slug: { $in: keepSlugs },
+          estatus: 'activo',
+        })
+          .select('_id nombre descripcion politicas')
+          .lean();
+        for (const promo of saved) {
+          const result = await linkOfficialPromoIfSourceNamesBranch(
+            promo,
+            company._id
+          );
+          if (result.especificado) linkedFromSource += result.linked;
+        }
       } else if (!errors.length) {
         // Fuente respondió pero sin ofertas legibles: caducar basura previa
         await Promocion.updateMany(
@@ -1112,6 +1091,9 @@ export async function collectNearbyPromos(companies) {
         empresa: company.nombre,
         ok: errors.length < urls.length,
         count: operations.length,
+        ...(linkedFromSource
+          ? { sucursalesVinculadasPorFuente: linkedFromSource }
+          : {}),
         ...(errors.length ? { errors } : {}),
         ...(operations.length === 0 && !errors.length
           ? { reason: 'sitio sin promociones legibles en esta consulta' }

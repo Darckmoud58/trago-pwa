@@ -4,7 +4,6 @@ import Ubicacion from '../models/Ubicacion.js';
 import Empresa from '../models/Empresa.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
 import {
-  collectNearbyPromos,
   ensureOfficialCompanies,
   hasOfficialPromoSource,
   officialSourceSlugs,
@@ -13,16 +12,62 @@ import {
 import { getOfficialRefreshStatus } from '../services/officialPromoJob.js';
 import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
 import { crowdStatus } from '../lib/validity.js';
+import {
+  enrichBranchesWithDistance,
+  upsertCompanyBranchesFromOsm,
+  vinculoMeta,
+} from '../services/promoBranchLinks.js';
+import {
+  filterPromosForViewer,
+  isRestrictedPromo,
+  mongoExcludeRestricted,
+} from '../lib/ageGate.js';
+import { assertMexicoCoords, quantizeMaxMeters } from '../lib/geoNear.js';
 
-function officialPromoFilter(now = new Date()) {
+function dateActiveFilter(now = new Date()) {
   return {
-    origen: 'oficial',
     estatus: 'activo',
     $and: [
       { $or: [{ inicia_en: null }, { inicia_en: { $lte: now } }] },
       { $or: [{ termina_en: null }, { termina_en: { $gte: now } }] },
     ],
   };
+}
+
+/** Solo scrapes oficiales (p. ej. cerca / job). */
+function officialPromoFilter(now = new Date()) {
+  return { origen: 'oficial', ...dateActiveFilter(now) };
+}
+
+/**
+ * Catálogo público: oficiales + promos de cadena verificada con ≥1 sucursal.
+ */
+async function publicCatalogFilter(now = new Date()) {
+  const verifiedIds = await Empresa.find({
+    verificada: true,
+    estatus: 'activo',
+  }).distinct('_id');
+  const linkedPromoIds = await PromoUbicacion.distinct('id_promo', {
+    activa_oficial: { $ne: false },
+  });
+  return {
+    ...dateActiveFilter(now),
+    $or: [
+      { origen: 'oficial' },
+      {
+        origen: 'empresa',
+        id_empresa: { $in: verifiedIds },
+        _id: { $in: linkedPromoIds },
+      },
+    ],
+  };
+}
+
+function isPublicPromo(promo, empresa) {
+  if (!promo || promo.estatus === 'inactivo') return false;
+  if (promo.origen === 'oficial') return true;
+  if (promo.origen === 'empresa' && empresa?.verificada) return true;
+  return false;
 }
 
 function mapPromo(p, empresaById = {}) {
@@ -83,18 +128,44 @@ export async function getPromo(req, res) {
       byId ||
       (await Promocion.findOne({ slug: promoId, estatus: 'activo' }).lean());
 
-    if (!promo || promo.estatus === 'inactivo' || promo.origen !== 'oficial') {
+    if (!promo || promo.estatus === 'inactivo') {
       return res.status(404).json({ message: 'Promoción no encontrada' });
     }
 
     const empresa = promo.id_empresa
       ? await Empresa.findById(promo.id_empresa).lean()
       : null;
+    if (!isPublicPromo(promo, empresa)) {
+      return res.status(404).json({ message: 'Promoción no encontrada' });
+    }
+    // Cadena verificada: sin sucursales no se publica (solo oficiales pueden listarse sin vínculo).
+    if (promo.origen === 'empresa') {
+      const n = await PromoUbicacion.countDocuments({
+        id_promo: promo._id,
+        activa_oficial: { $ne: false },
+      });
+      if (n === 0) {
+        return res.status(404).json({ message: 'Promoción no encontrada' });
+      }
+    }
+
+    if (isRestrictedPromo(promo) && req.viewer && !req.viewer.canSeeAlcohol) {
+      return res.status(403).json({
+        code: 'AGE_RESTRICTED',
+        message: 'Esta promoción es solo para mayores de 18 años.',
+        minAge: 18,
+        viewerBand: req.viewer.band || 'teen',
+      });
+    }
+
     const empresaById = empresa
       ? { [String(empresa._id)]: empresa }
       : {};
 
-    const links = await PromoUbicacion.find({ id_promo: promo._id }).lean();
+    const links = await PromoUbicacion.find({
+      id_promo: promo._id,
+      activa_oficial: { $ne: false },
+    }).lean();
     const linkByUbi = Object.fromEntries(
       links.map((l) => [String(l.id_ubicacion), l])
     );
@@ -103,9 +174,15 @@ export async function getPromo(req, res) {
       ? await Ubicacion.find({ _id: { $in: ubicacionIds } }).lean()
       : [];
 
-    res.json({
-      promo: mapPromo(promo, empresaById),
-      ubicaciones: ubicaciones.map((u) => {
+    const userLat = Number(req.query.lat);
+    const userLng = Number(req.query.lng ?? req.query.long);
+    const userGeo =
+      Number.isFinite(userLat) && Number.isFinite(userLng)
+        ? { lat: userLat, lng: userLng }
+        : null;
+
+    const mappedUbis = enrichBranchesWithDistance(
+      ubicaciones.map((u) => {
         const link = linkByUbi[String(u._id)] || {};
         const reportsVigente = link.reportes_vigente || 0;
         const reportsCaduco = link.reportes_caduco || 0;
@@ -124,8 +201,22 @@ export async function getPromo(req, res) {
           reportsCaduco,
           officialActive,
           crowdStatus: status,
+          origenVinculo: link.origen_vinculo || 'empresa',
+          especificadoPorFuente: Boolean(link.especificado_por_fuente),
+          participacionConfirmada: true,
         };
       }),
+      userGeo
+    );
+
+    const fuenteEspecificada = links.some((l) => l.especificado_por_fuente);
+    const vinculo = vinculoMeta(mappedUbis.length, fuenteEspecificada);
+
+    res.json({
+      promo: mapPromo(promo, empresaById),
+      ubicaciones: mappedUbis,
+      sucursalesParticipantes: mappedUbis,
+      vinculoSucursales: vinculo,
     });
   } catch (e) {
     console.error('getPromo:', e.message);
@@ -134,26 +225,39 @@ export async function getPromo(req, res) {
 }
 
 /** Listado público: solo Mongo (scrapers corren en job de fondo). */
-export async function listPromos(_req, res) {
+export async function listPromos(req, res) {
   try {
     const now = new Date();
-    const refresh = getOfficialRefreshStatus();
-    const [promos, empresas] = await Promise.all([
-      Promocion.find(officialPromoFilter(now))
-        .sort({ destacada: -1, termina_en: 1 })
-        .limit(100)
-        .lean(),
-      Empresa.find({ slug: { $in: officialSourceSlugs() } }).lean(),
-    ]);
+    const refresh = await getOfficialRefreshStatus();
+    const filter = await publicCatalogFilter(now);
+    const ageFilter =
+      req.viewer && !req.viewer.canSeeAlcohol ? mongoExcludeRestricted() : {};
+    const promos = await Promocion.find({ ...filter, ...ageFilter })
+      .sort({ destacada: -1, termina_en: 1 })
+      .limit(100)
+      .lean();
+    const empresaIds = [
+      ...new Set(promos.map((p) => String(p.id_empresa)).filter(Boolean)),
+    ];
+    const empresas = empresaIds.length
+      ? await Empresa.find({ _id: { $in: empresaIds } }).lean()
+      : [];
     const empresaById = Object.fromEntries(
       empresas.map((e) => [String(e._id), e])
     );
-    const mapped = promos.map((p) => mapPromo(p, empresaById));
+    const mapped = filterPromosForViewer(
+      promos.map((p) => mapPromo(p, empresaById)),
+      req.viewer
+    );
     res.json({
       count: mapped.length,
       promos: mapped,
       sources: refresh.sources,
       sourcesRefreshedAt: refresh.at,
+      ageGate: {
+        band: req.viewer?.band || null,
+        restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
+      },
       emptyReason:
         mapped.length === 0
           ? 'Sin promociones oficiales guardadas aún. El recolector corre en segundo plano; vuelve en unos minutos o usa Cerca con GPS.'
@@ -166,14 +270,20 @@ export async function listPromos(_req, res) {
 }
 
 
-/** Recolecta promociones oficiales de empresas que OSM ubica cerca del usuario. */
+/** Promos oficiales cerca: solo lee Mongo (+ OSM). Scrapers = job / Scheduled Function. */
 export async function nearbyPromos(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
+    const geo = assertMexicoCoords(lat, lng);
+    if (!geo.ok) {
+      return res.status(geo.status || 400).json({ message: geo.message });
+    }
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    if (maxMeters == null) {
+      return res.status(400).json({
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+      });
     }
 
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
@@ -201,18 +311,31 @@ export async function nearbyPromos(req, res) {
         hasOfficialPromoSource(company.slug) &&
         branches.some((b) => String(b.id_empresa) === String(company._id))
     );
-    let sources = [];
+
+    // Persiste pins OSM de marcas conocidas como ubicaciones de catálogo.
+    // No crea PromoUbicacion: estar cerca ≠ participar en la promo.
+    const matchedBranches = branches.filter((b) => b.id_empresa || b.companyId);
     try {
-      sources = await collectNearbyPromos(sourceCompanies);
-    } catch (sourceError) {
-      console.error('nearbyPromos source refresh:', sourceError.message);
-      sources = sourceCompanies.map((company) => ({
-        empresa: company.nombre,
-        ok: false,
-        count: 0,
-        reason: 'No se pudo actualizar la fuente; se mostrarán las promociones oficiales guardadas.',
-      }));
+      await upsertCompanyBranchesFromOsm(matchedBranches);
+    } catch (persistErr) {
+      console.error('nearbyPromos upsert branches:', persistErr.message);
     }
+
+    const refresh = await getOfficialRefreshStatus();
+    const sources =
+      refresh.sources?.length > 0
+        ? refresh.sources.filter((s) =>
+            sourceCompanies.some((c) => c.nombre === s.empresa)
+          )
+        : sourceCompanies.map((company) => ({
+            empresa: company.nombre,
+            ok: false,
+            count: 0,
+            reason:
+              'Fuente pendiente del job de refresco (cada 6 h). Se muestran promos oficiales ya guardadas.',
+            lastFetchedAt: refresh.at,
+          }));
+
     const now = new Date();
     const promos = sourceCompanies.length
       ? await Promocion.find({
@@ -223,27 +346,58 @@ export async function nearbyPromos(req, res) {
           .limit(200)
           .lean()
       : [];
+
+    const promoIds = promos.map((p) => p._id);
+    const allLinks = promoIds.length
+      ? await PromoUbicacion.find({
+          id_promo: { $in: promoIds },
+          activa_oficial: { $ne: false },
+        }).lean()
+      : [];
+    const linksByPromo = {};
+    for (const link of allLinks) {
+      const k = String(link.id_promo);
+      if (!linksByPromo[k]) linksByPromo[k] = [];
+      linksByPromo[k].push(link);
+    }
+
     const companyById = Object.fromEntries(ensured.map((c) => [String(c._id), c]));
-    const mapped = promos.map((promo) => ({
-      ...mapPromo(promo, companyById),
-      ubicacionesCercanas: branches
-        .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
-        .map((b) => ({
-          _id: b._id,
-          nombre: b.nombre || b.calle,
-          distanceMeters: b.distanceMeters,
-          osmUrl: b.osmUrl,
-        })),
-    }));
+    const mappedRaw = promos.map((promo) => {
+      const links = linksByPromo[String(promo._id)] || [];
+      const fuenteEsp = links.some((l) => l.especificado_por_fuente);
+      return {
+        ...mapPromo(promo, companyById),
+        sucursalesParticipantesCount: links.length,
+        vinculoSucursales: vinculoMeta(links.length, fuenteEsp),
+        // OSM cerca de la misma marca: candidatas, NO participación confirmada.
+        ubicacionesCercanas: branches
+          .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
+          .map((b) => ({
+            _id: b._id,
+            nombre: b.nombre || b.calle,
+            distanceMeters: b.distanceMeters,
+            osmUrl: b.osmUrl,
+            participacionConfirmada: false,
+          })),
+      };
+    });
+    const mapped = filterPromosForViewer(mappedRaw, req.viewer);
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
       promos: mapped,
+      ageGate: {
+        band: req.viewer?.band || null,
+        restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
+      },
       sources,
+      sourcesRefreshedAt: refresh.at,
       businessesFound: branches.length,
       searchedRadiusMeters: discovery.searchedRadiusMeters,
       partial: discovery.partial,
       businessesWithoutPromoSource: branches.filter((b) => !b.id_empresa).length,
+      disclaimerSucursales:
+        'Los lugares OSM cercanos de la misma marca no confirman que la promo aplique ahí. Solo las sucursales vinculadas participan.',
       locationSource: discovery.stale
         ? 'openstreetmap-cache-stale'
         : discovery.cached
@@ -261,9 +415,15 @@ export async function nearBranches(req, res) {
   try {
     const lng = Number(req.query.lng ?? req.query.long);
     const lat = Number(req.query.lat);
-    const maxMeters = Math.min(Math.max(Number(req.query.maxMeters || 8000), 250), 25000);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
-      return res.status(400).json({ message: 'Coordenadas lng y lat válidas son requeridas' });
+    const geo = assertMexicoCoords(lat, lng);
+    if (!geo.ok) {
+      return res.status(geo.status || 400).json({ message: geo.message });
+    }
+    const maxMeters = quantizeMaxMeters(req.query.maxMeters, 8000);
+    if (maxMeters == null) {
+      return res.status(400).json({
+        message: 'maxMeters debe ser numérico (se cuantiza a 1000/2500/5000/8000)',
+      });
     }
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
     const mapped = discovery.branches.map((branch) => {
