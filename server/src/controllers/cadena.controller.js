@@ -9,6 +9,11 @@ import { uniqueSlug } from '../lib/slugify.js';
 import { crowdStatus } from '../lib/validity.js';
 import { bandFromAge, resolveUserAge } from '../lib/ageGate.js';
 import { signAccessToken } from '../lib/jwt.js';
+import { sanitizeHttpUrl } from '../lib/safeUrl.js';
+
+function clipStr(raw, max = 500) {
+  return String(raw ?? '').trim().slice(0, max);
+}
 
 function mapEmpresa(e) {
   if (!e) return null;
@@ -105,7 +110,7 @@ export async function registerCadena(req, res) {
       });
     }
 
-    const nombre = String(req.body.nombre || req.body.name || '').trim();
+    const nombre = clipStr(req.body.nombre || req.body.name, 120);
     if (!nombre) {
       return res.status(400).json({ message: 'nombre de la cadena es requerido' });
     }
@@ -117,9 +122,9 @@ export async function registerCadena(req, res) {
 
     const empresa = await Empresa.create({
       nombre,
-      descripcion: String(req.body.descripcion || req.body.description || ''),
-      sitio_web: String(req.body.sitio_web || req.body.website || ''),
-      imagen: String(req.body.imagen || ''),
+      descripcion: clipStr(req.body.descripcion || req.body.description, 2000),
+      sitio_web: sanitizeHttpUrl(req.body.sitio_web || req.body.website),
+      imagen: sanitizeHttpUrl(req.body.imagen),
       slug,
       id_dueno: req.userId,
       verificada: autoVerify,
@@ -140,7 +145,7 @@ export async function registerCadena(req, res) {
       token = signAccessToken({
         id: req.userId,
         role: roleEmpresa.codigo,
-        band: bandFromAge(resolveUserAge(owner)) || 'adult',
+        band: bandFromAge(resolveUserAge(owner)) || 'minor',
         tv: Number(owner?.tokenVersion || 0),
       });
     }
@@ -167,8 +172,11 @@ export async function createSucursal(req, res) {
     const empresa = assertOwnEmpresa(req);
     const lat = Number(req.body.lat);
     const lng = Number(req.body.lng ?? req.body.long);
-    const calle = String(req.body.calle || req.body.address || '').trim();
-    const nombre = String(req.body.nombre || req.body.name || calle || 'Sucursal').trim();
+    const calle = clipStr(req.body.calle || req.body.address, 200);
+    const nombre = clipStr(
+      req.body.nombre || req.body.name || calle || 'Sucursal',
+      120
+    );
 
     if (!calle) {
       return res.status(400).json({ message: 'calle es requerida' });
@@ -182,16 +190,16 @@ export async function createSucursal(req, res) {
       nombre,
       slug,
       calle,
-      num_ext: String(req.body.num_ext || ''),
-      colonia: String(req.body.colonia || ''),
-      municipio: String(req.body.municipio || req.body.city || 'Guadalajara'),
-      estado: String(req.body.estado || 'Jalisco'),
+      num_ext: clipStr(req.body.num_ext, 20),
+      colonia: clipStr(req.body.colonia, 120),
+      municipio: clipStr(req.body.municipio || req.body.city || 'Guadalajara', 80),
+      estado: clipStr(req.body.estado || 'Jalisco', 80),
       lat,
       long: lng,
       location: { type: 'Point', coordinates: [lng, lat] },
       id_empresa: empresa._id,
-      horario: String(req.body.horario || req.body.hours || ''),
-      imagen: String(req.body.imagen || ''),
+      horario: clipStr(req.body.horario || req.body.hours, 200),
+      imagen: sanitizeHttpUrl(req.body.imagen),
       estatus: 'activo',
     });
 
@@ -209,7 +217,7 @@ export async function createSucursal(req, res) {
 export async function createPromo(req, res) {
   try {
     const empresa = assertOwnEmpresa(req);
-    const nombre = String(req.body.nombre || req.body.title || '').trim();
+    const nombre = clipStr(req.body.nombre || req.body.title, 160);
     if (!nombre) {
       return res.status(400).json({ message: 'nombre de la promo es requerido' });
     }
@@ -237,25 +245,30 @@ export async function createPromo(req, res) {
     const hasBranches = ownedUbis.length > 0;
     // Sin sucursales → borrador (inactivo); con sucursales → activo
     const estatus = hasBranches ? 'activo' : 'inactivo';
+    const alcohol = Boolean(req.body.alcohol);
+    const canFeature =
+      Boolean(req.isAdmin) || Boolean(empresa.verificada);
+    const wantFeatured = Boolean(req.body.destacada || req.body.featured);
 
     const promo = await Promocion.create({
       nombre,
       slug,
-      descripcion: String(req.body.descripcion || req.body.subtitle || ''),
-      politicas: String(req.body.politicas || req.body.terms || ''),
-      imagen: String(req.body.imagen || req.body.imageUrl || ''),
+      descripcion: clipStr(req.body.descripcion || req.body.subtitle, 2000),
+      politicas: clipStr(req.body.politicas || req.body.terms, 4000),
+      imagen: sanitizeHttpUrl(req.body.imagen || req.body.imageUrl),
       origen: 'empresa',
-      url_fuente: String(req.body.url_fuente || ''),
+      url_fuente: sanitizeHttpUrl(req.body.url_fuente),
       id_empresa: empresa._id,
       inicia_en: req.body.inicia_en || req.body.startsAt || null,
       termina_en: req.body.termina_en || req.body.endsAt || null,
-      alcohol: Boolean(req.body.alcohol),
+      alcohol,
       nocturno: Boolean(req.body.nocturno || req.body.isNocturno),
       cumpleanos: Boolean(req.body.cumpleanos || req.body.isBirthday),
-      audiencia: req.body.alcohol || req.body.audiencia === 'adulto' ? 'adulto' : 'todos',
-      destacada: Boolean(req.body.destacada || req.body.featured),
+      audiencia:
+        alcohol || req.body.audiencia === 'adulto' ? 'adulto' : 'todos',
+      destacada: canFeature && wantFeatured,
       estatus,
-      puntos: Number(req.body.puntos) || 0,
+      puntos: Math.min(Math.max(Number(req.body.puntos) || 0, 0), 10000),
     });
 
     if (hasBranches) {
@@ -308,28 +321,52 @@ export async function updatePromo(req, res) {
       return res.status(404).json({ message: 'Promo no encontrada o no es tuya' });
     }
 
-    const fields = [
-      'nombre',
-      'descripcion',
-      'politicas',
-      'imagen',
-      'url_fuente',
-      'alcohol',
-      'nocturno',
-      'cumpleanos',
-      'destacada',
-      'puntos',
-    ];
-    for (const f of fields) {
-      if (req.body[f] !== undefined) promo[f] = req.body[f];
+    // Coerción tipada: no asignar body crudo (mass-assignment / tipos raros).
+    if (req.body.nombre !== undefined || req.body.title) {
+      const n = clipStr(req.body.nombre ?? req.body.title, 160);
+      if (n) promo.nombre = n;
     }
-    if (req.body.title) promo.nombre = req.body.title;
-    if (req.body.subtitle) promo.descripcion = req.body.subtitle;
+    if (req.body.descripcion !== undefined || req.body.subtitle !== undefined) {
+      promo.descripcion = clipStr(
+        req.body.descripcion ?? req.body.subtitle,
+        2000
+      );
+    }
+    if (req.body.politicas !== undefined || req.body.terms !== undefined) {
+      promo.politicas = clipStr(req.body.politicas ?? req.body.terms, 4000);
+    }
+    if (req.body.imagen !== undefined || req.body.imageUrl !== undefined) {
+      promo.imagen = sanitizeHttpUrl(req.body.imagen ?? req.body.imageUrl);
+    }
+    if (req.body.url_fuente !== undefined) {
+      promo.url_fuente = sanitizeHttpUrl(req.body.url_fuente);
+    }
+    if (req.body.alcohol !== undefined) promo.alcohol = Boolean(req.body.alcohol);
+    if (req.body.nocturno !== undefined || req.body.isNocturno !== undefined) {
+      promo.nocturno = Boolean(req.body.nocturno ?? req.body.isNocturno);
+    }
+    if (req.body.cumpleanos !== undefined || req.body.isBirthday !== undefined) {
+      promo.cumpleanos = Boolean(req.body.cumpleanos ?? req.body.isBirthday);
+    }
+    if (req.body.destacada !== undefined || req.body.featured !== undefined) {
+      const canFeature =
+        Boolean(req.isAdmin) || Boolean(empresa.verificada);
+      promo.destacada =
+        canFeature && Boolean(req.body.destacada ?? req.body.featured);
+    }
+    if (req.body.puntos !== undefined) {
+      promo.puntos = Math.min(
+        Math.max(Number(req.body.puntos) || 0, 0),
+        10000
+      );
+    }
     if (req.body.startsAt !== undefined) promo.inicia_en = req.body.startsAt;
     if (req.body.endsAt !== undefined) promo.termina_en = req.body.endsAt;
     if (req.body.inicia_en !== undefined) promo.inicia_en = req.body.inicia_en;
     if (req.body.termina_en !== undefined) promo.termina_en = req.body.termina_en;
-    if (req.body.audiencia) promo.audiencia = req.body.audiencia;
+    if (req.body.audiencia === 'adulto' || req.body.audiencia === 'todos') {
+      promo.audiencia = req.body.audiencia;
+    }
     if (promo.alcohol) promo.audiencia = 'adulto';
 
     // Reasignar sucursales si vienen ubicacionIds

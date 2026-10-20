@@ -173,7 +173,7 @@ Definición: **sesiones con `gps_ok` (coords MX) × `promo_open` × `sucursal_vi
 
 - `POST /api/metricas/eventos` — beacon público (auth opcional); batch hasta 40; rate limit 30/min/IP.
 - **R3:** `gps_ok` exige lat/lng en México; se ignora `empresaId` del cliente; dedupe 24h por sesión×tipo×promo×sucursal; la agregación norte solo cuenta GPS con coords MX.
-- `GET /api/metricas/norte?days=7` — agregado global (JWT).
+- `GET /api/metricas/norte?days=7` — agregado global (JWT admin).
 - `GET /api/metricas/cadena?days=7` — filtrado por empresa del dueño.
 - Front: `trago_web/src/lib/metrics.ts` instrumenta Cerca (GPS) y detalle (promo + sucursales).
 - Panel `/cadena` muestra el embudo de 7 días.

@@ -2,23 +2,24 @@ import Usuario from '../models/Usuario.js';
 import {
   bandFromAge,
   canSeeRestricted,
+  normalizeBand,
   resolveUserAge,
 } from '../lib/ageGate.js';
 import { readAgeBandFromRequest } from '../lib/ageCookie.js';
 import { verifyAccessToken } from '../lib/jwt.js';
 
 /**
- * Auth opcional + banda de edad.
- * Prioridad: JWT (fecha_nacimiento en DB) > cookie firmada age_ok > anon.
- * Alcohol/nocturno: solo source=auth + 18+ (la cookie no desbloquea).
- * NO confía en X-Trago-Band ni ?band= (el cliente no puede saltarse el gate).
+ * Auth opcional + banda adult | minor | unknown.
+ * Prioridad: JWT (fecha_nacimiento en DB) > cookie firmada edad_band.
+ * Cookie adult SÍ desbloquea restringidas (M1). Auth minor nunca.
+ * NO confía en X-Trago-Band ni ?band=.
  */
 export async function attachViewerAge(req, res, next) {
   req.viewer = {
     userId: null,
     age: null,
-    band: 'anon',
-    source: 'anon',
+    band: 'unknown',
+    source: 'unknown',
     canSeeAlcohol: false,
   };
 
@@ -39,7 +40,7 @@ export async function attachViewerAge(req, res, next) {
         Number(payload.tv ?? 0) === Number(user.tokenVersion ?? 0);
       if (tvOk) {
         const age = resolveUserAge(user);
-        const band = bandFromAge(age) || 'teen';
+        const band = normalizeBand(bandFromAge(age) || 'minor');
         req.viewer = {
           userId: user._id,
           age,
@@ -57,7 +58,7 @@ export async function attachViewerAge(req, res, next) {
   }
 
   const cookieBand = readAgeBandFromRequest(req);
-  if (cookieBand === 'adult' || cookieBand === 'teen') {
+  if (cookieBand === 'adult' || cookieBand === 'minor') {
     req.viewer = {
       userId: null,
       age: cookieBand === 'adult' ? 18 : 16,

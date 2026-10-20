@@ -43,9 +43,14 @@ export async function consumeRateLimit(key, max, windowMs, now = new Date()) {
 
 /**
  * Middleware Express.
- * options: { name, max, windowMs, keyFn?(req)=>string }
+ * options: { name, max, windowMs, keyFn?(req)=>string, failClosed?: boolean }
+ * failClosed (default true en login/register/vote/age): si Mongo falla → 503,
+ * no abrir la puerta a fuerza bruta.
  */
-export function rateLimit({ name, max, windowMs, keyFn } = {}) {
+export function rateLimit({ name, max, windowMs, keyFn, failClosed } = {}) {
+  const closed =
+    failClosed ??
+    ['login', 'register', 'vote', 'cadena-registro'].includes(name);
   return async (req, res, next) => {
     try {
       const ip = clientIp(req);
@@ -61,6 +66,11 @@ export function rateLimit({ name, max, windowMs, keyFn } = {}) {
       next();
     } catch (e) {
       console.error('rateLimit:', e.message);
+      if (closed) {
+        return res.status(503).json({
+          message: 'Servicio temporalmente no disponible. Intenta más tarde.',
+        });
+      }
       next();
     }
   };
@@ -74,4 +84,6 @@ export const LIMITS = {
   vote: { max: 12, windowMs: 60 * 60 * 1000 },
   /** Beacon métricas: anti-flood R-03 (por IP). */
   metrics: { max: 30, windowMs: 60 * 1000 },
+  age: { max: 20, windowMs: 60 * 60 * 1000 },
+  cadenaRegistro: { max: 3, windowMs: 60 * 60 * 1000 },
 };

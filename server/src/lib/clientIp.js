@@ -1,10 +1,25 @@
-/** IP del cliente (Netlify → x-nf-client-connection-ip). */
+/**
+ * IP del cliente para rate limit.
+ * Prioridad: cabecera Netlify (no spoofeable desde el browser) → req.ip
+ * (solo fiable con trust proxy) → socket remoto.
+ * No leer X-Forwarded-For en crudo: un cliente directo puede spoofearlo
+ * y vaciar el rate limit.
+ */
 export function clientIp(req) {
   const nf = req.headers['x-nf-client-connection-ip'];
-  if (nf) return String(nf).trim();
-  const xf = req.headers['x-forwarded-for'];
-  if (xf) return String(xf).split(',')[0].trim() || 'unknown';
-  const real = req.headers['x-real-ip'];
-  if (real) return String(real).trim();
-  return req.ip || 'unknown';
+  if (nf) return String(nf).trim() || 'unknown';
+
+  const behindProxy =
+    process.env.NETLIFY === 'true' ||
+    process.env.TRUST_PROXY === '1' ||
+    process.env.TRUST_PROXY === 'true';
+
+  if (behindProxy && req.ip) {
+    return String(req.ip).replace(/^::ffff:/, '');
+  }
+
+  const remote = req.socket?.remoteAddress || req.connection?.remoteAddress;
+  if (remote) return String(remote).replace(/^::ffff:/, '');
+  if (req.ip) return String(req.ip).replace(/^::ffff:/, '');
+  return 'unknown';
 }

@@ -1,7 +1,6 @@
-.age-gate {
+.loc-splash {
   position: fixed;
   inset: 0;
-  /* Debajo del pageload (9999); solo se monta cuando el loading terminó */
   z-index: 90;
   display: grid;
   place-items: center;
@@ -13,7 +12,7 @@
   pointer-events: auto;
 }
 
-.age-gate-panel {
+.loc-splash-panel {
   width: min(420px, 100%);
   padding: 1.35rem 1.25rem 1.1rem;
   border-radius: var(--radius-lg);
@@ -23,45 +22,55 @@
       color-mix(in srgb, var(--rojo) 18%, transparent),
       transparent 55%
     ),
-    linear-gradient(165deg, var(--surface-elevated, var(--surface)) 0%, var(--surface) 100%);
+    linear-gradient(
+      165deg,
+      var(--surface-elevated, var(--surface)) 0%,
+      var(--surface) 100%
+    );
   color: var(--fg);
   border: 1px solid var(--line);
   box-shadow: 0 18px 48px rgba(20, 4, 8, 0.35);
 }
 
-html[data-theme='night'] .age-gate-panel {
+html[data-theme='night'] .loc-splash-panel {
   background: linear-gradient(165deg, #4a1018 0%, #2a0810 100%);
   color: #f7e5b5;
 }
 
-.age-gate-panel h2 {
-  margin: 0 0 0.45rem;
-  font-size: 1.35rem;
+.loc-splash-mascot {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 1rem;
+  object-fit: contain;
+  border-radius: 22%;
 }
 
-.age-gate-panel p {
-  margin: 0 0 1rem;
+.loc-splash-copy {
+  margin: 0 0 1.15rem;
+  text-align: center;
+  font-size: 1.05rem;
   line-height: 1.45;
+  font-weight: 600;
+  color: var(--fg);
 }
 
-.age-gate-actions {
+html[data-theme='night'] .loc-splash-copy {
+  color: #f7e5b5;
+}
+
+.loc-splash-actions {
   display: grid;
   gap: 0.55rem;
 }
 
-.age-gate-panel .meta {
-  margin: 0.85rem 0 0;
-  font-size: 0.78rem;
-  opacity: 0.75;
-}
-
-.age-gate-error {
-  margin: 0.75rem 0 0;
-  font-size: 0.88rem;
-}
-
-.age-gate-actions .btn {
+.loc-splash-actions .btn {
   pointer-events: auto;
   position: relative;
   z-index: 1;
+}
+
+.loc-splash-error {
+  margin: 0.75rem 0 0;
+  font-size: 0.88rem;
 }

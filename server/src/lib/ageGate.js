@@ -1,4 +1,4 @@
-/** Edad mínima de cuenta y de contenido con alcohol / nocturno. */
+/** Edad mínima de cuenta y de contenido restringido (servidor; no se expone en UI). */
 export const MIN_ACCOUNT_AGE = 13;
 export const MIN_ALCOHOL_AGE = 18;
 
@@ -22,21 +22,31 @@ export function resolveUserAge(user, now = new Date()) {
   return Number.isFinite(ed) ? ed : null;
 }
 
+/** Banda pública del viewer: adult | minor | unknown */
 export function bandFromAge(age) {
   if (age == null || !Number.isFinite(age)) return null;
-  return age >= MIN_ALCOHOL_AGE ? 'adult' : 'teen';
+  return age >= MIN_ALCOHOL_AGE ? 'adult' : 'minor';
 }
 
 export function parseBand(raw) {
   const v = String(raw || '')
     .trim()
     .toLowerCase();
-  if (v === 'adult' || v === 'adulto' || v === '18+') return 'adult';
-  if (v === 'teen' || v === 'menor' || v === '13-17') return 'teen';
+  if (v === 'adult' || v === 'adulto') return 'adult';
+  if (v === 'minor' || v === 'teen' || v === 'menor') return 'minor';
+  if (v === 'unknown' || v === 'anon') return 'unknown';
   return null;
 }
 
-/** Promos con alcohol, audiencia adulto o nocturno → solo 18+. */
+/** Normaliza bandas legacy (teen/anon) → M1. */
+export function normalizeBand(band) {
+  if (band === 'teen') return 'minor';
+  if (band === 'anon' || !band) return 'unknown';
+  if (band === 'adult' || band === 'minor') return band;
+  return 'unknown';
+}
+
+/** Promo restringida: alcohol, audiencia adulto o nocturno. */
 export function isRestrictedPromo(promo) {
   if (!promo) return false;
   return Boolean(
@@ -49,19 +59,24 @@ export function isRestrictedPromo(promo) {
 }
 
 /**
- * Alcohol / nocturno: solo cuenta autenticada 18+.
- * Cookie de declaración o anónimo → NO desbloquean contenido restringido.
- * Cuenta teen nunca, aunque declare adult en cookie.
+ * M1: restringida solo si band === 'adult' (cookie o auth).
+ * Cuenta auth 'minor' nunca ve, aunque haya cookie adult.
  */
 export function canSeeRestricted(viewer) {
   if (!viewer) return false;
-  const authed = viewer.source === 'auth' || Boolean(viewer.userId);
-  if (!authed) return false;
-  if (viewer.band === 'teen' || viewer.band === 'anon') return false;
+  const band = normalizeBand(viewer.band);
+  if (viewer.source === 'auth' && band === 'minor') return false;
+  if (band !== 'adult') return false;
   if (viewer.age != null && Number.isFinite(viewer.age)) {
     return viewer.age >= MIN_ALCOHOL_AGE;
   }
-  return viewer.band === 'adult';
+  return true;
+}
+
+/** Alias M1. */
+export function canView(promo, viewer) {
+  if (!isRestrictedPromo(promo)) return true;
+  return canSeeRestricted(viewer);
 }
 
 export function filterPromosForViewer(promos, viewer) {
@@ -69,7 +84,7 @@ export function filterPromosForViewer(promos, viewer) {
   return promos.filter((p) => !isRestrictedPromo(p));
 }
 
-/** Cláusula Mongo para excluir alcohol/nocturno del catálogo. */
+/** Cláusula Mongo para excluir restringidas del catálogo. */
 export function mongoExcludeRestricted() {
   return {
     alcohol: { $ne: true },

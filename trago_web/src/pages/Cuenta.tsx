@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
-import { clearAgeBand, setAgeBand, type AgeBand } from '../lib/ageBand';
+import { clearAgeBand } from '../lib/ageBand';
+import { clearCatalogCache } from '../lib/catalogCache';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 import { enableWebPush, pushSupported } from '../lib/pushSubscribe';
@@ -35,10 +36,7 @@ export default function Cuenta() {
     api
       .get('/api/auth/me')
       .then((res) => {
-        const u = res.data.user as AuthUser;
-        setUser(u);
-        const b = u?.band || u?.age?.band;
-        if (b === 'teen' || b === 'adult') setAgeBand(b as AgeBand);
+        setUser(res.data.user as AuthUser);
       })
       .catch(() => {
         localStorage.removeItem('token');
@@ -75,14 +73,12 @@ export default function Cuenta() {
   function logout() {
     localStorage.removeItem('token');
     clearAgeBand();
+    void clearCatalogCache();
     setAuth(null);
     navigate('/entrar', { replace: true });
   }
 
-  const band = user?.age?.band || user?.band || '—';
   const points = user?.puntos ?? user?.points ?? 0;
-  const bandLabel =
-    band === 'adult' ? '18+' : band === 'teen' ? '13–17' : String(band);
   const langLabel = locale === 'en' ? 'English' : 'Español';
 
   return (
@@ -103,7 +99,6 @@ export default function Cuenta() {
               <h2>{name}</h2>
               <p className="meta">{user.correo || user.email}</p>
               <div className="cuenta-badges">
-                <span className="badge">{bandLabel}</span>
                 {points > 0 ? (
                   <span className="badge soft">{points} pts</span>
                 ) : null}
@@ -122,10 +117,6 @@ export default function Cuenta() {
               <em>
                 {langLabel} ›
               </em>
-            </Link>
-            <Link className="settings-row" to="/instalar" viewTransition>
-              <span>{t('installTitle')}</span>
-              <em>›</em>
             </Link>
             <Link className="settings-row" to="/favoritos" viewTransition>
               <span>{t('settingsFavorites')}</span>
@@ -183,10 +174,6 @@ export default function Cuenta() {
           </nav>
 
           {pushNote && <aside className="cuenta-note">{pushNote}</aside>}
-
-          {band === 'teen' && (
-            <aside className="cuenta-note">{t('teenNote')}</aside>
-          )}
 
           <button type="button" className="btn ghost logout-btn" onClick={logout}>
             {t('logout')}

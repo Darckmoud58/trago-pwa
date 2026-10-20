@@ -10,11 +10,9 @@ import {
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
-import { canSeeAlcoholUi } from '../lib/viewerAccess';
 import type { AuthUser, Promo } from '../types';
 import './Home.css';
 
-const AGE_KEY = 'trago_age_ack';
 const BDAY_RADIUS_M = 5000;
 
 function readGps(): Promise<GeolocationPosition> {
@@ -45,7 +43,6 @@ function nearestBranchMeta(p: Promo): { label: string; meters?: number } | null 
 
 export default function Home() {
   const { t, locale } = useI18n();
-  const [showAge, setShowAge] = useState(false);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [fromCache, setFromCache] = useState(false);
   const [promosError, setPromosError] = useState(false);
@@ -65,21 +62,12 @@ export default function Home() {
     (user?.name ? String(user.name).split(/\s+/)[0] : '') ||
     '';
 
-  const showAlcoholCat = canSeeAlcoholUi();
-
-  // Categorías = atajos de catálogo. 18+ solo con sesión adulta. Cumple = momento del día.
+  // Categorías = atajos de catálogo (sin pistas de contenido restringido).
   const categories = [
     { id: 'todas', label: t('catAll'), to: '/promos' },
     { id: 'comida', label: t('catFood'), to: '/promos?f=comida' },
     { id: 'cafe', label: t('catCafe'), to: '/promos?f=cafe' },
-    ...(showAlcoholCat
-      ? [{ id: 'alcohol', label: t('catAlcohol'), to: '/promos?f=alcohol' }]
-      : []),
   ];
-
-  useEffect(() => {
-    if (!localStorage.getItem(AGE_KEY)) setShowAge(true);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,11 +179,6 @@ export default function Home() {
     };
   }, [birthdayToday]);
 
-  function ackAge() {
-    localStorage.setItem(AGE_KEY, '1');
-    setShowAge(false);
-  }
-
   function scrollToBirthday() {
     document
       .getElementById('hoy-cumple')
@@ -204,19 +187,6 @@ export default function Home() {
 
   return (
     <div className="home-app">
-      {showAge && (
-        <div className="age-sheet" role="dialog" aria-label={t('ageDialog')}>
-          <p>
-            {t('ageBody')}{' '}
-            <Link to="/terminos">{t('ageTerms')}</Link> ·{' '}
-            <Link to="/aviso-de-privacidad">{t('agePrivacy')}</Link>.
-          </p>
-          <button type="button" className="btn primary" onClick={ackAge}>
-            {t('understood')}
-          </button>
-        </div>
-      )}
-
       <section className="home-hero rise">
         <p className="ui-kicker">{t('hello')}</p>
         <h1 className="brand-mark home-brand">TraGo</h1>
@@ -426,7 +396,6 @@ export default function Home() {
                   </p>
                   <h3>{title}</h3>
                   <p className="meta">
-                    {p.alcohol ? '18+ · ' : ''}
                     {(p.termina_en || p.endsAt) &&
                       `${t('until')} ${new Date(
                         p.termina_en || p.endsAt!

@@ -156,11 +156,7 @@ export async function postReport(req, res) {
     if (isRestrictedPromo(promo)) {
       const age = resolveUserAge(user);
       if (age == null || age < MIN_ALCOHOL_AGE) {
-        return res.status(403).json({
-          code: 'AGE_RESTRICTED',
-          message: `Solo mayores de ${MIN_ALCOHOL_AGE} pueden reportar vigencia de promos con alcohol o nocturno.`,
-          minAge: MIN_ALCOHOL_AGE,
-        });
+        return res.status(404).json({ message: 'Promoción no encontrada' });
       }
     }
 

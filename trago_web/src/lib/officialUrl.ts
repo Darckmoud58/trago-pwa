@@ -5,6 +5,8 @@ export function resolveOfficialPromoUrl(url?: string | null): string {
   if (!url) return '';
   try {
     const u = new URL(url);
+    // Solo http(s): evita javascript:/data: en <a href>.
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
     const host = u.hostname.replace(/^www\./, '');
     const path = u.pathname.replace(/\/+$/, '') || '/';
     const isHome = path === '/' || path === '';
@@ -33,8 +35,8 @@ export function resolveOfficialPromoUrl(url?: string | null): string {
     };
 
     if (isHome && deepLinks[host]) return deepLinks[host];
-    return url;
+    return u.toString();
   } catch {
-    return url;
+    return '';
   }
 }

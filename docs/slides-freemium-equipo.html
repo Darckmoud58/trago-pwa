@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TraGo — Freemium / Pro · Equipo</title>
+  <style>
+    :root {
+      --rojo: #d81a1c;
+      --tinto: #3b0b13;
+      --beige: #f7e5b5;
+      --crema: #faf6eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--tinto);
+      color: var(--beige);
+    }
+    .deck {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .slide {
+      display: none;
+      flex: 1;
+      padding: clamp(1.5rem, 4vw, 3.5rem);
+      flex-direction: column;
+      justify-content: center;
+      max-width: 920px;
+      margin: 0 auto;
+      width: 100%;
+    }
+    .slide.active { display: flex; }
+    .brand {
+      font-size: 0.85rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--rojo);
+      margin-bottom: 0.75rem;
+      font-weight: 700;
+    }
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.75rem);
+      line-height: 1.15;
+      margin-bottom: 1rem;
+      color: #fff;
+    }
+    h2 {
+      font-size: clamp(1.4rem, 3.5vw, 2rem);
+      color: #fff;
+      margin-bottom: 1.25rem;
+    }
+    p, li {
+      font-size: clamp(1rem, 2.2vw, 1.25rem);
+      line-height: 1.45;
+      color: var(--beige);
+      opacity: 0.95;
+    }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.55rem; }
+    .lead {
+      font-size: clamp(1.15rem, 2.5vw, 1.45rem);
+      max-width: 36ch;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+      margin-top: 0.5rem;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+      border-bottom: 1px solid rgba(247, 229, 181, 0.25);
+    }
+    th { color: var(--rojo); font-weight: 700; }
+    .tag {
+      display: inline-block;
+      background: var(--rojo);
+      color: #fff;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.25rem;
+      background: rgba(0, 0, 0, 0.35);
+      border-top: 1px solid rgba(247, 229, 181, 0.15);
+      font-size: 0.9rem;
+    }
+    .nav button {
+      background: var(--rojo);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .nav button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    .dots span {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(247, 229, 181, 0.35);
+      margin: 0 3px;
+    }
+    .dots span.on { background: var(--rojo); }
+    .hint { opacity: 0.55; font-size: 0.8rem; margin-top: 1.5rem; }
+    strong { color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide active" data-i="0">
+      <p class="brand">TraGo · Equipo</p>
+      <h1>Freemium que sí cierra</h1>
+      <p class="lead">
+        Cómo generar ingreso sin traicionar la tesis:
+        <strong>certeza local</strong>, no un feed de anuncios.
+      </p>
+      <p class="hint">← → o clic en Siguiente · 5 diapositivas</p>
+    </section>
+
+    <section class="slide" data-i="1">
+      <span class="tag">Problema</span>
+      <h2>El dolor</h2>
+      <ul>
+        <li>El usuario viaja por una promo y <strong>ya no aplica</strong> en esa sucursal.</li>
+        <li>La cadena paga pauta y compra <strong>clics</strong>, no pies en la puerta.</li>
+        <li>TraGo vende: <strong>promo oficial × local × GPS × voto en piso</strong>.</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="2">
+      <span class="tag">Ingresos</span>
+      <h2>Freemium → Pro</h2>
+      <table>
+        <thead>
+          <tr><th>Plan</th><th>Incluye</th><th>Precio</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Freemium</strong></td>
+            <td>Perfil + 2 promos + ads de terceros</td>
+            <td>$0</td>
+          </tr>
+          <tr>
+            <td><strong>Pro</strong></td>
+            <td>Sin ads · destacada cerca · reportes</td>
+            <td>$2.9k–$6.9k / mes · zona</td>
+          </tr>
+          <tr>
+            <td><strong>Marca</strong></td>
+            <td>Slot patrocinado 7–15 días</td>
+            <td>por vuelo</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:1.25rem">
+        Upsell: Free ve el banner del vecino → Pro lo quita y sale <strong>destacada</strong>.
+      </p>
+    </section>
+
+    <section class="slide" data-i="3">
+      <span class="tag">Google Ads</span>
+      <h2>Sí al modelo, no al AdSense como motor</h2>
+      <ul>
+        <li><strong>No</strong> AdSense genérico al centro: alcohol, poco control, diluye TraGo.</li>
+        <li><strong>Sí</strong> pauta propia (cadenas / marcas) en Free.</li>
+        <li>Siempre etiquetado <em>Publicidad</em> — nunca como promo oficial.</li>
+        <li>Pro = inventario limpio + destacada cerca.</li>
+      </ul>
+    </section>
+
+    <section class="slide" data-i="4">
+      <span class="tag">Decisión</span>
+      <h2>Qué pedimos acordar</h2>
+      <ul>
+        <li>¿Pauta propia en Freemium (sin AdSense al inicio)?</li>
+        <li>¿Pro a <strong>$2,900</strong> o <strong>$4,900</strong> (cadena vs zona)?</li>
+        <li>¿Piloto: <strong>1 cadena real en GDL</strong>?</li>
+        <li>¿Sprint 1: freemium/pro + destacada, o CSV de sucursales?</li>
+      </ul>
+      <p style="margin-top:1.5rem;font-style:italic;opacity:0.85">
+        “No likes. Pies en la puerta y vigencia real.”
+      </p>
+    </section>
+
+    <div class="nav">
+      <button type="button" id="prev" disabled>Anterior</button>
+      <div class="dots" id="dots" aria-hidden="true"></div>
+      <button type="button" id="next">Siguiente</button>
+    </div>
+  </div>
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const dots = document.getElementById('dots');
+    const prev = document.getElementById('prev');
+    const next = document.getElementById('next');
+    let i = 0;
+
+    slides.forEach((_, n) => {
+      const s = document.createElement('span');
+      if (n === 0) s.classList.add('on');
+      dots.appendChild(s);
+    });
+
+    function show(n) {
+      i = Math.max(0, Math.min(slides.length - 1, n));
+      slides.forEach((el, k) => el.classList.toggle('active', k === i));
+      [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+      prev.disabled = i === 0;
+      next.disabled = i === slides.length - 1;
+      next.textContent = i === slides.length - 1 ? 'Fin' : 'Siguiente';
+    }
+
+    prev.addEventListener('click', () => show(i - 1));
+    next.addEventListener('click', () => show(i + 1));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); show(i + 1); }
+      if (e.key === 'ArrowLeft') show(i - 1);
+    });
+  </script>
+</body>
+</html>

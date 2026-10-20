@@ -2,48 +2,94 @@ import { z } from 'zod';
 import {
   AGE_COOKIE,
   ageCookieOptions,
-  ageSetCookieHeader,
-  readAgeBandFromRequest,
+  ageSetCookieHeaders,
+  isBandLocked,
+  readAgePayloadFromRequest,
   signAgeDeclaration,
 } from '../lib/ageCookie.js';
-import { bandFromAge, resolveUserAge } from '../lib/ageGate.js';
+import {
+  MIN_ALCOHOL_AGE,
+  bandFromAge,
+  normalizeBand,
+  resolveUserAge,
+  yearsFromBirth,
+} from '../lib/ageGate.js';
 import { verifyAccessToken } from '../lib/jwt.js';
 import Usuario from '../models/Usuario.js';
 
-const declareSchema = z
+const birthDateSchema = z
   .object({
-    adult: z.boolean(),
+    birthDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'birthDate inválido'),
   })
   .strict();
 
 /**
- * POST /api/age/declare { adult: true|false }
- * Cookie httpOnly firmada. Declaración, no verificación de identidad.
+ * POST /api/edad { birthDate: YYYY-MM-DD }
+ * Cookie httpOnly. Respuesta neutra { ok: true } — sin edad ni umbral.
+ * No permite cambiar banda en 24 h.
  */
-export async function declareAge(req, res) {
-  const parsed = declareSchema.safeParse(req.body || {});
+export async function declareBirthDate(req, res) {
+  const parsed = birthDateSchema.safeParse(req.body || {});
   if (!parsed.success) {
-    return res.status(400).json({
-      message: 'Body inválido: { adult: boolean }',
-    });
+    return res.status(400).json({ message: 'No pudimos guardar tu fecha' });
   }
 
-  const band = parsed.data.adult ? 'adult' : 'teen';
-  const token = signAgeDeclaration(band);
-  res.cookie(AGE_COOKIE, token, ageCookieOptions());
-  // Refuerzo para Netlify/serverless-http
-  res.setHeader('Set-Cookie', ageSetCookieHeader(token));
-  res.setHeader('Cache-Control', 'no-store');
+  const { birthDate } = parsed.data;
+  const years = yearsFromBirth(`${birthDate}T12:00:00.000Z`);
+  if (years == null || years < 0 || years > 120) {
+    return res.status(400).json({ message: 'No pudimos guardar tu fecha' });
+  }
+  // Año ≥ 1900
+  const year = Number(birthDate.slice(0, 4));
+  if (!Number.isFinite(year) || year < 1900) {
+    return res.status(400).json({ message: 'No pudimos guardar tu fecha' });
+  }
+  if (new Date(`${birthDate}T12:00:00.000Z`) > new Date()) {
+    return res.status(400).json({ message: 'No pudimos guardar tu fecha' });
+  }
 
-  return res.json({
-    ok: true,
-    band,
-    declaration: true,
-    note: 'Declaración de edad; no es verificación de identidad. Alcohol solo 18+.',
-  });
+  const existing = readAgePayloadFromRequest(req);
+  if (existing && isBandLocked(existing)) {
+    // No revela si la fecha habría cambiado la banda.
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true });
+  }
+
+  const band = years >= MIN_ALCOHOL_AGE ? 'adult' : 'minor';
+  const token = signAgeDeclaration(band, Date.now());
+  const opts = ageCookieOptions();
+  res.cookie(AGE_COOKIE, token, opts);
+  for (const h of ageSetCookieHeaders(token)) {
+    res.append('Set-Cookie', h);
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ ok: true });
 }
 
-/** GET /api/age/status — banda efectiva (auth > cookie > anon). */
+/**
+ * Legacy POST /api/age/declare { adult } — redirige a cookie sin revelar umbral.
+ * Preferir POST /api/edad.
+ */
+export async function declareAge(req, res) {
+  const adult = Boolean(req.body?.adult);
+  const existing = readAgePayloadFromRequest(req);
+  if (existing && isBandLocked(existing)) {
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({ ok: true });
+  }
+  const band = adult ? 'adult' : 'minor';
+  const token = signAgeDeclaration(band, Date.now());
+  res.cookie(AGE_COOKIE, token, ageCookieOptions());
+  for (const h of ageSetCookieHeaders(token)) {
+    res.append('Set-Cookie', h);
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ ok: true });
+}
+
+/** GET /api/age/status — banda para saber si falta gate (sin hablar de alcohol). */
 export async function ageStatus(req, res) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -60,11 +106,11 @@ export async function ageStatus(req, res) {
         Number(payload.tv ?? 0) === Number(user.tokenVersion ?? 0)
       ) {
         const age = resolveUserAge(user);
-        const band = bandFromAge(age) || 'teen';
+        const band = normalizeBand(bandFromAge(age) || 'minor');
         return res.json({
           band,
           source: 'auth',
-          canSeeRestricted: band === 'adult', // solo auth 18+
+          ok: true,
         });
       }
     } catch {
@@ -72,19 +118,18 @@ export async function ageStatus(req, res) {
     }
   }
 
-  const cookieBand = readAgeBandFromRequest(req);
+  const cookieBand = readAgePayloadFromRequest(req)?.band;
   if (cookieBand) {
     return res.json({
-      band: cookieBand,
+      band: normalizeBand(cookieBand),
       source: 'cookie',
-      // Cookie no desbloquea alcohol: hace falta cuenta 18+.
-      canSeeRestricted: false,
+      ok: true,
     });
   }
 
   return res.json({
-    band: 'anon',
-    source: 'anon',
-    canSeeRestricted: false,
+    band: 'unknown',
+    source: 'unknown',
+    ok: true,
   });
 }

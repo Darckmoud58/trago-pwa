@@ -1,8 +1,12 @@
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../config/env.js';
+import { normalizeBand } from './ageGate.js';
 
-export const AGE_COOKIE = 'age_ok';
+/** Cookie M1 (httpOnly). Se acepta también el nombre legacy `age_ok`. */
+export const AGE_COOKIE = 'edad_band';
+export const AGE_COOKIE_LEGACY = 'age_ok';
 const COOKIE_MAX_AGE_SEC = 30 * 24 * 60 * 60;
+export const BAND_LOCK_MS = 24 * 60 * 60 * 1000;
 
 export function parseCookieHeader(header) {
   const out = {};
@@ -22,30 +26,42 @@ export function parseCookieHeader(header) {
   return out;
 }
 
-/** Firma declaración adult|teen (no es verificación de identidad). */
-export function signAgeDeclaration(band) {
-  if (band !== 'adult' && band !== 'teen') {
+/**
+ * Firma declaración adult|minor.
+ * @param {'adult'|'minor'} band
+ * @param {number} [declaredAt]
+ */
+export function signAgeDeclaration(band, declaredAt = Date.now()) {
+  const b = normalizeBand(band);
+  if (b !== 'adult' && b !== 'minor') {
     throw new Error('Banda inválida');
   }
   const { JWT_SECRET } = getEnv();
   return jwt.sign(
-    { purpose: 'age_declare', band },
+    { purpose: 'age_declare', band: b, declaredAt },
     JWT_SECRET,
     { algorithm: 'HS256', expiresIn: `${COOKIE_MAX_AGE_SEC}s` }
   );
 }
 
-export function verifyAgeDeclaration(token) {
+/** @returns {{ band: 'adult'|'minor', declaredAt: number } | null} */
+export function verifyAgeDeclarationPayload(token) {
   if (!token) return null;
   try {
     const { JWT_SECRET } = getEnv();
     const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (payload?.purpose !== 'age_declare') return null;
-    if (payload.band !== 'adult' && payload.band !== 'teen') return null;
-    return payload.band;
+    const band = normalizeBand(payload.band === 'teen' ? 'minor' : payload.band);
+    if (band !== 'adult' && band !== 'minor') return null;
+    const declaredAt = Number(payload.declaredAt) || 0;
+    return { band, declaredAt };
   } catch {
     return null;
   }
+}
+
+export function verifyAgeDeclaration(token) {
+  return verifyAgeDeclarationPayload(token)?.band || null;
 }
 
 export function ageCookieOptions() {
@@ -53,8 +69,6 @@ export function ageCookieOptions() {
     process.env.NODE_ENV === 'production' ||
     process.env.NETLIFY === 'true' ||
     process.env.CONTEXT === 'production';
-  // Netlify Function (mismo origen vía /api): Lax basta.
-  // Cross-site (front y API en hosts distintos) necesita None+Secure.
   const crossSite = process.env.AGE_COOKIE_SAMESITE === 'none';
   return {
     httpOnly: true,
@@ -65,11 +79,10 @@ export function ageCookieOptions() {
   };
 }
 
-/** Header Set-Cookie explícito (serverless a veces pierde res.cookie). */
-export function ageSetCookieHeader(token) {
+function cookieHeaderParts(name, token) {
   const opts = ageCookieOptions();
   const parts = [
-    `${AGE_COOKIE}=${encodeURIComponent(token)}`,
+    `${name}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
     `Max-Age=${COOKIE_MAX_AGE_SEC}`,
@@ -79,7 +92,30 @@ export function ageSetCookieHeader(token) {
   return parts.join('; ');
 }
 
-export function readAgeBandFromRequest(req) {
+/** Set-Cookie de banda + limpia legacy age_ok. */
+export function ageSetCookieHeaders(token) {
+  const clearLegacy = `${AGE_COOKIE_LEGACY}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`;
+  return [cookieHeaderParts(AGE_COOKIE, token), clearLegacy];
+}
+
+/** @deprecated usar ageSetCookieHeaders */
+export function ageSetCookieHeader(token) {
+  return cookieHeaderParts(AGE_COOKIE, token);
+}
+
+export function readAgePayloadFromRequest(req) {
   const cookies = parseCookieHeader(req.headers?.cookie);
-  return verifyAgeDeclaration(cookies[AGE_COOKIE]);
+  return (
+    verifyAgeDeclarationPayload(cookies[AGE_COOKIE]) ||
+    verifyAgeDeclarationPayload(cookies[AGE_COOKIE_LEGACY])
+  );
+}
+
+export function readAgeBandFromRequest(req) {
+  return readAgePayloadFromRequest(req)?.band || null;
+}
+
+export function isBandLocked(payload, now = Date.now()) {
+  if (!payload?.declaredAt) return false;
+  return now - Number(payload.declaredAt) < BAND_LOCK_MS;
 }

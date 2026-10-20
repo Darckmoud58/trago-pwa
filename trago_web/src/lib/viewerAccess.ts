@@ -1,6 +1,8 @@
-import { getAgeBand } from './ageBand';
-
-/** Hay JWT de cuenta real en el dispositivo. */
+/**
+ * Atajos de UI para contenido restringido.
+ * M1: el servidor filtra; la UI no habla de umbrales.
+ * Siempre ocultamos chips/atajos sensibles para no delatar el contenido.
+ */
 export function hasSession(): boolean {
   try {
     return Boolean(localStorage.getItem('token'));
@@ -9,21 +11,15 @@ export function hasSession(): boolean {
   }
 }
 
-/**
- * Alcohol / nocturno en UI: solo sesión + banda adult (fecha de cuenta).
- * Cookie de declaración no basta.
- */
+/** @deprecated M1 — no mostrar atajos de restringidas en UI. */
 export function canSeeAlcoholUi(): boolean {
-  if (!hasSession()) return false;
-  return getAgeBand() === 'adult';
+  return false;
 }
 
-/** Invitado / teen / cookie-only: ocultar atajos y filtros 18+. */
 export function hideRestrictedFilters(): boolean {
-  return !canSeeAlcoholUi();
+  return true;
 }
 
-/** Destino de login con retorno (react-router state lo usa Login/Register). */
 export function loginState(from: string, reason?: string) {
   return { from: from || '/', reason };
 }

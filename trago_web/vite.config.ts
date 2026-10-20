@@ -20,11 +20,23 @@ const ICON_512 = `/icon-512-v2.png?v=${ICON_VERSION}`;
 export default defineConfig({
   server: {
     port: 5173,
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:4001',
         changeOrigin: true,
       },
+    },
+  },
+  preview: {
+    headers: {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'Referrer-Policy': 'no-referrer',
     },
   },
   plugins: [

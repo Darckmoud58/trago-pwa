@@ -38,6 +38,11 @@ yarn-debug.log*
 .env.*
 !.env.example
 
+# graphify — mapa del código (superficie de reconocimiento); no versionar
+graphify-out/
+trago_web/graphify-out/
+**/graphify-out/
+
 # vercel / netlify
 .vercel
 .netlify

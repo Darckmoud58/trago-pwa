@@ -9,18 +9,10 @@ import {
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
-import { canSeeAlcoholUi, hideRestrictedFilters } from '../lib/viewerAccess';
 import type { Promo } from '../types';
 import './Promos.css';
 
-type FilterId =
-  | 'todas'
-  | 'destacadas'
-  | 'alcohol'
-  | 'nocturno'
-  | 'cumple'
-  | 'comida'
-  | 'cafe';
+type FilterId = 'todas' | 'destacadas' | 'cumple' | 'comida' | 'cafe';
 
 const FILTER_IDS: FilterId[] = [
   'todas',
@@ -28,8 +20,6 @@ const FILTER_IDS: FilterId[] = [
   'cumple',
   'comida',
   'cafe',
-  'nocturno',
-  'alcohol',
 ];
 
 function parseFilter(raw: string | null): FilterId {
@@ -48,15 +38,6 @@ function matchesKind(p: Promo, needles: string[]) {
     .join(' ')
     .toLowerCase();
   return needles.some((n) => k.includes(n) || hay.includes(n));
-}
-
-function isAlcoholRestricted(p: Promo) {
-  return (
-    !!p.alcohol ||
-    p.audience === 'adult' ||
-    p.audiencia === 'adulto' ||
-    !!(p.nocturno || p.isNocturno)
-  );
 }
 
 function daysLeft(iso?: string) {
@@ -78,19 +59,9 @@ export default function Promos() {
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'))
   );
-  const hide18 = hideRestrictedFilters();
-  const showAlcohol = canSeeAlcoholUi();
-
   useEffect(() => {
-    const next = parseFilter(searchParams.get('f'));
-    // Sin sesión adulta no hay atajo alcohol/nocturno.
-    if (hide18 && (next === 'alcohol' || next === 'nocturno')) {
-      setFilter('todas');
-      setSearchParams({}, { replace: true });
-      return;
-    }
-    setFilter(next);
-  }, [searchParams, hide18, setSearchParams]);
+    setFilter(parseFilter(searchParams.get('f')));
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,20 +106,10 @@ export default function Promos() {
     }
   }
 
-  const ageSafe = useMemo(() => {
-    if (showAlcohol) return promos;
-    return promos.filter((p) => !isAlcoholRestricted(p));
-  }, [promos, showAlcohol]);
-
-  const hiddenCount = promos.length - ageSafe.length;
-
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return ageSafe.filter((p) => {
+    return promos.filter((p) => {
       if (filter === 'destacadas' && !(p.featured || p.destacada)) return false;
-      if (filter === 'alcohol' && !p.alcohol && p.audience !== 'adult')
-        return false;
-      if (filter === 'nocturno' && !(p.nocturno || p.isNocturno)) return false;
       if (filter === 'cumple' && !(p.cumpleanos || p.isBirthday)) return false;
       if (
         filter === 'comida' &&
@@ -174,16 +135,14 @@ export default function Promos() {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [ageSafe, filter, query]);
+  }, [promos, filter, query]);
 
-  const filters: { id: FilterId; label: string; needsAdult?: boolean }[] = [
+  const filters: { id: FilterId; label: string }[] = [
     { id: 'todas', label: t('filterAll') },
     { id: 'destacadas', label: t('filterFeatured') },
     { id: 'comida', label: t('filterFood') },
     { id: 'cafe', label: t('filterCafe') },
     { id: 'cumple', label: t('filterBday') },
-    { id: 'nocturno', label: t('filterNight'), needsAdult: true },
-    { id: 'alcohol', label: t('filterAlcohol'), needsAdult: true },
   ];
 
   const countLabel =
@@ -198,16 +157,6 @@ export default function Promos() {
         <h2>{t('featured')}</h2>
         <p className="meta">{countLabel}</p>
       </header>
-
-      {hide18 && (
-        <aside className="promos-note">
-          {t('promosAdultLoginNote')}
-          {hiddenCount > 0 ? ` (${hiddenCount})` : ''}.{' '}
-          <Link to="/entrar" state={{ from: '/promos', reason: 'alcohol' }}>
-            {t('quickLogin')}
-          </Link>
-        </aside>
-      )}
 
       <div className="promos-toolbar" data-reveal>
         <label className="promos-search">
@@ -225,9 +174,7 @@ export default function Promos() {
           role="tablist"
           aria-label={t('filtersAria')}
         >
-          {filters
-            .filter((f) => !(f.needsAdult && hide18))
-            .map((f) => (
+          {filters.map((f) => (
               <button
                 key={f.id}
                 type="button"
@@ -285,7 +232,6 @@ export default function Promos() {
                   {(p.featured || p.destacada) && (
                     <span className="tag accent">{t('featuredTag')}</span>
                   )}
-                  {p.alcohol && <span className="tag warn">18+</span>}
                 </div>
 
                 <h3>

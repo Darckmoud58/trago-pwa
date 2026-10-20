@@ -26,6 +26,16 @@
   to = "/index.html"
   status = 200
 
+# Hardening PWA (defensivo)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(self)"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+
 # Iconos / logos PWA: caché corta + revalidar (Android refresca; iOS a veces tarda)
 [[headers]]
   for = "/icon-*.png"

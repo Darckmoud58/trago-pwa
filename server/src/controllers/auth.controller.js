@@ -39,7 +39,7 @@ function publicUser(user, extras = {}) {
     .filter(Boolean)
     .join(' ');
   const age = resolveUserAge(user);
-  const band = bandFromAge(age) || 'teen';
+  const band = bandFromAge(age) || 'minor';
   const birthDate = user.fecha_nacimiento
     ? birthDateIso(user.fecha_nacimiento)
     : null;
@@ -99,7 +99,7 @@ async function loadUserExtras(user) {
 
 function issueToken(user, roleCode) {
   const age = resolveUserAge(user);
-  const band = bandFromAge(age) || 'teen';
+  const band = bandFromAge(age) || 'minor';
   return signAccessToken({
     id: user._id,
     role: roleCode || 'user',

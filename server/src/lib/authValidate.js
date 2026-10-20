@@ -68,7 +68,7 @@ export function ageFromBirthDateStrict(birthDate) {
     throw new Error('Fecha de nacimiento inválida');
   }
   if (years < MIN_ACCOUNT_AGE) {
-    throw new Error(`Debes tener al menos ${MIN_ACCOUNT_AGE} años`);
+    throw new Error('No pudimos crear tu cuenta');
   }
   if (years > 120) {
     throw new Error('Edad no válida');

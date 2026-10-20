@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import AgeBandGate from './components/AgeBandGate';
 import AppHeader from './components/AppHeader';
 import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
+import LocationSplash from './components/LocationSplash';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
 import PageTransition from './components/PageTransition';
@@ -53,7 +53,7 @@ export default function Layout() {
       className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}${night ? ' is-night' : ''}`}
     >
       <PageLoadOverlay />
-      <AgeBandGate />
+      <LocationSplash />
       {!hideHeader && <AppHeader online={online} />}
       {!online && <OfflineBanner />}
       <main className="app-main" id="main">

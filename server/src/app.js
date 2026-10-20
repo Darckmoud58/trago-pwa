@@ -27,11 +27,25 @@ export function createApp() {
     allowed.add('http://127.0.0.1:5173');
   }
 
-  app.set('trust proxy', 1);
+  // Solo confiar en X-Forwarded-* detrás de proxy real (Netlify / TRUST_PROXY).
+  // Si no, un cliente puede spoofear IP y vaciar rate limits.
+  const trustProxy =
+    env.NETLIFY === 'true' ||
+    process.env.TRUST_PROXY === '1' ||
+    process.env.TRUST_PROXY === 'true';
+  app.set('trust proxy', trustProxy ? 1 : false);
+
+  app.disable('x-powered-by');
   app.use(
     helmet({
+      // API JSON: sin CSP de documentos HTML; sí headers de hardening.
       contentSecurityPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      referrerPolicy: { policy: 'no-referrer' },
+      hsts:
+        env.NODE_ENV === 'production' || env.NETLIFY === 'true'
+          ? { maxAge: 15552000, includeSubDomains: true }
+          : false,
     })
   );
   app.use(
@@ -80,6 +94,7 @@ export function createApp() {
   app.get('/', (_req, res) => res.json({ ok: true }));
 
   app.use('/api/auth', authRoutes);
+  app.use('/api/edad', ageRoutes);
   app.use('/api/age', ageRoutes);
   app.use('/api/favoritos', favoritosRoutes);
   app.use('/api/reportes', reportesRoutes);

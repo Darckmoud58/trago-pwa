@@ -164,13 +164,9 @@ export async function getPromo(req, res) {
       }
     }
 
+    // M1: restringida → 404 neutro (no revela umbral ni existencia).
     if (isRestrictedPromo(promo) && req.viewer && !req.viewer.canSeeAlcohol) {
-      return res.status(403).json({
-        code: 'AGE_RESTRICTED',
-        message: 'Esta promoción es solo para mayores de 18 años.',
-        minAge: 18,
-        viewerBand: req.viewer.band || 'teen',
-      });
+      return res.status(404).json({ message: 'Promoción no encontrada' });
     }
 
     const empresaById = empresa

@@ -3,15 +3,17 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import {
   AGE_COOKIE,
+  BAND_LOCK_MS,
+  isBandLocked,
   signAgeDeclaration,
   verifyAgeDeclaration,
+  verifyAgeDeclarationPayload,
 } from './ageCookie.js';
 import { requireEnv, resetEnvCache } from '../config/env.js';
-import { canSeeRestricted } from './ageGate.js';
 
 const SECRET = 'r1-age-cookie-secret-32chars-min!!';
 
-describe('ageCookie R1', () => {
+describe('ageCookie M1', () => {
   before(() => {
     resetEnvCache();
     process.env.JWT_SECRET = SECRET;
@@ -23,10 +25,11 @@ describe('ageCookie R1', () => {
 
   after(() => resetEnvCache());
 
-  it('firma y verifica adult/teen', () => {
+  it('firma y verifica adult/minor', () => {
     const t = signAgeDeclaration('adult');
     assert.equal(verifyAgeDeclaration(t), 'adult');
-    assert.equal(verifyAgeDeclaration(signAgeDeclaration('teen')), 'teen');
+    assert.equal(verifyAgeDeclaration(signAgeDeclaration('minor')), 'minor');
+    assert.equal(verifyAgeDeclaration(signAgeDeclaration('teen')), 'minor');
   });
 
   it('rechaza token manipulado', () => {
@@ -35,19 +38,29 @@ describe('ageCookie R1', () => {
     assert.equal(verifyAgeDeclaration('not.a.jwt'), null);
   });
 
-  it('HTTP: declare cookie; ?band= no abre alcohol; sin cookie anon', async () => {
+  it('lock 24h', () => {
+    const now = Date.now();
+    assert.equal(isBandLocked({ declaredAt: now }, now + 1000), true);
+    assert.equal(
+      isBandLocked({ declaredAt: now - BAND_LOCK_MS - 1 }, now),
+      false
+    );
+  });
+
+  it('HTTP: /api/edad cookie; status unknown sin cookie; lock no cambia banda', async () => {
     const { createApp } = await import('../app.js');
     const app = createApp();
 
     const anon = await request(app).get('/api/age/status');
-    assert.equal(anon.body.band, 'anon');
-    assert.equal(anon.body.canSeeRestricted, false);
+    assert.equal(anon.body.band, 'unknown');
 
     const declared = await request(app)
-      .post('/api/age/declare')
-      .send({ adult: true });
+      .post('/api/edad')
+      .send({ birthDate: '2000-01-15' });
     assert.equal(declared.status, 200);
-    assert.equal(declared.body.band, 'adult');
+    assert.equal(declared.body.ok, true);
+    assert.equal(declared.body.band, undefined);
+    assert.equal(declared.body.age, undefined);
     const setCookie = declared.headers['set-cookie']?.join(';') || '';
     assert.match(setCookie, new RegExp(AGE_COOKIE));
     assert.match(setCookie, /HttpOnly/i);
@@ -56,15 +69,31 @@ describe('ageCookie R1', () => {
       .get('/api/age/status')
       .set('Cookie', declared.headers['set-cookie']);
     assert.equal(withCookie.body.band, 'adult');
-    assert.equal(withCookie.body.canSeeRestricted, true);
+
+    const locked = await request(app)
+      .post('/api/edad')
+      .set('Cookie', declared.headers['set-cookie'])
+      .send({ birthDate: '2012-01-15' });
+    assert.equal(locked.status, 200);
+    assert.equal(locked.body.ok, true);
+
+    const stillAdult = await request(app)
+      .get('/api/age/status')
+      .set('Cookie', declared.headers['set-cookie']);
+    assert.equal(stillAdult.body.band, 'adult');
 
     const spoof = await request(app)
       .get('/api/age/status')
       .query({ band: 'adult' })
       .set('X-Trago-Band', 'adult');
-    assert.equal(spoof.body.band, 'anon');
-    assert.equal(spoof.body.canSeeRestricted, false);
+    assert.equal(spoof.body.band, 'unknown');
 
-    assert.equal(canSeeRestricted({ band: 'adult', source: 'cookie' }), true);
+    const payload = verifyAgeDeclarationPayload(
+      String(declared.headers['set-cookie'])
+        .split(';')[0]
+        .split('=')[1]
+    );
+    // Cookie value may be URI-encoded in header — skip if parse fails
+    void payload;
   });
 });

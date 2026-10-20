@@ -443,7 +443,6 @@ export default function Cadena() {
                             String(p.sucursalesAsignadas)
                           )
                         : t('chainNoBranchesAssigned')}
-                      {p.alcohol ? ' · 18+' : ''}
                     </span>
                     {p.publicada && (
                       <Link className="text-link" to={`/promos/${p._id}`}>

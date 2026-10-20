@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
 import { requireAdmin, requireChain } from '../middleware/roles.js';
+import { LIMITS, rateLimit } from '../middleware/rateLimit.js';
 import Empresa from '../models/Empresa.js';
 import {
   blockUserReports,
@@ -31,7 +32,17 @@ async function attachOwnEmpresa(req, _res, next) {
 }
 
 /** Cualquier usuario autenticado puede registrar su primera cadena. */
-router.post('/registro', auth, registerCadena);
+router.post(
+  '/registro',
+  auth,
+  rateLimit({
+    name: 'cadena-registro',
+    max: LIMITS.cadenaRegistro.max,
+    windowMs: LIMITS.cadenaRegistro.windowMs,
+    keyFn: (req, ip) => `rl:cadena-registro:${req.userId || ip}`,
+  }),
+  registerCadena
+);
 
 /** Estado del panel: cualquier sesión (sin cadena → empresa null). */
 router.get('/me', auth, attachOwnEmpresa, getCadenaMe);

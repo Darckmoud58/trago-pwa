@@ -1,4 +1,5 @@
 import Usuario from '../models/Usuario.js';
+import Rol from '../models/Rol.js';
 import { verifyAccessToken } from '../lib/jwt.js';
 
 export async function auth(req, res, next) {
@@ -25,8 +26,13 @@ export async function auth(req, res, next) {
       return res.status(401).json({ message: 'Sesión revocada' });
     }
 
+    // Rol desde DB (no confiar en claim JWT, puede estar desfasado).
+    const roleDoc = user.id_rol
+      ? await Rol.findById(user.id_rol).select('codigo').lean()
+      : null;
+
     req.userId = user._id;
-    req.role = payload.role;
+    req.role = roleDoc?.codigo || 'user';
     req.tokenVersion = current;
     next();
   } catch {

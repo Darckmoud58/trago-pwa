@@ -57,9 +57,9 @@ describe('registerSchema P1', () => {
     );
   });
 
-  it('calcula edad y rechaza <13', () => {
+  it('calcula edad y rechaza <13 con mensaje neutro', () => {
     assert.ok(ageFromBirthDateStrict('2000-01-01') >= 18);
-    assert.throws(() => ageFromBirthDateStrict('2020-01-01'), /13/);
+    assert.throws(() => ageFromBirthDateStrict('2020-01-01'), /No pudimos crear/);
   });
 });
 
@@ -132,5 +132,23 @@ describe('HTTP P1', () => {
       .set('Authorization', `Bearer ${bad}`);
     assert.equal(res.status, 401);
     assert.equal(res.body.stack, undefined);
+  });
+
+  it('métricas norte niega JWT sin admin real en DB', async () => {
+    const userTok = jwt.sign(
+      { id: '507f1f77bcf86cd799439011', role: 'admin', tv: 0 },
+      GOOD_SECRET,
+      { algorithm: 'HS256' }
+    );
+    const res = await request(app)
+      .get('/api/metricas/norte')
+      .set('Authorization', `Bearer ${userTok}`);
+    // Usuario inexistente → 401 en auth; claim admin en JWT no basta.
+    assert.ok([401, 403].includes(res.status));
+  });
+
+  it('helmet oculta X-Powered-By', async () => {
+    const res = await request(app).get('/');
+    assert.equal(res.headers['x-powered-by'], undefined);
   });
 });

@@ -5,8 +5,10 @@ import {
   MIN_ALCOHOL_AGE,
   bandFromAge,
   canSeeRestricted,
+  canView,
   filterPromosForViewer,
   isRestrictedPromo,
+  normalizeBand,
   parseBand,
   yearsFromBirth,
 } from './ageGate.js';
@@ -24,11 +26,13 @@ describe('yearsFromBirth', () => {
 });
 
 describe('bandFromAge / parseBand', () => {
-  it('adult vs teen', () => {
+  it('adult vs minor', () => {
     assert.equal(bandFromAge(18), 'adult');
-    assert.equal(bandFromAge(17), 'teen');
-    assert.equal(parseBand('18+'), 'adult');
-    assert.equal(parseBand('teen'), 'teen');
+    assert.equal(bandFromAge(17), 'minor');
+    assert.equal(parseBand('adult'), 'adult');
+    assert.equal(parseBand('teen'), 'minor');
+    assert.equal(normalizeBand('teen'), 'minor');
+    assert.equal(normalizeBand('anon'), 'unknown');
   });
 });
 
@@ -41,20 +45,20 @@ describe('isRestrictedPromo', () => {
   });
 });
 
-describe('filterPromosForViewer', () => {
+describe('filterPromosForViewer M1', () => {
   const list = [
     { nombre: 'agua', alcohol: false },
     { nombre: 'chela', alcohol: true },
     { nombre: 'antro', nocturno: true },
   ];
 
-  it('teen no ve alcohol ni nocturno', () => {
-    const out = filterPromosForViewer(list, { band: 'teen', canSeeAlcohol: false });
+  it('minor no ve restringidas', () => {
+    const out = filterPromosForViewer(list, { band: 'minor' });
     assert.equal(out.length, 1);
     assert.equal(out[0].nombre, 'agua');
   });
 
-  it('adult autenticado ve todo', () => {
+  it('adult auth ve todo', () => {
     assert.equal(
       filterPromosForViewer(list, {
         band: 'adult',
@@ -66,31 +70,37 @@ describe('filterPromosForViewer', () => {
     );
   });
 
-  it('anónimo y cookie adult no ven restringido', () => {
-    assert.equal(canSeeRestricted(null), false);
-    assert.equal(canSeeRestricted({ band: 'anon' }), false);
+  it('cookie adult sí ve restringidas (M1)', () => {
     assert.equal(
       canSeeRestricted({ band: 'adult', source: 'cookie', age: 18 }),
-      false
-    );
-    assert.equal(filterPromosForViewer(list, { band: 'anon' }).length, 1);
-    assert.equal(
-      filterPromosForViewer(list, { band: 'adult', source: 'cookie' }).length,
-      1
-    );
-  });
-
-  it('canSeeRestricted exige auth 18+', () => {
-    assert.equal(MIN_ACCOUNT_AGE, 13);
-    assert.equal(MIN_ALCOHOL_AGE, 18);
-    assert.equal(canSeeRestricted({ band: 'teen', source: 'auth' }), false);
-    assert.equal(
-      canSeeRestricted({ band: 'adult', source: 'auth', age: 21, userId: 'u' }),
       true
     );
     assert.equal(
-      canSeeRestricted({ band: 'adult', source: 'auth', age: 17, userId: 'u' }),
+      filterPromosForViewer(list, { band: 'adult', source: 'cookie' }).length,
+      3
+    );
+  });
+
+  it('unknown no ve restringidas', () => {
+    assert.equal(canSeeRestricted({ band: 'unknown' }), false);
+    assert.equal(canView({ alcohol: true }, { band: 'unknown' }), false);
+    assert.equal(filterPromosForViewer(list, { band: 'unknown' }).length, 1);
+  });
+
+  it('auth minor no ve aunque cookie diga adult', () => {
+    assert.equal(
+      canSeeRestricted({
+        band: 'minor',
+        source: 'auth',
+        userId: 'u',
+        age: 16,
+      }),
       false
     );
+  });
+
+  it('constantes', () => {
+    assert.equal(MIN_ACCOUNT_AGE, 13);
+    assert.equal(MIN_ALCOHOL_AGE, 18);
   });
 });

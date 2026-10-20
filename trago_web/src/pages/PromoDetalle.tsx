@@ -7,7 +7,6 @@ import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
-import { canSeeAlcoholUi } from '../lib/viewerAccess';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 import './PromoDetalle.css';
@@ -19,26 +18,14 @@ export default function PromoDetalle() {
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
   const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [ageBlocked, setAgeBlocked] = useState(false);
   const [loading, setLoading] = useState(true);
-  const allowRestricted = canSeeAlcoholUi();
 
   useEffect(() => {
     if (!promoId) return;
     setLoading(true);
-    setAgeBlocked(false);
     setError('');
 
-    const onFail = (err: unknown) => {
-      const status = (err as { response?: { status?: number; data?: { code?: string } } })
-        ?.response?.status;
-      const code = (err as { response?: { data?: { code?: string } } })?.response
-        ?.data?.code;
-      if (status === 403 && code === 'AGE_RESTRICTED') {
-        setAgeBlocked(true);
-        setPromo(null);
-        return;
-      }
+    const onFail = () => {
       setError(t('promoMissing'));
     };
 
@@ -102,61 +89,10 @@ export default function PromoDetalle() {
     );
   }
 
-  if (ageBlocked || (!allowRestricted && !promo && !error)) {
-    return (
-      <section className="promo-detail">
-        <aside className="promos-note">
-          {t('promo18Only')}{' '}
-          <Link
-            to="/entrar"
-            state={{ from: `/promos/${promoId}`, reason: 'alcohol' }}
-          >
-            {t('quickLogin')}
-          </Link>
-          {' · '}
-          <Link to="/terminos">{t('seeTerms')}</Link>
-        </aside>
-        <Link className="btn ghost" to="/promos" viewTransition>
-          {t('backToPromos')}
-        </Link>
-      </section>
-    );
-  }
-
   if (error || !promo) {
     return (
       <section className="promo-detail">
         <p className="error">{error || t('promoNotFound')}</p>
-        <Link className="btn ghost" to="/promos" viewTransition>
-          {t('backToPromos')}
-        </Link>
-      </section>
-    );
-  }
-
-  const isRestricted =
-    !!(
-      promo.alcohol ||
-      promo.audience === 'adult' ||
-      promo.audiencia === 'adulto' ||
-      promo.nocturno ||
-      promo.isNocturno
-    );
-
-  if ((!allowRestricted && isRestricted) || ageBlocked) {
-    return (
-      <section className="promo-detail">
-        <aside className="promos-note">
-          {t('promo18Only')}{' '}
-          <Link
-            to="/entrar"
-            state={{ from: `/promos/${promoId}`, reason: 'alcohol' }}
-          >
-            {t('quickLogin')}
-          </Link>
-          {' · '}
-          <Link to="/terminos">{t('seeTerms')}</Link>
-        </aside>
         <Link className="btn ghost" to="/promos" viewTransition>
           {t('backToPromos')}
         </Link>
@@ -244,7 +180,6 @@ export default function PromoDetalle() {
           {(promo.featured || promo.destacada) && (
             <span className="tag accent">{t('featuredTag')}</span>
           )}
-          {promo.alcohol && <span className="tag warn">18+</span>}
           {(promo.nocturno || promo.isNocturno) && (
             <span className="tag">{t('nightTag')}</span>
           )}

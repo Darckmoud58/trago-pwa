@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
-import {
-  ageFromBirthDate,
-  maxBirthDateForAccount,
-  MIN_ACCOUNT_AGE,
-  MIN_AGE,
-} from '../lib/age';
-import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { maxBirthDateForAccount, MIN_ACCOUNT_AGE, MIN_AGE } from '../lib/age';
+import { clearCatalogCache } from '../lib/catalogCache';
 import { consumePendingFavorite } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 import './Legal.css';
@@ -28,33 +23,15 @@ export default function Register() {
   const [birthDate, setBirthDate] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
-  const [confirmAge, setConfirmAge] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const years =
-    birthDate.length >= 8 ? ageFromBirthDate(new Date(`${birthDate}T12:00:00`)) : null;
-  const ageBandPreview =
-    years == null || Number.isNaN(years)
-      ? null
-      : years < MIN_ACCOUNT_AGE
-        ? 'too_young'
-        : years < MIN_AGE
-          ? 'teen'
-          : 'adult';
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    if (!acceptTerms || !acceptPrivacy || !confirmAge) {
+    if (!acceptTerms || !acceptPrivacy) {
       setError(t('acceptTermsNeed'));
-      return;
-    }
-
-    const years = ageFromBirthDate(new Date(birthDate));
-    if (years < MIN_ACCOUNT_AGE) {
-      setError(t('minAgeError', { n: MIN_ACCOUNT_AGE }));
       return;
     }
 
@@ -67,10 +44,8 @@ export default function Register() {
         birthDate,
       });
       localStorage.setItem('token', data.token);
-      if (data.user?.band === 'teen' || data.user?.band === 'adult') {
-        setAgeBand(data.user.band as AgeBand);
-      }
       setAuth(data.token);
+      await clearCatalogCache();
       const pendingTo = await consumePendingFavorite();
       const dest = pendingTo || authState.from || '/cuenta';
       navigate(dest, { replace: true });
@@ -134,15 +109,6 @@ export default function Register() {
             max={maxBirthDateForAccount()}
           />
         </label>
-        {ageBandPreview === 'teen' && (
-          <p className="register-age-note">{t('registerTeenNote')}</p>
-        )}
-        {ageBandPreview === 'adult' && (
-          <p className="register-age-note is-adult">{t('registerAdultNote')}</p>
-        )}
-        {ageBandPreview === 'too_young' && (
-          <p className="error">{t('minAgeError', { n: MIN_ACCOUNT_AGE })}</p>
-        )}
 
         <div className="legal-checks">
           <label>
@@ -171,20 +137,6 @@ export default function Register() {
                 {t('privacyLink')}
               </Link>{' '}
               (LFPDPPP).
-            </span>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={confirmAge}
-              onChange={(e) => setConfirmAge(e.target.checked)}
-            />
-            <span>
-              {ageBandPreview === 'teen'
-                ? t('confirmAgeTeen', { n: MIN_AGE })
-                : ageBandPreview === 'adult'
-                  ? t('confirmAgeAdult', { n: MIN_AGE })
-                  : t('confirmAge', { n: MIN_AGE })}
             </span>
           </label>
         </div>

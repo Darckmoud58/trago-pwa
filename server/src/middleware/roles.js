@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Rol from '../models/Rol.js';
 import Empresa from '../models/Empresa.js';
 import Usuario from '../models/Usuario.js';
@@ -25,14 +26,18 @@ export async function requireChain(req, res, next) {
       return res.status(401).json({ message: 'Usuario no válido' });
     }
 
+    // Solo rol de DB (ignorar claim JWT desfasado).
     const roleDoc = user.id_rol ? await Rol.findById(user.id_rol).lean() : null;
-    const codigo = roleDoc?.codigo || req.role || 'user';
+    const codigo = roleDoc?.codigo || 'user';
     const isAdmin = codigo === 'admin';
     const isChain = isChainRole(codigo);
 
     let empresa = null;
     if (isAdmin && (req.query.empresaId || req.body?.empresaId)) {
       const eid = req.query.empresaId || req.body.empresaId;
+      if (!mongoose.isValidObjectId(eid)) {
+        return res.status(400).json({ message: 'empresaId inválido' });
+      }
       empresa = await Empresa.findById(eid).lean();
     } else {
       empresa = await Empresa.findOne({

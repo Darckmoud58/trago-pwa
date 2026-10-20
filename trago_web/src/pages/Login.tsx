@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, setAuth } from '../api';
-import { setAgeBand, type AgeBand } from '../lib/ageBand';
+import { clearCatalogCache } from '../lib/catalogCache';
 import { consumePendingFavorite } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
 
@@ -27,10 +27,8 @@ export default function Login() {
     try {
       const { data } = await api.post('/api/auth/login', { email, password });
       localStorage.setItem('token', data.token);
-      if (data.user?.band === 'teen' || data.user?.band === 'adult') {
-        setAgeBand(data.user.band as AgeBand);
-      }
       setAuth(data.token);
+      await clearCatalogCache();
       const pendingTo = await consumePendingFavorite();
       const dest = pendingTo || authState.from || '/cuenta';
       navigate(dest, { replace: true });
@@ -58,9 +56,6 @@ export default function Login() {
         )}
         {authState.reason === 'vote' && (
           <p className="meta auth-fav-hint">{t('voteLoginHint')}</p>
-        )}
-        {authState.reason === 'alcohol' && (
-          <p className="meta auth-fav-hint">{t('alcoholLoginHint')}</p>
         )}
         {authState.reason === 'chain' && (
           <p className="meta auth-fav-hint">{t('chainLoginHint')}</p>
