@@ -106,9 +106,13 @@ export default function InstallBanner() {
     });
 
     const onShow = () => {
-      if (!isStandalone()) setVisible(true);
+      if (!isStandalone() && !splashStillOpen()) setVisible(true);
+    };
+    const onSplashClosed = () => {
+      if (!isStandalone() && !wasDismissedRecently()) setVisible(true);
     };
     window.addEventListener('trago-show-install', onShow);
+    window.addEventListener('trago-splash-closed', onSplashClosed);
 
     const timer = window.setTimeout(() => {
       if (!isStandalone() && !wasDismissedRecently() && !splashStillOpen()) {
@@ -119,6 +123,7 @@ export default function InstallBanner() {
     return () => {
       unsub();
       window.removeEventListener('trago-show-install', onShow);
+      window.removeEventListener('trago-splash-closed', onSplashClosed);
       window.clearTimeout(timer);
     };
   }, []);

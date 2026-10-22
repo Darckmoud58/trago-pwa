@@ -67,12 +67,6 @@ const messages = {
     notifIos:
       'En iPhone, instala TraGo: Compartir y luego Agregar a inicio. Ábrela desde ahí para activar los avisos.',
     notifNeedLogin: 'Entra a tu cuenta para activar avisos.',
-    splashInstall: 'Instalar TraGo',
-    splashInstallBusy: 'Abriendo…',
-    splashInstallDone: 'TraGo se está instalando en este dispositivo.',
-    splashInstallHint:
-      'Si no aparece el diálogo, abre el menú del navegador y elige Instalar TraGo.',
-    splashInstallIos: 'En iPhone: Compartir y luego Agregar a inicio.',
     settingsPrivacy: 'Privacidad',
     settingsTerms: 'Términos',
     logout: 'Cerrar sesión',
@@ -449,12 +443,6 @@ const messages = {
     notifIos:
       'On iPhone, install TraGo: Share, then Add to Home Screen. Open it from there to turn alerts on.',
     notifNeedLogin: 'Sign in to turn alerts on.',
-    splashInstall: 'Install TraGo',
-    splashInstallBusy: 'Opening…',
-    splashInstallDone: 'TraGo is installing on this device.',
-    splashInstallHint:
-      'If the dialog doesn’t appear, open the browser menu and choose Install TraGo.',
-    splashInstallIos: 'On iPhone: Share, then Add to Home Screen.',
     settingsPrivacy: 'Privacy',
     settingsTerms: 'Terms',
     logout: 'Sign out',
