@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { api, setAuth } from '../api';
+import { api, clearToken, readToken, setAuth } from '../api';
 import { clearAgeBand } from '../lib/ageBand';
 import { clearCatalogCache } from '../lib/catalogCache';
 import { listFavorites } from '../lib/favorites';
@@ -19,7 +19,7 @@ function initials(name: string) {
 export default function Cuenta() {
   const navigate = useNavigate();
   const { t, locale } = useI18n();
-  const [token] = useState(() => localStorage.getItem('token'));
+  const [token] = useState(() => readToken());
   const [user, setUser] = useState<AuthUser | null>(null);
   const [error, setError] = useState('');
   const [favCount, setFavCount] = useState(0);
@@ -37,8 +37,7 @@ export default function Cuenta() {
         setUser(res.data.user as AuthUser);
       })
       .catch(() => {
-        localStorage.removeItem('token');
-        setAuth(null);
+        clearToken();
         setError(t('sessionInvalid'));
       });
   }, [token, t]);
@@ -69,10 +68,9 @@ export default function Cuenta() {
   }
 
   function logout() {
-    localStorage.removeItem('token');
+    clearToken();
     clearAgeBand();
     void clearCatalogCache();
-    setAuth(null);
     navigate('/entrar', { replace: true });
   }
 

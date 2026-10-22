@@ -85,6 +85,7 @@ export type Branch = {
   name?: string;
   nombre?: string;
   chainName?: string;
+  label?: string;
   address?: string;
   colonia?: string;
   city?: string;

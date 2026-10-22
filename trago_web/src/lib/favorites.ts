@@ -1,4 +1,4 @@
-import { api } from '../api';
+import { api, readToken } from '../api';
 
 /** Favoritos por cuenta, con espejo local y cola de sincronización offline. */
 export type FavoritePlace = {
@@ -27,7 +27,7 @@ let activeSync: Promise<void> | null = null;
 
 function ownerKey() {
   try {
-    const token = localStorage.getItem('token');
+    const token = readToken();
     if (!token) return 'guest';
     const encoded = token.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/');
     if (!encoded) return 'guest';
@@ -42,7 +42,7 @@ function ownerKey() {
 }
 
 function hasSession() {
-  return Boolean(localStorage.getItem('token')) && ownerKey() !== 'guest';
+  return Boolean(readToken()) && ownerKey() !== 'guest';
 }
 
 /** True solo con cuenta real (no invitado). Favoritos requieren sesión. */

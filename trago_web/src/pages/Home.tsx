@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, setAuth } from '../api';
+import { api, setAuth, readToken } from '../api';
 import { isBirthdayToday } from '../lib/birthday';
 import {
   CACHE_KEYS,
@@ -47,7 +47,7 @@ export default function Home() {
   const [fromCache, setFromCache] = useState(false);
   const [promosError, setPromosError] = useState(false);
   const [loadingPromos, setLoadingPromos] = useState(true);
-  const token = localStorage.getItem('token');
+  const token = readToken();
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [bdayPromos, setBdayPromos] = useState<Promo[]>([]);

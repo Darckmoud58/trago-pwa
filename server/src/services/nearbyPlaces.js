@@ -52,7 +52,7 @@ function cell(value) {
   return Number((Math.round(value / GRID) * GRID).toFixed(4));
 }
 function cacheKey(lat, lng, radius) {
-  return `${cell(lat)}:${cell(lng)}:${radius}`;
+  return `${cell(lat)}:${cell(lng)}:${radius}:v3`;
 }
 function distanceMeters(lat1, lng1, lat2, lng2) {
   const rad = (n) => (n * Math.PI) / 180;
@@ -186,17 +186,71 @@ function placeFromOsmTags(osmType, osmId, lat, lng, tags) {
   };
 }
 
-/** Plan B cuando Overpass cae: bbox de la API pública OSM (más pesada, pero viva). */
-async function requestOsmMapApi(lat, lng, radius) {
-  // Bbox chico: en ciudad densa >2 km el XML se pasa de peso.
+function wayPoints(inner, nodes) {
+  const points = [];
+  for (const ref of inner.matchAll(/<nd\s+ref="(\d+)"\s*\/>/g)) {
+    const point = nodes.get(ref[1]);
+    if (point) points.push(point);
+  }
+  return points;
+}
+
+function centroid(points) {
+  if (!points.length) return null;
+  let lat = 0;
+  let lng = 0;
+  for (const point of points) {
+    lat += point.lat;
+    lng += point.lng;
+  }
+  return { lat: lat / points.length, lng: lng / points.length };
+}
+
+/** Dos calles más cercanas al local, para distinguir sucursales del mismo nombre. */
+function cornerFromRoads(lat, lng, roads) {
+  const ranked = [];
+  for (const road of roads) {
+    let best = Infinity;
+    for (const point of road.points) {
+      const distance = distanceMeters(lat, lng, point.lat, point.lng);
+      if (distance < best) best = distance;
+      if (best < 20) break;
+    }
+    if (best <= 140) ranked.push({ name: road.name, distance: best, side: road.side });
+  }
+  ranked.sort((a, b) => a.distance - b.distance);
+  const driving = ranked.filter((road) => !road.side);
+  const source = driving.length >= 2 ? driving : ranked;
+  const names = [];
+  for (const road of source) {
+    if (!names.includes(road.name)) names.push(road.name);
+    if (names.length >= 2) break;
+  }
+  if (names.length >= 2) return `${names[0]} y ${names[1]}`;
+  return names[0] || '';
+}
+
+function rememberPlace(places, seen, place) {
+  if (!place || seen.has(place.osmUrl)) return;
+  const duplicate = places.some(
+    (current) =>
+      normalize(current.name) === normalize(place.name) &&
+      distanceMeters(current.lat, current.lng, place.lat, place.lng) < 45
+  );
+  if (duplicate) return;
+  seen.add(place.osmUrl);
+  places.push(place);
+}
+
+/**
+ * Nodos y edificios (ways) del bbox, más las calles con nombre.
+ * Un Oxxo dibujado como edificio no existe si solo se leen nodos.
+ */
+async function readOsmMap(lat, lng, radius) {
   const clampR = Math.min(Math.max(radius, 800), 1500);
   const dLat = clampR / 111_000;
   const dLng = clampR / (111_000 * Math.cos((lat * Math.PI) / 180));
-  const left = lng - dLng;
-  const right = lng + dLng;
-  const bottom = lat - dLat;
-  const top = lat + dLat;
-  const url = `${OSM_MAP_API}?bbox=${left},${bottom},${right},${top}`;
+  const url = `${OSM_MAP_API}?bbox=${lng - dLng},${lat - dLat},${lng + dLng},${lat + dLat}`;
   const response = await fetch(url, {
     headers: { 'User-Agent': UA, Accept: 'application/xml' },
     signal: AbortSignal.timeout(28_000),
@@ -205,32 +259,98 @@ async function requestOsmMapApi(lat, lng, radius) {
   const xml = await response.text();
   if (xml.length > 12_000_000) throw new Error('OSM map API demasiado grande');
 
-  const seen = new Set();
-  const places = [];
-  const nodeRe =
-    /<node\s+([^>]+?)>([\s\S]*?)<\/node>|<node\s+([^>]+?)\/>/g;
-  for (const m of xml.matchAll(nodeRe)) {
-    const open = m[1] || m[3] || '';
-    const inner = m[2] || '';
+  const nodes = new Map();
+  const nodeRe = /<node\s+([^>]*?)\/>|<node\s+([^>]+?)>([\s\S]*?)<\/node>/g;
+  for (const match of xml.matchAll(nodeRe)) {
+    const open = match[1] || match[2] || '';
     const id = open.match(/\bid="(\d+)"/)?.[1];
     const nLat = Number(open.match(/\blat="([^"]+)"/)?.[1]);
     const nLng = Number(open.match(/\blon="([^"]+)"/)?.[1]);
     if (!id || !Number.isFinite(nLat) || !Number.isFinite(nLng)) continue;
-    if (distanceMeters(lat, lng, nLat, nLng) > radius + 50) continue;
+    nodes.set(id, { lat: nLat, lng: nLng });
+  }
+  nodeRe.lastIndex = 0;
+
+  const seen = new Set();
+  const places = [];
+  const roads = [];
+  for (const match of xml.matchAll(nodeRe)) {
+    const open = match[1] || match[2] || '';
+    const inner = match[3] || '';
+    const id = open.match(/\bid="(\d+)"/)?.[1];
+    const point = id ? nodes.get(id) : null;
+    if (!point || distanceMeters(lat, lng, point.lat, point.lng) > radius + 50) continue;
+    rememberPlace(
+      places,
+      seen,
+      placeFromOsmTags('node', id, point.lat, point.lng, tagsFromXmlInner(inner))
+    );
+  }
+
+  for (const match of xml.matchAll(/<way\s+([^>]+?)>([\s\S]*?)<\/way>/g)) {
+    const id = match[1].match(/\bid="(\d+)"/)?.[1];
+    const inner = match[2] || '';
+    if (!id) continue;
     const tags = tagsFromXmlInner(inner);
-    const place = placeFromOsmTags('node', id, nLat, nLng, tags);
-    if (!place || seen.has(place.osmUrl)) continue;
-    seen.add(place.osmUrl);
-    places.push(place);
+    const points = wayPoints(inner, nodes);
+    const center = centroid(points);
+    if (!center) continue;
+    const highway = String(tags.highway || '');
+    const roadName = String(tags.name || '').trim();
+    if (highway && roadName) {
+      roads.push({
+        name: roadName,
+        side: SIDE_PATHS.has(highway),
+        points,
+      });
+    }
+    if (distanceMeters(lat, lng, center.lat, center.lng) > radius + 50) continue;
+    rememberPlace(places, seen, placeFromOsmTags('way', id, center.lat, center.lng, tags));
+  }
+
+  for (const place of places) {
+    const corner = cornerFromRoads(place.lat, place.lng, roads);
+    if (corner.includes(' y ')) place.corner = corner;
+    else if (!place.street && corner) place.street = corner;
   }
 
   return places
     .sort(
       (a, b) =>
-        distanceMeters(lat, lng, a.lat, a.lng) -
-        distanceMeters(lat, lng, b.lat, b.lng)
+        distanceMeters(lat, lng, a.lat, a.lng) - distanceMeters(lat, lng, b.lat, b.lng)
     )
     .slice(0, MAX_RESULTS);
+}
+
+/** Plan B cuando Overpass cae: bbox de la API pública OSM (más pesada, pero viva). */
+async function requestOsmMapApi(lat, lng, radius) {
+  const places = await readOsmMap(lat, lng, radius);
+  places.enriched = true;
+  return places;
+}
+
+/** Si Overpass no trae la esquina, el mismo mapa completa calles y edificios. */
+async function enrichWithMap(places, lat, lng, radius) {
+  if (places.enriched) return places;
+  let mapped;
+  try {
+    mapped = await readOsmMap(lat, lng, radius);
+  } catch (err) {
+    console.warn('OSM map API (nombres):', err.message);
+    return places;
+  }
+  const seen = new Set(places.map((place) => place.osmUrl));
+  const merged = places.slice();
+  for (const place of mapped) {
+    rememberPlace(merged, seen, place);
+  }
+  const corners = new Map(mapped.map((place) => [place.osmUrl, place]));
+  for (const place of merged) {
+    const extra = corners.get(place.osmUrl);
+    if (extra?.corner && !place.corner) place.corner = extra.corner;
+    if (extra?.street && !place.street) place.street = extra.street;
+  }
+  return merged;
 }
 
 /** Plan C: Nominatim por marcas oficiales (McDonald's, BK, etc.). */
@@ -424,15 +544,22 @@ function matchCompany(place, companies) {
   );
 }
 
-function mapPlace(place, company, lat, lng, maxMeters) {
+function mapPlace(place, company, lat, lng, maxMeters, nameCounts) {
   const distance = distanceMeters(lat, lng, place.lat, place.lng);
-  const address = [place.street, place.number, place.suburb].filter(Boolean).join(' ');
+  const chainName = company?.nombre || place.brand || place.operator || place.name;
+  const repeated = (nameCounts?.get(normalize(place.name)) || 0) > 1;
+  const spot = place.corner || [place.street, place.number].filter(Boolean).join(' ');
+  const corner = repeated && spot ? spot : '';
+  const address = corner
+    ? [place.suburb, place.city].filter(Boolean).join(', ')
+    : [place.street, place.number, place.suburb].filter(Boolean).join(' ');
   return {
     _id: `osm-${place.osmType}-${place.osmId}`,
     slug: `osm-${place.osmType}-${place.osmId}`,
     nombre: place.name,
     name: place.name,
-    chainName: company?.nombre || place.brand || place.operator || place.name,
+    label: corner,
+    chainName,
     id_empresa: company?._id || null,
     companyId: company?._id || null,
     calle: place.street,
@@ -506,6 +633,7 @@ async function fetchAndCachePlaces(searchLat, searchLng, maxMeters, previous) {
       if (!recovered) throw primaryError;
     }
     if (!stale) {
+      places = await enrichWithMap(places, searchLat, searchLng, searchedRadiusMeters);
       const fetchedAt = new Date();
       const key = cacheKey(searchLat, searchLng, maxMeters);
       /** Solo campos usados por mapPlace (no JSON crudo Overpass). */
@@ -520,6 +648,7 @@ async function fetchAndCachePlaces(searchLat, searchLng, maxMeters, previous) {
         amenity: p.amenity,
         shop: p.shop,
         street: p.street,
+        corner: p.corner,
         number: p.number,
         suburb: p.suburb,
         city: p.city,
@@ -568,9 +697,14 @@ export async function discoverNearbyBranches(lat, lng, maxMeters) {
       const companies = await Empresa.find({ estatus: 'activo' })
         .select('_id nombre slug')
         .lean();
+      const nameCounts = new Map();
+      for (const place of fetched.places) {
+        const key = normalize(place.name);
+        nameCounts.set(key, (nameCounts.get(key) || 0) + 1);
+      }
       const branches = fetched.places
         .map((place) =>
-          mapPlace(place, matchCompany(place, companies), lat, lng, maxMeters)
+          mapPlace(place, matchCompany(place, companies), lat, lng, maxMeters, nameCounts)
         )
         .filter((place) => place.withinRadius)
         .sort((a, b) => a.distanceMeters - b.distanceMeters);
@@ -606,6 +740,90 @@ export async function discoverNearbyBranches(lat, lng, maxMeters) {
 
   inflight.set(key, promise);
   return promise;
+}
+
+const reverseCache = new Map();
+
+function formatReverseAddress(address = {}) {
+  const street = [address.road, address.house_number].filter(Boolean).join(' ');
+  const hood = address.neighbourhood || address.suburb || address.quarter || '';
+  const city = address.city || address.town || address.village || address.municipality || '';
+  const locality = [address.postcode, city].filter(Boolean).join(' ');
+  const state = address.state || '';
+  return [street, hood, locality, state].filter(Boolean).join(', ');
+}
+
+const SIDE_PATHS = new Set([
+  'cycleway',
+  'footway',
+  'path',
+  'steps',
+  'corridor',
+  'pedestrian',
+  'bridleway',
+]);
+
+/** Dos calles del cruce. La ciclovía no cuenta si hay avenidas con nombre. */
+async function crossingStreets(lat, lng) {
+  const pad = 0.0007;
+  const bbox = [lng - pad, lat - pad, lng + pad, lat + pad].map((n) => n.toFixed(6)).join(',');
+  const response = await fetch(`https://api.openstreetmap.org/api/0.6/map?bbox=${bbox}`, {
+    headers: { 'User-Agent': UA, Accept: 'application/xml' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return [];
+  const xml = await response.text();
+  const roads = [];
+  const paths = [];
+  for (const chunk of xml.split('<way ').slice(1)) {
+    const body = chunk.slice(0, chunk.indexOf('</way>'));
+    const kind = body.match(/k="highway" v="([^"]+)"/);
+    if (!kind) continue;
+    const match = body.match(/k="name" v="([^"]+)"/);
+    if (!match) continue;
+    const bucket = SIDE_PATHS.has(kind[1]) ? paths : roads;
+    if (!bucket.includes(match[1])) bucket.push(match[1]);
+  }
+  const names = roads.length >= 2 ? roads : roads.concat(paths);
+  return names.slice(0, 2);
+}
+
+/**
+ * Texto para abrir un solo local en Google Maps.
+ * Marca + las dos calles de ese punto: Google abre la ficha
+ * (Oxxo Geminis frente a OXXO Leñadores). Solo el cruce abre la esquina.
+ */
+export async function reverseStreetAddress(lat, lng, placeName = '') {
+  const name = String(placeName || '').trim();
+  const key = `${Number(lat).toFixed(5)},${Number(lng).toFixed(5)}|${name.toLowerCase()}`;
+  const hit = reverseCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.address;
+  const streets = await crossingStreets(lat, lng).catch(() => []);
+  const url = new URL('https://nominatim.openstreetmap.org/reverse');
+  url.searchParams.set('format', 'jsonv2');
+  url.searchParams.set('lat', String(lat));
+  url.searchParams.set('lon', String(lng));
+  url.searchParams.set('zoom', '18');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('accept-language', 'es');
+  const response = await fetch(url, {
+    headers: { 'User-Agent': UA, Accept: 'application/json' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) throw new Error(`Nominatim respondió ${response.status}`);
+  const data = await response.json();
+  const postal = formatReverseAddress(data.address || {});
+  const city = data.address?.city || data.address?.town || data.address?.municipality || '';
+  const state = data.address?.state || '';
+  const crossing = streets.length >= 2 ? `${streets[0]} y ${streets[1]}` : '';
+  const locality = [city, state].filter(Boolean).join(', ');
+  const base = [crossing, locality].filter(Boolean).join(', ') || postal;
+  const mentioned = name && base.toLowerCase().includes(name.toLowerCase());
+  const address = name && base && !mentioned ? `${name}, ${base}` : base || name;
+  if (address) {
+    reverseCache.set(key, { address, expires: Date.now() + 30 * 60 * 1000 });
+  }
+  return address;
 }
 
 /** Solo tests: limpia single-flight. */

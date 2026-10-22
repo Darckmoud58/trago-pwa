@@ -1,15 +1,34 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api } from '../api';
+import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
+import { googleMapsSearchUrl } from '../lib/googleMaps';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
 import './PromoDetalle.css';
+
+function fold(value: string) {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+}
+
+function readGps(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('no-geo'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 12_000,
+      maximumAge: 60_000,
+    });
+  });
+}
 
 export default function PromoDetalle() {
   const { promoId } = useParams();
@@ -19,6 +38,8 @@ export default function PromoDetalle() {
   const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [locBusy, setLocBusy] = useState(false);
+  const [locNote, setLocNote] = useState('');
 
   useEffect(() => {
     if (!promoId) return;
@@ -231,7 +252,70 @@ export default function PromoDetalle() {
         <Link className="btn ghost" to="/cerca" viewTransition>
           {t('seeNearMe')}
         </Link>
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={locBusy}
+          title={t('seeLocationHint')}
+          onClick={() => {
+            void (async () => {
+              setLocBusy(true);
+              setLocNote('');
+              try {
+                const brand = (promo.chainName || '').trim();
+                const pos = await readGps();
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                const res = await api.get('/api/sucursales/cerca', {
+                  params: { lat, lng, maxMeters: 2000 },
+                });
+                const rows = (res.data.branches || res.data.ubicaciones || []) as Branch[];
+                const needle = fold(brand);
+                const hit = rows
+                  .filter((branch) => {
+                    if (!needle) return false;
+                    const blob = fold(
+                      `${branch.chainName || ''} ${branch.nombre || ''} ${branch.name || ''} ${branch.officialBrand || ''}`
+                    );
+                    return blob.includes(needle);
+                  })
+                  .sort(
+                    (a, b) =>
+                      (a.distanceMeters ?? 1e12) - (b.distanceMeters ?? 1e12)
+                  )[0];
+                const placeLat = hit?.lat;
+                const placeLng = hit?.lng ?? hit?.long;
+                if (placeLat == null || placeLng == null) {
+                  setLocNote(t('locationNone'));
+                  return;
+                }
+                const dir = await api.get('/api/sucursales/direccion', {
+                  params: {
+                    lat: placeLat,
+                    lng: placeLng,
+                    nombre: hit.nombre || hit.name || brand,
+                  },
+                });
+                const url = googleMapsSearchUrl({
+                  address: String(dir.data?.address || ''),
+                });
+                if (!url) {
+                  setLocNote(t('locationNone'));
+                  return;
+                }
+                window.open(url, '_blank', 'noopener,noreferrer');
+              } catch {
+                setLocNote(t('locationFailed'));
+              } finally {
+                setLocBusy(false);
+              }
+            })();
+          }}
+        >
+          {locBusy ? t('loading') : t('seeLocation')}
+        </button>
       </div>
+      {locNote && <p className="meta">{locNote}</p>}
 
       {(promo.politicas || promo.terms) && (
         <details
@@ -301,7 +385,7 @@ export default function PromoDetalle() {
       </article>
 
       <div className="detail-actions">
-        {localStorage.getItem('token') ? (
+        {readToken() ? (
           <Link className="btn ghost" to="/favoritos" viewTransition>
             {t('myFavorites')}
           </Link>

@@ -10,7 +10,7 @@ import {
   resolveOfficialBrand,
 } from '../services/officialPromoCollector.js';
 import { getOfficialRefreshStatus } from '../services/officialPromoJob.js';
-import { discoverNearbyBranches } from '../services/nearbyPlaces.js';
+import { discoverNearbyBranches, reverseStreetAddress } from '../services/nearbyPlaces.js';
 import { crowdStatus } from '../lib/validity.js';
 import {
   enrichBranchesWithDistance,
@@ -423,6 +423,25 @@ export async function nearbyPromos(req, res) {
   } catch (e) {
     console.error('nearbyPromos:', e.message);
     return res.status(502).json({ message: 'No se pudieron consultar negocios y promociones cercanas' });
+  }
+}
+
+/** Dirección postal de un punto, para abrir ese lugar en Google Maps y no una lista. */
+export async function placeAddress(req, res) {
+  try {
+    const lng = Number(req.query.lng ?? req.query.long);
+    const lat = Number(req.query.lat);
+    const geo = assertMexicoCoords(lat, lng);
+    if (!geo.ok) {
+      return res.status(geo.status || 400).json({ message: geo.message });
+    }
+    const nombre = String(req.query.nombre || req.query.name || '').slice(0, 120);
+    const address = await reverseStreetAddress(lat, lng, nombre);
+    if (!address) return res.status(404).json({ message: 'Sin dirección para ese punto' });
+    return res.json({ address });
+  } catch (e) {
+    console.error('placeAddress:', e.message);
+    return res.status(502).json({ message: 'No se pudo leer la dirección del lugar' });
   }
 }
 

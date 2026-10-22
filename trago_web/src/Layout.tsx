@@ -7,6 +7,7 @@ import LocationSplash from './components/LocationSplash';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
 import PageTransition from './components/PageTransition';
+import { readToken } from './api';
 import { syncFavorites } from './lib/favorites';
 import { useImmersiveScroll } from './hooks/useImmersiveScroll';
 import { useNightTheme } from './hooks/useNightTheme';
@@ -16,14 +17,20 @@ export default function Layout() {
   const { pathname } = useLocation();
   const night = useNightTheme();
   useImmersiveScroll();
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const [token, setToken] = useState(() => readToken());
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
 
   useEffect(() => {
-    setToken(localStorage.getItem('token'));
+    setToken(readToken());
   }, [pathname]);
+
+  useEffect(() => {
+    const onSession = () => setToken(readToken());
+    window.addEventListener('trago-session', onSession);
+    return () => window.removeEventListener('trago-session', onSession);
+  }, []);
 
   useEffect(() => {
     void syncFavorites();

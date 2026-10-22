@@ -1,16 +1,39 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { track, trackGps } from '../lib/metrics';
+import { googleMapsSearchUrl, hasStreetAddress } from '../lib/googleMaps';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
 const NEAR_RADIUS_M = 2000;
+
+async function openExactPlace(branch: Branch, nombre: string) {
+  const lat = branch.lat;
+  const lng = branch.lng ?? branch.long;
+  let address = '';
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    try {
+      const res = await api.get('/api/sucursales/direccion', {
+        params: { lat, lng, nombre },
+      });
+      address = String(res.data?.address || '');
+    } catch {
+      address = '';
+    }
+  }
+  const url = googleMapsSearchUrl({
+    address:
+      address ||
+      [nombre, branch.address, branch.colonia, branch.city].filter(Boolean).join(', '),
+  });
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
 
 function readGps(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -287,6 +310,15 @@ export default function Cerca() {
                 typeof b.distanceMeters === 'number'
                   ? (b.distanceMeters / 1000).toFixed(2)
                   : null;
+              const precise = hasStreetAddress(b.address);
+              const shown = b.label ? `${nombre} · ${b.label}` : nombre;
+              const mapsUrl = precise
+                ? googleMapsSearchUrl({
+                    name: nombre,
+                    address: b.address,
+                    city: [b.colonia, b.city].filter(Boolean).join(', '),
+                  })
+                : null;
               return (
                 <li key={id} className="cerca-place-card">
 
@@ -301,7 +333,7 @@ export default function Cerca() {
                     <div className="cerca-place-top">
                       <div className="cerca-place-titles">
                         <p className="cerca-place-chain">{chain}</p>
-                        <h3>{nombre}</h3>
+                        <h3>{shown}</h3>
                       </div>
                       <div className="cerca-place-tools">
                         {km && <span className="dist-pill">{km} km</span>}
@@ -309,7 +341,7 @@ export default function Cerca() {
                           place={{
                             id,
                             type: 'ubicacion',
-                            nombre,
+                            nombre: shown,
                             subtitulo: b.chainName,
                             direccion: b.address,
                             colonia: b.colonia,
@@ -334,12 +366,16 @@ export default function Cerca() {
                       {b.hasOfficialPromos ? (
                         <span className="cerca-badge">{t('nearbyHasOffers')}</span>
                       ) : null}
-                      {b.osmUrl && (
+                      {(b.lat != null || hasStreetAddress(b.address)) && (
                         <a
                           className="text-link"
-                          href={b.osmUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                          href={mapsUrl || '#mapa'}
+                          target={mapsUrl ? '_blank' : undefined}
+                          rel={mapsUrl ? 'noreferrer' : undefined}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void openExactPlace(b, nombre);
+                          }}
                         >
                           {t('seeOnMap')} ↗
                         </a>
@@ -368,7 +404,7 @@ export default function Cerca() {
           <p>{t('nearEmpty')}</p>
           <p className="muted">
             {t('nearEmptyHint')}{' '}
-            {localStorage.getItem('token') ? (
+            {readToken() ? (
               <Link to="/favoritos">{t('navFavorites')}</Link>
             ) : (
               <Link to="/entrar" state={{ from: '/cerca', reason: 'favorite' }}>

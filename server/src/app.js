@@ -25,6 +25,9 @@ export function createApp() {
   if (isDev(env)) {
     allowed.add('http://localhost:5173');
     allowed.add('http://127.0.0.1:5173');
+    // vite preview (npm run preview) usa 4173
+    allowed.add('http://localhost:4173');
+    allowed.add('http://127.0.0.1:4173');
   }
 
   // Solo confiar en X-Forwarded-* detrás de proxy real (Netlify / TRUST_PROXY).

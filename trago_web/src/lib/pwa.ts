@@ -1,3 +1,5 @@
+import { readToken } from '../api';
+
 /** Detecta si la app corre instalada como PWA (standalone). */
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
@@ -9,7 +11,7 @@ export function isStandalonePwa(): boolean {
 }
 
 export function hasAccount(): boolean {
-  return Boolean(localStorage.getItem('token'));
+  return Boolean(readToken());
 }
 
 /** Edad/políticas ya aceptadas en registro o con el sheet web. */

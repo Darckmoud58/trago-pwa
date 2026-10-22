@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, readToken } from '../api';
 import { useI18n } from '../lib/i18n';
 import './ValidityVote.css';
 
@@ -45,7 +45,7 @@ export default function ValidityVote({
   crowdStatus: initialCrowd,
 }: Props) {
   const { t } = useI18n();
-  const token = localStorage.getItem('token');
+  const token = readToken();
   const [vote, setVote] = useState<boolean | null>(null);
   const [yes, setYes] = useState(reportsVigente);
   const [no, setNo] = useState(reportsCaduco);

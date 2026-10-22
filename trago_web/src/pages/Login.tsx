@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { api, setAuth } from '../api';
+import { api, saveToken } from '../api';
 import { clearCatalogCache } from '../lib/catalogCache';
 import { consumePendingFavorite } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
@@ -26,8 +26,7 @@ export default function Login() {
     setLoading(true);
     try {
       const { data } = await api.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', data.token);
-      setAuth(data.token);
+      saveToken(data.token);
       await clearCatalogCache();
       const pendingTo = await consumePendingFavorite();
       const dest = pendingTo || authState.from || '/cuenta';

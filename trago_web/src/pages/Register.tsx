@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { api, setAuth } from '../api';
+import { api, saveToken } from '../api';
 import { maxBirthDateForAccount, MIN_ACCOUNT_AGE, MIN_AGE } from '../lib/age';
 import { clearCatalogCache } from '../lib/catalogCache';
 import { consumePendingFavorite } from '../lib/favorites';
@@ -43,8 +43,7 @@ export default function Register() {
         password,
         birthDate,
       });
-      localStorage.setItem('token', data.token);
-      setAuth(data.token);
+      saveToken(data.token);
       await clearCatalogCache();
       const pendingTo = await consumePendingFavorite();
       const dest = pendingTo || authState.from || '/cuenta';

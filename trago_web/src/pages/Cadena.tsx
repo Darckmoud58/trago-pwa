@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { api, setAuth } from '../api';
+import { api, readToken, saveToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n } from '../lib/i18n';
 import './Cadena.css';
@@ -38,7 +38,7 @@ type SucursalRow = {
 
 export default function Cadena() {
   const { t } = useI18n();
-  const [token] = useState(() => localStorage.getItem('token'));
+  const [token] = useState(() => readToken());
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [promos, setPromos] = useState<PromoRow[]>([]);
   const [sucursales, setSucursales] = useState<SucursalRow[]>([]);
@@ -139,8 +139,7 @@ export default function Cadena() {
         descripcion: regDesc,
       });
       if (res.data.token) {
-        localStorage.setItem('token', res.data.token);
-        setAuth(res.data.token);
+        saveToken(res.data.token);
       }
       setInfo(res.data.message || t('chainRegistered'));
       setRegNombre('');

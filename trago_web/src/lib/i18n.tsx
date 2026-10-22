@@ -385,6 +385,11 @@ const messages = {
       'Sin sucursales participantes confirmadas. La fuente no especificó en cuál aplica; no inventamos el local.',
     branchDistance: 'A {m} m de ti',
     seeNearMe: 'Ver cerca de mí',
+    seeLocation: 'Ver ubicación',
+    seeLocationHint:
+      'Abre el local de esta marca más cercano a ti. No confirma que la promo aplique ahí.',
+    locationNone: 'No hay un local de esa marca cerca de ti.',
+    locationFailed: 'No pudimos usar tu ubicación. Actívala e inténtalo de nuevo.',
     nightTag: 'Nocturno',
     bdayTag: 'Cumple',
   },
@@ -759,6 +764,11 @@ const messages = {
       'No confirmed participating branches. The source did not say which store applies; we do not invent it.',
     branchDistance: '{m} m from you',
     seeNearMe: 'See near me',
+    seeLocation: 'See location',
+    seeLocationHint:
+      'Opens the nearest store of this brand. It does not confirm the deal applies there.',
+    locationNone: 'No store of that brand is nearby.',
+    locationFailed: 'We could not use your location. Turn it on and try again.',
     nightTag: 'Nightlife',
     bdayTag: 'Birthday',
   },
