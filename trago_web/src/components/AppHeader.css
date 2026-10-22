@@ -81,6 +81,13 @@
   color: rgba(247, 229, 181, 0.7);
 }
 
+.app-header-tools {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .app-header-conn {
   justify-self: end;
   min-width: 0.55rem;
@@ -128,7 +135,7 @@
     grid-column: 2;
   }
 
-  .app-header-conn {
+  .app-header-tools {
     grid-column: 3;
     justify-self: start;
     margin-left: 0.65rem;

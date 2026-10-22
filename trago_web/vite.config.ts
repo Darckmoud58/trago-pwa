@@ -104,7 +104,10 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: true,
+        // En dev el SW de Vite falla al evaluar y, al recargar con la caché
+        // vacía, deja la pantalla en blanco. Igual que Todo_pwa: el SW solo
+        // vive en el build. El arranque de index.html limpia el que ya quedó.
+        enabled: false,
         type: 'module',
       },
     }),

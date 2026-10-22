@@ -8,6 +8,7 @@ import {
 } from '../lib/installPrompt';
 import './InstallBanner.css';
 
+const SPLASH_KEY = 'trago_loc_splash_v2';
 const DISMISS_KEY = 'trago_install_dismissed_v11';
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 2;
 
@@ -31,6 +32,14 @@ function detectKind(): Kind {
   if (safari && /macintosh|mac os x/i.test(ua)) return 'safari-mac';
   if (/chrome|edg|chromium|opr/i.test(ua)) return 'desktop-chrome';
   return 'other';
+}
+
+function splashStillOpen() {
+  try {
+    return localStorage.getItem(SPLASH_KEY) !== '1';
+  } catch {
+    return false;
+  }
 }
 
 function wasDismissedRecently() {
@@ -91,7 +100,9 @@ export default function InstallBanner() {
 
     const unsub = subscribeInstallPrompt((ev) => {
       setDeferred(ev);
-      if (ev && !isStandalone() && !wasDismissedRecently()) setVisible(true);
+      if (ev && !isStandalone() && !wasDismissedRecently() && !splashStillOpen()) {
+        setVisible(true);
+      }
     });
 
     const onShow = () => {
@@ -100,7 +111,9 @@ export default function InstallBanner() {
     window.addEventListener('trago-show-install', onShow);
 
     const timer = window.setTimeout(() => {
-      if (!isStandalone() && !wasDismissedRecently()) setVisible(true);
+      if (!isStandalone() && !wasDismissedRecently() && !splashStillOpen()) {
+        setVisible(true);
+      }
     }, 1800);
 
     return () => {

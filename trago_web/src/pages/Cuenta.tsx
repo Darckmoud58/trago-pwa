@@ -5,7 +5,7 @@ import { clearAgeBand } from '../lib/ageBand';
 import { clearCatalogCache } from '../lib/catalogCache';
 import { listFavorites } from '../lib/favorites';
 import { useI18n } from '../lib/i18n';
-import { enableWebPush, pushSupported } from '../lib/pushSubscribe';
+import { usePushNotifications } from '../lib/usePushNotifications';
 import type { AuthUser } from '../types';
 import './Cuenta.css';
 
@@ -26,9 +26,7 @@ export default function Cuenta() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
-  const [pushBusy, setPushBusy] = useState(false);
-  const [pushNote, setPushNote] = useState<string | null>(null);
-  const canPush = pushSupported();
+  const push = usePushNotifications(Boolean(token));
 
   useEffect(() => {
     if (!token) return;
@@ -134,29 +132,60 @@ export default function Cuenta() {
               <span>{t('settingsNear')}</span>
               <em>›</em>
             </Link>
-            {canPush ? (
-              <button
-                type="button"
-                className="settings-row"
-                disabled={pushBusy}
-                onClick={() => {
-                  setPushBusy(true);
-                  setPushNote(null);
-                  void enableWebPush()
-                    .then((r) => {
-                      setPushNote(r.ok ? t('settingsNotifOk') : r.message);
-                    })
-                    .catch(() => setPushNote(t('settingsNotifFail')))
-                    .finally(() => setPushBusy(false));
-                }}
-              >
-                <span>{t('settingsNotif')}</span>
-                <em>{pushBusy ? t('settingsNotifBusy') : t('settingsNotifEnable')}</em>
-              </button>
-            ) : (
+            {push.state === 'unsupported' ? (
               <div className="settings-row is-static">
                 <span>{t('settingsNotif')}</span>
                 <em className="soon">{t('settingsSoon')}</em>
+              </div>
+            ) : (
+              <div className="settings-push">
+                <div className="settings-row is-static">
+                  <span>{t('settingsNotif')}</span>
+                  <em>
+                    {push.state === 'on'
+                      ? t('notifOn')
+                      : push.state === 'checking'
+                        ? t('loading')
+                        : t('settingsNotifEnable')}
+                  </em>
+                </div>
+                <div className="settings-push-body">
+                  {push.state === 'ios' ? <p>{t('notifIos')}</p> : null}
+                  {push.state === 'off' ? (
+                    <>
+                      <p>{t('notifBody')}</p>
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={push.busy}
+                        onClick={() => void push.enable(t('notifActivated'))}
+                      >
+                        {push.busy ? t('settingsNotifBusy') : t('settingsNotifEnable')}
+                      </button>
+                    </>
+                  ) : null}
+                  {push.state === 'on' ? (
+                    <div className="settings-push-actions">
+                      <button
+                        type="button"
+                        className="btn primary"
+                        disabled={push.busy}
+                        onClick={() => void push.test(t('notifTestSent'))}
+                      >
+                        {t('notifTest')}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn ghost"
+                        disabled={push.busy}
+                        onClick={() => void push.disable(t('notifDeactivated'))}
+                      >
+                        {t('notifDisable')}
+                      </button>
+                    </div>
+                  ) : null}
+                  {push.note ? <p className="settings-push-note">{push.note}</p> : null}
+                </div>
               </div>
             )}
             <Link
@@ -172,8 +201,6 @@ export default function Cuenta() {
               <em>›</em>
             </Link>
           </nav>
-
-          {pushNote && <aside className="cuenta-note">{pushNote}</aside>}
 
           <button type="button" className="btn ghost logout-btn" onClick={logout}>
             {t('logout')}

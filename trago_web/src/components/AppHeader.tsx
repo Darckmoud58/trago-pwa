@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n, type MessageKey } from '../lib/i18n';
+import NotificationsButton from './NotificationsButton';
 import './AppHeader.css';
 
 const TITLE_KEYS: { match: RegExp; titleKey: MessageKey | ''; showBack?: boolean }[] =
@@ -20,10 +21,11 @@ const TITLE_KEYS: { match: RegExp; titleKey: MessageKey | ''; showBack?: boolean
 
 type Props = {
   online: boolean;
+  loggedIn?: boolean;
   subtitle?: string;
 };
 
-export default function AppHeader({ online, subtitle }: Props) {
+export default function AppHeader({ online, loggedIn = false, subtitle }: Props) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -56,13 +58,16 @@ export default function AppHeader({ online, subtitle }: Props) {
           {subtitle && <p className="app-header-sub">{subtitle}</p>}
         </div>
 
-        <span
-          className={`app-header-conn ${online ? 'is-on' : 'is-off'}`}
-          title={online ? t('online') : t('offline')}
-          aria-live="polite"
-        >
-          {online ? '' : 'Offline'}
-        </span>
+        <div className="app-header-tools">
+          <NotificationsButton loggedIn={loggedIn} />
+          <span
+            className={`app-header-conn ${online ? 'is-on' : 'is-off'}`}
+            title={online ? t('online') : t('offline')}
+            aria-live="polite"
+          >
+            {online ? '' : 'Offline'}
+          </span>
+        </div>
       </div>
     </header>
   );

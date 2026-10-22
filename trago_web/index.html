@@ -54,6 +54,41 @@
   </head>
   <body>
     <div id="root"></div>
+    <!--
+      En localhost, un service worker viejo + caché vacía deja la pantalla
+      en blanco al recargar. Se da de baja, se borra la caché y se recarga
+      una sola vez. En producción no corre.
+    -->
+    <script>
+      (function () {
+        var host = location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') return;
+        if (!('serviceWorker' in navigator)) return;
+        if (sessionStorage.getItem('trago_dev_sw_cleared') === '1') return;
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          if (!regs.length) return;
+          sessionStorage.setItem('trago_dev_sw_cleared', '1');
+          return Promise.all(
+            regs.map(function (reg) {
+              return reg.unregister();
+            })
+          )
+            .then(function () {
+              return caches.keys();
+            })
+            .then(function (keys) {
+              return Promise.all(
+                keys.map(function (key) {
+                  return caches.delete(key);
+                })
+              );
+            })
+            .then(function () {
+              location.reload();
+            });
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

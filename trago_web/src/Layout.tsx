@@ -54,7 +54,7 @@ export default function Layout() {
     >
       <PageLoadOverlay />
       <LocationSplash />
-      {!hideHeader && <AppHeader online={online} />}
+      {!hideHeader && <AppHeader online={online} loggedIn={!!token} />}
       {!online && <OfflineBanner />}
       <main className="app-main" id="main">
         <PageTransition>

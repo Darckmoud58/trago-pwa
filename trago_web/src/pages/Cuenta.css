@@ -119,6 +119,28 @@
   opacity: 0.85;
 }
 
+.settings-push p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--fg-soft);
+}
+
+.settings-push-body {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0 1rem 0.9rem;
+}
+
+.settings-push-actions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.settings-push-note {
+  color: var(--fg) !important;
+}
+
 button.settings-row {
   width: 100%;
   border: none;

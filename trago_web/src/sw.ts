@@ -25,11 +25,26 @@ clientsClaim();
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-registerRoute(
-  new NavigationRoute(createHandlerBoundToURL('index.html'), {
-    denylist: [/^\/api\//],
-  })
-);
+// Solo en producción. En dev no hay precache de index.html: si el SW
+// responde la navegación con esa entrada y el usuario borró la caché,
+// la recarga sale en blanco. Si la entrada falta, se pide a la red.
+if (import.meta.env.PROD) {
+  const fromPrecache = createHandlerBoundToURL('index.html');
+  registerRoute(
+    new NavigationRoute(
+      async (options) => {
+        try {
+          const cached = await fromPrecache(options);
+          if (cached) return cached;
+        } catch {
+          /* precache borrado */
+        }
+        return fetch(options.request);
+      },
+      { denylist: [/^\/api\//] }
+    )
+  );
+}
 
 registerRoute(/\/api\/(auth|favoritos)/i, new NetworkOnly());
 registerRoute(/\/api\/sucursales\/cerca/i, new NetworkOnly());

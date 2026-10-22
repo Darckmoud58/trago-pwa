@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { api } from '../api';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -18,11 +19,103 @@ export function pushSupported() {
   );
 }
 
+/** En iPhone/iPad el push solo existe con la PWA instalada (iOS 16.4+). */
+export function needsIosInstall() {
+  if (typeof navigator === 'undefined') return false;
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return ios && !standalone;
+}
+
+/** navigator.serviceWorker.ready no se resuelve si no hay SW. */
+async function swReady(ms = 8000) {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<ServiceWorkerRegistration>((_, reject) => {
+      window.setTimeout(
+        () =>
+          reject(
+            new Error(
+              'El service worker no está activo. Recarga la página.'
+            )
+          ),
+        ms
+      );
+    }),
+  ]);
+}
+
+export async function getSubscription() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return (await reg?.pushManager.getSubscription()) ?? null;
+}
+
+export async function subscribePush() {
+  const permission = await Notification.requestPermission();
+  if (permission === 'denied') {
+    throw new Error(
+      'Bloqueaste las notificaciones. Actívalas en la configuración del sitio.'
+    );
+  }
+  if (permission !== 'granted') {
+    throw new Error('No se concedió el permiso de notificaciones');
+  }
+
+  const reg = await swReady();
+  const { data } = await api.get<{ publicKey: string }>('/api/push/publicKey');
+  if (!data.publicKey) {
+    throw new Error('Las notificaciones no están configuradas en el servidor');
+  }
+
+  const sub =
+    (await reg.pushManager.getSubscription()) ??
+    (await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(data.publicKey),
+    }));
+
+  const json = sub.toJSON();
+  if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
+    throw new Error('El navegador no devolvió una suscripción válida.');
+  }
+  await api.post('/api/push/subscribe', {
+    endpoint: json.endpoint,
+    keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+  });
+  return sub;
+}
+
+export async function unsubscribePush() {
+  const sub = await getSubscription();
+  if (!sub) return;
+  try {
+    await api.post('/api/push/unsubscribe', { endpoint: sub.endpoint });
+  } finally {
+    await sub.unsubscribe();
+  }
+}
+
+export async function sendTestPush() {
+  await api.post('/api/push/test');
+}
+
+export function pushErrorMessage(error: unknown, fallback: string) {
+  if (axios.isAxiosError(error)) {
+    const msg = error.response?.data?.message;
+    if (typeof msg === 'string' && msg) return msg;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 export type PushEnableResult =
   | { ok: true; message: string }
   | { ok: false; message: string };
 
-/** Suscribe al PushManager y guarda en POST /api/push/subscribe (patrón Todo_pwa). */
+/** Compatibilidad con Cuenta: suscribe y devuelve un resultado, sin lanzar. */
 export async function enableWebPush(): Promise<PushEnableResult> {
   if (!pushSupported()) {
     return {
@@ -30,51 +123,20 @@ export async function enableWebPush(): Promise<PushEnableResult> {
       message: 'Este navegador no soporta notificaciones push.',
     };
   }
-
-  const { data: cfg } = await api.get<{
-    configured?: boolean;
-    publicKey?: string | null;
-  }>('/api/push/subscribe');
-
-  if (!cfg.configured || !cfg.publicKey) {
-    const perm = await Notification.requestPermission();
+  try {
+    await subscribePush();
     return {
-      ok: false,
+      ok: true,
       message:
-        perm === 'granted'
-          ? 'Avisos listos en este dispositivo; el servidor aún no puede enviarlos.'
-          : 'No se pudieron activar los avisos. Revisa el permiso de notificaciones.',
+        'Listo. Te avisamos de promos vigentes y de tu cumpleaños aunque TraGo esté cerrado.',
     };
-  }
-
-  const perm = await Notification.requestPermission();
-  if (perm !== 'granted') {
+  } catch (error) {
     return {
       ok: false,
-      message: 'Sin permiso no hay aviso. Actívalo en el navegador.',
+      message: pushErrorMessage(
+        error,
+        'No se pudieron activar los avisos. Revisa el permiso de notificaciones.'
+      ),
     };
   }
-
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(cfg.publicKey),
-  });
-  const json = sub.toJSON();
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-    return {
-      ok: false,
-      message: 'El navegador no devolvió una suscripción válida.',
-    };
-  }
-
-  await api.post('/api/push/subscribe', {
-    endpoint: json.endpoint,
-    keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-  });
-
-  return {
-    ok: true,
-    message: 'Listo. Te avisamos el día de tu cumple aunque TraGo esté cerrado.',
-  };
 }

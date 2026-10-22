@@ -56,6 +56,23 @@ const messages = {
     settingsNotifOk:
       'Listo. Te avisamos el día de tu cumple aunque TraGo esté cerrado.',
     settingsNotifFail: 'No se pudo activar el push. Prueba en Chrome/Edge con HTTPS o localhost.',
+    notifBody:
+      'Te avisamos de promos vigentes y de tu cumpleaños aunque TraGo esté cerrado.',
+    notifOn: 'Los avisos están activos en este dispositivo.',
+    notifDisable: 'Desactivar',
+    notifTest: 'Enviar prueba',
+    notifActivated: 'Notificaciones activadas',
+    notifDeactivated: 'Notificaciones desactivadas',
+    notifTestSent: 'Notificación de prueba enviada',
+    notifIos:
+      'En iPhone, instala TraGo: Compartir y luego Agregar a inicio. Ábrela desde ahí para activar los avisos.',
+    notifNeedLogin: 'Entra a tu cuenta para activar avisos.',
+    splashInstall: 'Instalar TraGo',
+    splashInstallBusy: 'Abriendo…',
+    splashInstallDone: 'TraGo se está instalando en este dispositivo.',
+    splashInstallHint:
+      'Si no aparece el diálogo, abre el menú del navegador y elige Instalar TraGo.',
+    splashInstallIos: 'En iPhone: Compartir y luego Agregar a inicio.',
     settingsPrivacy: 'Privacidad',
     settingsTerms: 'Términos',
     logout: 'Cerrar sesión',
@@ -421,6 +438,23 @@ const messages = {
       'Done. We’ll notify you on your birthday even if TraGo is closed.',
     settingsNotifFail:
       'Couldn’t enable push. Try Chrome/Edge with HTTPS or localhost.',
+    notifBody:
+      'We’ll alert you about live deals and your birthday even if TraGo is closed.',
+    notifOn: 'Alerts are on for this device.',
+    notifDisable: 'Turn off',
+    notifTest: 'Send a test',
+    notifActivated: 'Notifications on',
+    notifDeactivated: 'Notifications off',
+    notifTestSent: 'Test notification sent',
+    notifIos:
+      'On iPhone, install TraGo: Share, then Add to Home Screen. Open it from there to turn alerts on.',
+    notifNeedLogin: 'Sign in to turn alerts on.',
+    splashInstall: 'Install TraGo',
+    splashInstallBusy: 'Opening…',
+    splashInstallDone: 'TraGo is installing on this device.',
+    splashInstallHint:
+      'If the dialog doesn’t appear, open the browser menu and choose Install TraGo.',
+    splashInstallIos: 'On iPhone: Share, then Add to Home Screen.',
     settingsPrivacy: 'Privacy',
     settingsTerms: 'Terms',
     logout: 'Sign out',

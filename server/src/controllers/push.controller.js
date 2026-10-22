@@ -2,7 +2,7 @@ import { z } from 'zod';
 import PushSubscription from '../models/PushSubscription.js';
 import Usuario from '../models/Usuario.js';
 import Rol from '../models/Rol.js';
-import { publicVapidKey, vapidConfigured } from '../lib/push.js';
+import { publicVapidKey, sendPush, vapidConfigured } from '../lib/push.js';
 import { runBirthdayPushJob } from '../services/birthdayPushJob.js';
 
 const subscribeSchema = z.object({
@@ -19,6 +19,71 @@ export async function getPushConfig(_req, res) {
     configured,
     publicKey: configured ? publicVapidKey() : null,
   });
+}
+
+/** Llave pública VAPID. Misma idea que GET /push/publicKey de Todo_pwa. */
+export function publicKey(_req, res) {
+  if (!vapidConfigured() || !publicVapidKey()) {
+    return res.status(503).json({
+      message: 'Las notificaciones no están configuradas en el servidor',
+    });
+  }
+  return res.json({ publicKey: publicVapidKey() });
+}
+
+export async function unsubscribePush(req, res) {
+  const endpoint = req.body?.endpoint;
+  if (typeof endpoint !== 'string' || !endpoint.startsWith('https://')) {
+    return res.status(400).json({ message: 'Falta endpoint' });
+  }
+  await PushSubscription.deleteOne({ endpoint, userId: req.userId });
+  return res.json({ ok: true });
+}
+
+/** Aviso de prueba a los dispositivos de esta cuenta (promos, no tareas). */
+export async function testPush(req, res) {
+  if (!vapidConfigured()) {
+    return res.status(503).json({
+      message: 'Las notificaciones no están configuradas en el servidor',
+    });
+  }
+
+  const subs = await PushSubscription.find({ userId: req.userId });
+  if (!subs.length) {
+    return res.status(404).json({
+      message: 'No hay dispositivos suscritos para tu cuenta',
+    });
+  }
+
+  let sent = 0;
+  let failed = 0;
+  let removed = 0;
+  for (const sub of subs) {
+    try {
+      await sendPush(sub, {
+        title: 'TraGo',
+        body: 'Así se ven los avisos de promos vigentes cerca de ti.',
+        url: '/cerca',
+        tag: 'trago-test',
+      });
+      sent += 1;
+    } catch (err) {
+      const status = err?.statusCode;
+      if (status === 404 || status === 410) {
+        await PushSubscription.deleteOne({ endpoint: sub.endpoint });
+        removed += 1;
+      } else {
+        failed += 1;
+      }
+    }
+  }
+
+  if (!sent && !failed) {
+    return res.status(404).json({
+      message: 'No hay dispositivos suscritos para tu cuenta',
+    });
+  }
+  return res.json({ sent, failed, removed });
 }
 
 export async function subscribePush(req, res) {

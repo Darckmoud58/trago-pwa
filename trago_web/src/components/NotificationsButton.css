@@ -1,0 +1,68 @@
+.notif-anchor {
+  position: relative;
+}
+
+.notif-bell {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(247, 229, 181, 0.12);
+  color: #f7e5b5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.notif-bell svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.notif-bell.is-on {
+  background: rgba(216, 26, 28, 0.55);
+}
+
+.notif-dot {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #f7e5b5;
+}
+
+.notif-popover {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 50;
+  width: min(18rem, 70vw);
+  padding: 0.9rem;
+  border-radius: 1rem;
+  background: #3b0b13;
+  color: #f7e5b5;
+  border: 1px solid rgba(247, 229, 181, 0.28);
+  box-shadow: 0 14px 36px rgba(20, 4, 8, 0.45);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.notif-popover p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.notif-actions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.notif-note {
+  font-size: 0.8rem !important;
+  opacity: 0.9;
+}

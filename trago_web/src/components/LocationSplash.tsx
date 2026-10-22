@@ -2,12 +2,19 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
 import { ICON_192 } from '../lib/iconVersion';
+import {
+  clearDeferredInstall,
+  getDeferredInstall,
+  subscribeInstallPrompt,
+  type BeforeInstallPromptEvent,
+} from '../lib/installPrompt';
 import { trackGps } from '../lib/metrics';
+import { isStandalonePwa } from '../lib/pwa';
 import './LocationSplash.css';
 
 const PAGELOAD_DONE = 'trago:pageload-done';
 const PAGELOAD_FALLBACK_MS = 4500;
-const DISMISS_KEY = 'trago_loc_splash_v1';
+const DISMISS_KEY = 'trago_loc_splash_v2';
 
 /**
  * Primer splash útil: pedir GPS para Cerca.
@@ -20,6 +27,15 @@ export default function LocationSplash() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
+    () => (typeof window !== 'undefined' ? getDeferredInstall() : null)
+  );
+  const [installBusy, setInstallBusy] = useState(false);
+  const [installHint, setInstallHint] = useState('');
+  const installed = typeof window !== 'undefined' && isStandalonePwa();
+  const ios =
+    typeof navigator !== 'undefined' &&
+    /iphone|ipad|ipod/i.test(navigator.userAgent);
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +57,8 @@ export default function LocationSplash() {
     };
   }, []);
 
+  useEffect(() => subscribeInstallPrompt(setDeferred), []);
+
   useEffect(() => {
     if (!bootReady) return;
     try {
@@ -58,6 +76,36 @@ export default function LocationSplash() {
       /* ignore */
     }
     setOpen(false);
+  }
+
+  async function installApp() {
+    if (installBusy || installed) return;
+    setInstallBusy(true);
+    setInstallHint('');
+    try {
+      const ev = deferred || getDeferredInstall();
+      if (ev) {
+        await ev.prompt();
+        const choice = await ev.userChoice;
+        clearDeferredInstall();
+        setDeferred(null);
+        if (choice.outcome === 'accepted') setInstallHint(t('splashInstallDone'));
+        return;
+      }
+      if (ios && typeof navigator.share === 'function') {
+        await navigator.share({
+          title: 'TraGo',
+          text: t('installTitleIos'),
+          url: `${window.location.origin}/`,
+        });
+        return;
+      }
+      setInstallHint(ios ? t('splashInstallIos') : t('splashInstallHint'));
+    } catch {
+      setInstallHint(ios ? t('splashInstallIos') : t('splashInstallHint'));
+    } finally {
+      setInstallBusy(false);
+    }
   }
 
   function enableLocation() {
@@ -115,6 +163,16 @@ export default function LocationSplash() {
           >
             {busy ? t('locSplashBusy') : t('locSplashEnable')}
           </button>
+          {!installed ? (
+            <button
+              type="button"
+              className="btn ghost"
+              disabled={installBusy}
+              onClick={() => void installApp()}
+            >
+              {installBusy ? t('splashInstallBusy') : t('splashInstall')}
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn ghost"
@@ -124,6 +182,11 @@ export default function LocationSplash() {
             {t('locSplashLater')}
           </button>
         </div>
+        {installHint ? (
+          <p className="loc-splash-hint" role="status">
+            {installHint}
+          </p>
+        ) : null}
         {error ? (
           <p className="error loc-splash-error" role="alert">
             {error}
