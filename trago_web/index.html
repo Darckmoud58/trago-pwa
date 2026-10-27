@@ -2,8 +2,8 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <!-- ?v= debe coincidir con ICON_VERSION en src/lib/iconVersion.ts -->
-    <link rel="icon" type="image/png" href="/favicon.png?v=4" />
+    <!-- El manifest usa icon-192-vN.png (ICON_VERSION), sin query. -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
@@ -22,7 +22,7 @@
       property="og:description"
       content="Promociones vigentes cerca de ti en Guadalajara: qué sigue activo, en qué sucursal y a cuántos metros."
     />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>TraGo</title>
     <!-- Tema noche antes del splash (hora México), evita flash blanco. -->
     <script>
@@ -55,14 +55,15 @@
   <body>
     <div id="root"></div>
     <!--
-      En localhost, un service worker viejo + caché vacía deja la pantalla
-      en blanco al recargar. Se da de baja, se borra la caché y se recarga
-      una sola vez. En producción no corre.
+      Solo en el dev server (:5173) un service worker viejo deja la pantalla
+      en blanco. Se da de baja una vez. El preview (:4173) y producción
+      conservan el SW: sin él Chrome no instala la app.
     -->
     <script>
       (function () {
         var host = location.hostname;
         if (host !== 'localhost' && host !== '127.0.0.1') return;
+        if (location.port !== '5173') return;
         if (!('serviceWorker' in navigator)) return;
         if (sessionStorage.getItem('trago_dev_sw_cleared') === '1') return;
         navigator.serviceWorker.getRegistrations().then(function (regs) {

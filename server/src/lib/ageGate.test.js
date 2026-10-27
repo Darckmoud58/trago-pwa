@@ -43,6 +43,25 @@ describe('isRestrictedPromo', () => {
     assert.equal(isRestrictedPromo({ nocturno: true }), true);
     assert.equal(isRestrictedPromo({ alcohol: false, nocturno: false }), false);
   });
+
+  it('el texto de una cerveza cuenta como restringida aunque el flag esté apagado', () => {
+    assert.equal(isRestrictedPromo({ nombre: 'Pacífico Clara Jalisco', alcohol: false }), true);
+    assert.equal(isRestrictedPromo({ nombre: 'Michelob Ultra Jalisco', alcohol: false }), true);
+    assert.equal(isRestrictedPromo({ nombre: 'Tecate Original Jalisco', alcohol: false }), true);
+    assert.equal(isRestrictedPromo({ nombre: '2 Cones', alcohol: false }), false);
+    assert.equal(
+      isRestrictedPromo({ nombre: 'Refresco Frutal Sidral Mundet Light', alcohol: false }),
+      false
+    );
+    assert.equal(
+      isRestrictedPromo({
+        nombre: 'Ginger Beer Fermentada Sin Alcohol 355 ml',
+        alcohol: true,
+        audiencia: 'adulto',
+      }),
+      false
+    );
+  });
 });
 
 describe('filterPromosForViewer M1', () => {
@@ -70,14 +89,14 @@ describe('filterPromosForViewer M1', () => {
     );
   });
 
-  it('cookie adult sí ve restringidas (M1)', () => {
+  it('cookie adult no ve alcohol: hace falta cuenta', () => {
     assert.equal(
       canSeeRestricted({ band: 'adult', source: 'cookie', age: 18 }),
-      true
+      false
     );
     assert.equal(
       filterPromosForViewer(list, { band: 'adult', source: 'cookie' }).length,
-      3
+      1
     );
   });
 

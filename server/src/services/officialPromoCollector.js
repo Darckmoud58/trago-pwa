@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import Promocion from '../models/Promocion.js';
 import Empresa from '../models/Empresa.js';
 import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
+import { looksLikeAlcohol } from '../lib/ageGate.js';
 
 const UA = 'Mozilla/5.0 (compatible; TraGoPromoCollector/1.0; +https://trago.app)';
 
@@ -295,11 +296,9 @@ function dates(text) {
 }
 
 function classify(text) {
-  const t = text.toLowerCase();
+  const t = String(text || '').toLowerCase();
   return {
-    alcohol: /cerveza|vino|licor|mezcal|tequila|whisky|alcohol|chela|buchanan|johnnie|ron\b/.test(
-      t
-    ),
+    alcohol: looksLikeAlcohol(t),
     nocturno: /noche|happy hour|barra|shot/.test(t),
   };
 }

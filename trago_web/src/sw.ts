@@ -16,12 +16,14 @@ import { ICON_192, SW_ICON_TAG } from './lib/iconVersion';
 
 declare let self: ServiceWorkerGlobalScope;
 
-/** Cambia con ICON_VERSION → nuevo SW → autoUpdate en clientes. */
+/** Cambia con ICON_VERSION → el SW nuevo espera a que la persona pulse Actualizar. */
 const SW_RELEASE = SW_ICON_TAG;
 void SW_RELEASE;
 
-self.skipWaiting();
 clientsClaim();
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') void self.skipWaiting();
+});
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 

@@ -3,6 +3,7 @@ import { useI18n } from '../lib/i18n';
 import {
   clearDeferredInstall,
   getDeferredInstall,
+  promptInstall,
   subscribeInstallPrompt,
   type BeforeInstallPromptEvent,
 } from '../lib/installPrompt';
@@ -54,6 +55,10 @@ function wasDismissedRecently() {
   }
 }
 
+function nativeInstall(kind: Kind) {
+  return kind === 'windows' || kind === 'android' || kind === 'desktop-chrome' || kind === 'other';
+}
+
 function clearLegacyDismiss() {
   try {
     for (let v = 4; v <= 10; v++) {
@@ -75,16 +80,6 @@ function ShareIcon() {
   );
 }
 
-async function waitForDeferred(ms = 2500): Promise<BeforeInstallPromptEvent | null> {
-  const start = Date.now();
-  while (Date.now() - start < ms) {
-    const ev = getDeferredInstall();
-    if (ev) return ev;
-    await new Promise((r) => setTimeout(r, 150));
-  }
-  return getDeferredInstall();
-}
-
 export default function InstallBanner() {
   const { t } = useI18n();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(
@@ -98,26 +93,29 @@ export default function InstallBanner() {
   useEffect(() => {
     clearLegacyDismiss();
 
-    const unsub = subscribeInstallPrompt((ev) => {
+    const native = nativeInstall(kind);
+    const mayShow = () =>
+      !isStandalone() && !wasDismissedRecently() && !splashStillOpen() && (!native || getDeferredInstall());
+
+    const unsub = subscribeInstallPrompt(() => {
+      const ev = getDeferredInstall();
       setDeferred(ev);
-      if (ev && !isStandalone() && !wasDismissedRecently() && !splashStillOpen()) {
-        setVisible(true);
-      }
+      if (ev && mayShow()) setVisible(true);
     });
+    const ready = getDeferredInstall();
+    if (ready) setDeferred(ready);
 
     const onShow = () => {
-      if (!isStandalone() && !splashStillOpen()) setVisible(true);
+      if (mayShow()) setVisible(true);
     };
     const onSplashClosed = () => {
-      if (!isStandalone() && !wasDismissedRecently()) setVisible(true);
+      if (mayShow()) setVisible(true);
     };
     window.addEventListener('trago-show-install', onShow);
     window.addEventListener('trago-splash-closed', onSplashClosed);
 
     const timer = window.setTimeout(() => {
-      if (!isStandalone() && !wasDismissedRecently() && !splashStillOpen()) {
-        setVisible(true);
-      }
+      if (mayShow()) setVisible(true);
     }, 1800);
 
     return () => {
@@ -135,25 +133,18 @@ export default function InstallBanner() {
     setVisible(false);
   }
 
-  /** Windows / Android / Chrome: instalar nativo desde ESTE botón. */
+  /** Chrome / Edge / Android: el diálogo nativo, en este clic, como Todo. */
   async function onInstallClick() {
-    if (busy) return;
+    const ev = deferred || getDeferredInstall();
+    if (!ev || busy) return;
     setBusy(true);
     setManualHint(false);
     try {
-      let ev = deferred || getDeferredInstall();
-      if (!ev) ev = await waitForDeferred(2800);
-      if (ev) {
-        setDeferred(ev);
-        await ev.prompt();
-        const choice = await ev.userChoice;
-        clearDeferredInstall();
-        setDeferred(null);
-        if (choice.outcome === 'accepted') setVisible(false);
-        return;
-      }
-      // Navegador no dio el evento: mostrar pasos en el mismo banner
-      setManualHint(true);
+      const outcome = await promptInstall();
+      clearDeferredInstall();
+      setDeferred(null);
+      if (outcome === 'accepted') setVisible(false);
+      else setManualHint(true);
     } catch {
       setManualHint(true);
     } finally {
@@ -280,7 +271,9 @@ export default function InstallBanner() {
     );
   }
 
-  // ——— Windows / Android / Chrome / Edge ———
+  // ——— Windows / Android / Chrome / Edge: solo si el navegador ya puede instalar ———
+  if (!deferred && !manualHint) return null;
+
   const title =
     kind === 'windows' ? t('installTitleWindows') : t('installTitle');
   const readyTip =
@@ -309,7 +302,7 @@ export default function InstallBanner() {
           />
           <div className="install-copy">
             <strong>{title}</strong>
-            <p>{deferred || !manualHint ? readyTip : fallbackTip}</p>
+            <p>{deferred ? readyTip : fallbackTip}</p>
           </div>
         </div>
 
@@ -320,14 +313,16 @@ export default function InstallBanner() {
         )}
 
         <div className="install-actions">
-          <button
-            type="button"
-            className="btn primary install-cta"
-            disabled={busy}
-            onClick={() => void onInstallClick()}
-          >
-            {busy ? t('loading') : t('installNow')}
-          </button>
+          {deferred && (
+            <button
+              type="button"
+              className="btn primary install-cta"
+              disabled={busy}
+              onClick={() => void onInstallClick()}
+            >
+              {busy ? t('loading') : t('installNow')}
+            </button>
+          )}
           <button type="button" className="btn ghost btn-sm" onClick={dismiss}>
             {t('notNow')}
           </button>

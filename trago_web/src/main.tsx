@@ -1,9 +1,9 @@
+import './lib/installPrompt';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { I18nProvider } from './lib/i18n';
-import { hookInstallPromptEarly } from './lib/installPrompt';
 import Layout from './Layout';
 import RequireAuth from './components/RequireAuth';
 import Home from './pages/Home';
@@ -19,8 +19,6 @@ import Cadena from './pages/Cadena';
 import Idioma from './pages/Idioma';
 import Terminos from './pages/Terminos';
 import AvisoPrivacidad from './pages/AvisoPrivacidad';
-
-hookInstallPromptEarly();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

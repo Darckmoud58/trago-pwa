@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
-import { ICON_192 } from '../lib/iconVersion';
+import { ICON_ART_192 } from '../lib/iconVersion';
 import { trackGps } from '../lib/metrics';
 import './LocationSplash.css';
 
@@ -98,7 +98,7 @@ export default function LocationSplash() {
       <div className="loc-splash-panel">
         <img
           className="loc-splash-mascot"
-          src={ICON_192}
+          src={ICON_ART_192}
           alt="TraGo"
           width={96}
           height={96}

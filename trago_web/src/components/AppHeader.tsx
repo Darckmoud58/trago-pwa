@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useI18n, type MessageKey } from '../lib/i18n';
+import { useInstallPrompt } from '../lib/installPrompt';
 import NotificationsButton from './NotificationsButton';
 import './AppHeader.css';
 
@@ -29,6 +30,7 @@ export default function AppHeader({ online, loggedIn = false, subtitle }: Props)
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { canInstall, install } = useInstallPrompt();
   const conf =
     TITLE_KEYS.find((row) => row.match.test(pathname)) ?? {
       titleKey: '' as const,
@@ -59,6 +61,15 @@ export default function AppHeader({ online, loggedIn = false, subtitle }: Props)
         </div>
 
         <div className="app-header-tools">
+          {canInstall && (
+            <button
+              type="button"
+              className="btn primary btn-sm app-header-install"
+              onClick={() => void install()}
+            >
+              {t('install')}
+            </button>
+          )}
           <NotificationsButton loggedIn={loggedIn} />
           <span
             className={`app-header-conn ${online ? 'is-on' : 'is-off'}`}

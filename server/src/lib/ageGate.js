@@ -46,9 +46,35 @@ export function normalizeBand(band) {
   return 'unknown';
 }
 
-/** Promo restringida: alcohol, audiencia adulto o nocturno. */
+/** Promo restringida: alcohol, audiencia adulto, nocturno, o el texto es una bebida. */
+const ALCOHOL_TEXT =
+  /cerveza|vino|licor|mezcal|tequila|whisk(?:e)?y|alcohol|chela|buchanan|johnnie|\bron\b|pac[ií]fico|michelob|tecate|heineken|budweiser|bud\s*light|stella|carta\s+blanca|bohemia|dos\s+equis|caguama|vodka|ginebra|\bgin\b|brandy|co[nñ]ac|champagne|\bsidra\b|pulque|bacardi|smirnoff|cuervo|don\s+julio|herradura|jack\s+daniel|six\s*pack|6\s*pack/;
+
+const NON_ALCOHOL = /sin\s+alcohol|alcohol\s*free|0\.0\s*%|0,0\s*%/;
+
+function fold(text) {
+  return String(text || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+export function looksLikeAlcohol(text) {
+  const folded = fold(text).replace(NON_ALCOHOL, ' ');
+  return ALCOHOL_TEXT.test(folded);
+}
+
+function promoCopy(promo) {
+  return [promo.nombre, promo.title, promo.descripcion, promo.subtitle, promo.description]
+    .filter(Boolean)
+    .join(' ');
+}
+
 export function isRestrictedPromo(promo) {
   if (!promo) return false;
+  const copy = promoCopy(promo);
+  if (looksLikeAlcohol(copy)) return true;
+  if (NON_ALCOHOL.test(fold(copy))) return false;
   return Boolean(
     promo.alcohol ||
       promo.audiencia === 'adulto' ||
@@ -59,13 +85,13 @@ export function isRestrictedPromo(promo) {
 }
 
 /**
- * M1: restringida solo si band === 'adult' (cookie o auth).
- * Cuenta auth 'minor' nunca ve, aunque haya cookie adult.
+ * Alcohol solo con cuenta de 18+.
+ * Sin sesión, o con solo la cookie de edad, no se muestra.
+ * Una cuenta menor nunca ve, aunque la cookie diga adult.
  */
 export function canSeeRestricted(viewer) {
-  if (!viewer) return false;
+  if (!viewer || viewer.source !== 'auth' || !viewer.userId) return false;
   const band = normalizeBand(viewer.band);
-  if (viewer.source === 'auth' && band === 'minor') return false;
   if (band !== 'adult') return false;
   if (viewer.age != null && Number.isFinite(viewer.age)) {
     return viewer.age >= MIN_ALCOHOL_AGE;

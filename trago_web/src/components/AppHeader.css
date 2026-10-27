@@ -88,6 +88,12 @@
   gap: 0.45rem;
 }
 
+.app-header-install {
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
 .app-header-conn {
   justify-self: end;
   min-width: 0.55rem;

@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import AppHeader from './components/AppHeader';
 import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
+import PwaUpdater from './components/PwaUpdater';
 import LocationSplash from './components/LocationSplash';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
@@ -69,6 +70,7 @@ export default function Layout() {
         </PageTransition>
       </main>
       <BottomNav hasSession={!!token} />
+      <PwaUpdater />
       <InstallBanner />
     </div>
   );

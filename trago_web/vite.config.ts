@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -14,8 +14,30 @@ function readIconVersion(): number {
 }
 
 const ICON_VERSION = readIconVersion();
-const ICON_192 = `/icon-192-v2.png?v=${ICON_VERSION}`;
-const ICON_512 = `/icon-512-v2.png?v=${ICON_VERSION}`;
+const ICON_192 = `/icon-192-v${ICON_VERSION}.png`;
+const ICON_512 = `/icon-512-v${ICON_VERSION}.png`;
+
+/** Copia el arte a un nombre con versión, sin ?v=, para el manifest. */
+function publishVersionedIcons(version: number) {
+  const root = dirname(fileURLToPath(import.meta.url));
+  return {
+    name: 'trago-versioned-pwa-icons',
+    apply: 'build' as const,
+    closeBundle() {
+      const pairs: [string, string][] = [
+        ['public/icon-192-v2.png', `dist/icon-192-v${version}.png`],
+        ['public/icon-512-v2.png', `dist/icon-512-v${version}.png`],
+      ];
+      for (const [from, to] of pairs) {
+        const src = join(root, from);
+        if (!existsSync(src)) {
+          throw new Error(`Falta el icono PWA ${from}`);
+        }
+        copyFileSync(src, join(root, to));
+      }
+    },
+  };
+}
 
 export default defineConfig({
   server: {
@@ -45,8 +67,8 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.ts',
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      registerType: 'prompt',
+      injectRegister: null,
       includeAssets: [
         'favicon.png',
         'favicon.svg',
@@ -111,5 +133,6 @@ export default defineConfig({
         type: 'module',
       },
     }),
+    publishVersionedIcons(ICON_VERSION),
   ],
 });

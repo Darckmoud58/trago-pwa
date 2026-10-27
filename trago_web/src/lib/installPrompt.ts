@@ -1,21 +1,33 @@
 /**
- * Captura early de beforeinstallprompt — si el evento llega antes
- * de montar el banner, sin esto se pierde y solo queda “usa el menú”.
+ * Igual que Todo: el listener vive al importar este módulo, antes del resto
+ * de la app. Si beforeinstallprompt se pierde, el botón ya no puede instalar.
  */
+import { useSyncExternalStore } from 'react';
 
 export type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 };
 
-type Listener = (ev: BeforeInstallPromptEvent | null) => void;
+type Listener = () => void;
 
 let deferred: BeforeInstallPromptEvent | null = null;
 const listeners = new Set<Listener>();
-let hooked = false;
 
 function emit() {
-  for (const fn of listeners) fn(deferred);
+  for (const fn of listeners) fn();
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferred = event as BeforeInstallPromptEvent;
+    emit();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferred = null;
+    emit();
+  });
 }
 
 export function getDeferredInstall(): BeforeInstallPromptEvent | null {
@@ -24,7 +36,6 @@ export function getDeferredInstall(): BeforeInstallPromptEvent | null {
 
 export function subscribeInstallPrompt(fn: Listener) {
   listeners.add(fn);
-  fn(deferred);
   return () => {
     listeners.delete(fn);
   };
@@ -35,18 +46,22 @@ export function clearDeferredInstall() {
   emit();
 }
 
-export function hookInstallPromptEarly() {
-  if (typeof window === 'undefined' || hooked) return;
-  hooked = true;
+/** Hay que llamarlo en el clic, sin awaits previos: si no, Chrome rechaza el diálogo. */
+export async function promptInstall(): Promise<'accepted' | 'dismissed' | null> {
+  const event = deferred;
+  if (!event) return null;
+  await event.prompt();
+  const choice = await event.userChoice;
+  deferred = null;
+  emit();
+  return choice.outcome;
+}
 
-  window.addEventListener('beforeinstallprompt', ((e: Event) => {
-    e.preventDefault();
-    deferred = e as BeforeInstallPromptEvent;
-    emit();
-  }) as EventListener);
-
-  window.addEventListener('appinstalled', () => {
-    deferred = null;
-    emit();
-  });
+export function useInstallPrompt() {
+  const canInstall = useSyncExternalStore(
+    (cb) => subscribeInstallPrompt(cb),
+    () => deferred !== null,
+    () => false
+  );
+  return { canInstall, install: promptInstall };
 }
