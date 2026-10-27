@@ -2,36 +2,36 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
+import PlaceBrandMark from '../components/PlaceBrandMark';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { track, trackGps } from '../lib/metrics';
-import { googleMapsSearchUrl, hasStreetAddress } from '../lib/googleMaps';
+import {
+  googleMapsExactUrl,
+  googleMapsSearchUrl,
+  hasStreetAddress,
+} from '../lib/googleMaps';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
 const NEAR_RADIUS_M = 2000;
 
-async function openExactPlace(branch: Branch, nombre: string) {
-  const lat = branch.lat;
-  const lng = branch.lng ?? branch.long;
-  let address = '';
-  if (typeof lat === 'number' && typeof lng === 'number') {
-    try {
-      const res = await api.get('/api/sucursales/direccion', {
-        params: { lat, lng, nombre },
-      });
-      address = String(res.data?.address || '');
-    } catch {
-      address = '';
-    }
-  }
-  const url = googleMapsSearchUrl({
-    address:
-      address ||
-      [nombre, branch.address, branch.colonia, branch.city].filter(Boolean).join(', '),
-  });
+function openExactPlace(branch: Branch, nombre: string) {
+  const url =
+    googleMapsExactUrl({
+      lat: branch.lat,
+      lng: branch.lng ?? branch.long,
+      name: nombre,
+      address: branch.address,
+      city: [branch.colonia, branch.city].filter(Boolean).join(', '),
+    }) ||
+    googleMapsSearchUrl({
+      name: nombre,
+      address: branch.address,
+      city: [branch.colonia, branch.city].filter(Boolean).join(', '),
+    });
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
@@ -57,6 +57,57 @@ function initials(name: string) {
 }
 
 /** Tono cálido de marca (rojo/tinto) a partir del nombre — sin salirse de TraGo. */
+function foldName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+/** Portada del sitio (“Promociones OXXO”), no una oferta concreta. */
+function isLandingPromoTitle(promo: Promo, chainKeys: string[] = []) {
+  const title = foldName(promo.nombre || promo.title || '');
+  if (!title) return true;
+  if (/^(promociones|ofertas|promos)(oficiales)?$/.test(title)) return true;
+  const brands = chainKeys.length
+    ? chainKeys
+    : [foldName(promo.chainName || '')].filter((k) => k.length >= 3);
+  return brands.some(
+    (key) =>
+      title === `promociones${key}` ||
+      title === `ofertas${key}` ||
+      title === `promos${key}` ||
+      title === `promocionesde${key}` ||
+      title === `ofertasde${key}`
+  );
+}
+
+function chainKeysForBranch(branch: Branch) {
+  return [branch.officialBrand, branch.chainName]
+    .filter((name): name is string => Boolean(name))
+    .map(foldName)
+    .filter((name) => name.length >= 3);
+}
+
+/** Ofertas de esa cadena (incl. 18+ con candado). No inventa participación. */
+function promosForPlace(branch: Branch, promos: Promo[]) {
+  const keys = chainKeysForBranch(branch);
+  if (!keys.length) return [];
+  return promos.filter((promo) => {
+    if (isLandingPromoTitle(promo, keys)) return false;
+    const chain = foldName(promo.chainName || '');
+    if (!chain) return false;
+    return keys.some(
+      (key) => chain === key || chain.includes(key) || key.includes(chain)
+    );
+  });
+}
+
+function placeHasOffers(branch: Branch, promos: Promo[]) {
+  return promosForPlace(branch, promos).length > 0;
+}
+
 function brandTone(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i += 1) h = (h * 33 + name.charCodeAt(i)) >>> 0;
@@ -74,7 +125,28 @@ export default function Cerca() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
+  const [openOffersId, setOpenOffersId] = useState<string | null>(null);
   const bootstrapped = useRef(false);
+  const catalogPromos = promos.filter(
+    (promo) => !isLandingPromoTitle(promo) && !promo.requiresAuth
+  );
+  const offersBranch =
+    branches.find((branch) => String(branch._id) === openOffersId) ?? null;
+  const offersList = offersBranch ? promosForPlace(offersBranch, promos) : [];
+  const offersOpen = offersList.filter((p) => !p.requiresAuth);
+  const offersLocked = offersList.filter((p) => p.requiresAuth);
+  const offersLabel =
+    offersBranch?.officialBrand ||
+    offersBranch?.chainName ||
+    offersBranch?.nombre ||
+    offersBranch?.name ||
+    '';
+  const loggedIn = Boolean(readToken());
+
+  useEffect(() => {
+    if (!openOffersId) return;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [openOffersId]);
 
   async function loadNear(lng: number, lat: number, label: string) {
     setLoading(true);
@@ -82,6 +154,7 @@ export default function Cerca() {
     setNote(label);
     setBranches([]);
     setPromos([]);
+    setOpenOffersId(null);
     setFromCache(false);
     void track({ tipo: 'cerca_open', lat, lng, meta: { label } });
     try {
@@ -181,6 +254,111 @@ export default function Cerca() {
     void locateNear();
   }, []);
 
+  if (offersBranch) {
+    const placeName = offersBranch.label
+      ? `${offersBranch.nombre || offersBranch.name || offersLabel} · ${offersBranch.label}`
+      : offersBranch.nombre || offersBranch.name || offersLabel;
+    return (
+      <section className="cerca-page cerca-offers-page">
+        <header className="cerca-offers-page-head rise">
+          <button
+            type="button"
+            className="btn ghost btn-sm"
+            onClick={() => setOpenOffersId(null)}
+          >
+            ‹ {t('back')}
+          </button>
+          <div>
+            <p className="cerca-kicker">{t('seePlaceOffers')}</p>
+            <h1>{t('offersOfChain').replace('{chain}', offersLabel)}</h1>
+            <p className="cerca-soft">{placeName}</p>
+          </div>
+        </header>
+        {offersList.length === 0 ? (
+          <p className="cerca-place-offers-empty">{t('placeOffersEmpty')}</p>
+        ) : (
+          <>
+            {!loggedIn && offersLocked.length > 0 && offersOpen.length === 0 ? (
+              <div className="cerca-place-offers-empty cerca-offers-login">
+                <p>{t('placeOffersLogin')}</p>
+                <Link
+                  to="/entrar"
+                  state={{ from: '/cerca', reason: 'alcohol' }}
+                  className="btn primary"
+                >
+                  {t('placeOffersLoginCta')}
+                </Link>
+              </div>
+            ) : null}
+            <ul className="cerca-offers-collage stagger">
+              {offersList.map((promo, index) => {
+                const title = promo.nombre || promo.title || t('promoFallback');
+                const img = resolveMediaUrl(promo.imagen || promo.imageUrl);
+                const tall = index % 5 === 0 || index % 5 === 3;
+                const locked = Boolean(promo.requiresAuth);
+                const target = locked
+                  ? loggedIn
+                    ? '/cerca'
+                    : '/entrar'
+                  : `/promos/${promo.slug || promo._id}`;
+                return (
+                  <li
+                    key={promo._id}
+                    className={`cerca-collage-tile${tall ? ' is-tall' : ''}${img ? '' : ' is-plain'}${locked ? ' is-locked' : ''}`}
+                  >
+                    <Link
+                      to={target}
+                      state={
+                        locked && !loggedIn
+                          ? { from: '/cerca', reason: 'alcohol' }
+                          : undefined
+                      }
+                      className="cerca-collage-link"
+                      viewTransition={!locked}
+                      aria-label={locked ? t('offerLocked') : title}
+                      onClick={
+                        locked && loggedIn
+                          ? (e) => e.preventDefault()
+                          : undefined
+                      }
+                    >
+                      {img && !locked ? (
+                        <img
+                          src={img}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span
+                          className="cerca-collage-fallback"
+                          style={{ background: brandTone(offersLabel) }}
+                        >
+                          {initials(offersLabel)}
+                        </span>
+                      )}
+                      <span className="cerca-collage-caption">
+                        <strong>{locked ? t('offerLocked') : title}</strong>
+                        <em>
+                          {locked
+                            ? loggedIn
+                              ? t('placeOffersEmpty')
+                              : t('placeOffersLoginCta')
+                            : t('seeOfferDetails')}
+                        </em>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        )}
+      </section>
+    );
+  }
+
   return (
     <section className="cerca-page">
       <header className="cerca-hero rise">
@@ -220,7 +398,7 @@ export default function Cerca() {
         </div>
       )}
 
-      {!loading && promos.length > 0 && (
+      {!loading && catalogPromos.length > 0 && (
         <section className="cerca-offers" data-reveal>
           <div className="cerca-section-head">
             <h2>{t('nearbyPromosTitle')}</h2>
@@ -229,7 +407,7 @@ export default function Cerca() {
             </Link>
           </div>
           <ul className="cerca-offer-rail scroll-rail stagger">
-            {promos.slice(0, 12).map((promo) => {
+            {catalogPromos.slice(0, 12).map((promo) => {
               const img = resolveMediaUrl(promo.imagen || promo.imageUrl);
               const officialHref = resolveOfficialPromoUrl(promo.url_fuente);
               const title = promo.nombre || promo.title || t('promoFallback');
@@ -310,25 +488,27 @@ export default function Cerca() {
                 typeof b.distanceMeters === 'number'
                   ? (b.distanceMeters / 1000).toFixed(2)
                   : null;
-              const precise = hasStreetAddress(b.address);
               const shown = b.label ? `${nombre} · ${b.label}` : nombre;
-              const mapsUrl = precise
-                ? googleMapsSearchUrl({
-                    name: nombre,
-                    address: b.address,
-                    city: [b.colonia, b.city].filter(Boolean).join(', '),
-                  })
-                : null;
+              const mapsUrl = googleMapsExactUrl({
+                lat: b.lat,
+                lng: b.lng ?? b.long,
+                name: nombre,
+                address: b.address,
+                city: [b.colonia, b.city].filter(Boolean).join(', '),
+              });
               return (
                 <li key={id} className="cerca-place-card">
-
-                  <div
-                    className="cerca-place-mark"
-                    style={{ background: brandTone(chain || nombre) }}
-                    aria-hidden
-                  >
-                    {initials(chain || nombre)}
-                  </div>
+                  <PlaceBrandMark
+                    label={chain || nombre}
+                    initials={initials(chain || nombre)}
+                    tone={brandTone(chain || nombre)}
+                    logoUrl={b.logoUrl}
+                    officialBrand={b.officialBrand}
+                    chainName={b.chainName}
+                    nombre={nombre}
+                    name={b.name}
+                    website={b.website}
+                  />
                   <div className="cerca-place-body">
                     <div className="cerca-place-top">
                       <div className="cerca-place-titles">
@@ -363,10 +543,19 @@ export default function Cerca() {
                     )}
                     {b.hours && <p className="cerca-place-meta">{b.hours}</p>}
                     <div className="cerca-place-foot">
-                      {b.hasOfficialPromos ? (
-                        <span className="cerca-badge">{t('nearbyHasOffers')}</span>
+                      {placeHasOffers(b, promos) ? (
+                        <button
+                          type="button"
+                          className="cerca-badge cerca-offers-btn"
+                          onClick={() => setOpenOffersId(id)}
+                        >
+                          {t('seePlaceOffers')}
+                        </button>
                       ) : null}
-                      {(b.lat != null || hasStreetAddress(b.address)) && (
+                      {(b.lat != null ||
+                        b.lng != null ||
+                        b.long != null ||
+                        hasStreetAddress(b.address)) && (
                         <a
                           className="text-link"
                           href={mapsUrl || '#mapa'}
@@ -374,7 +563,7 @@ export default function Cerca() {
                           rel={mapsUrl ? 'noreferrer' : undefined}
                           onClick={(e) => {
                             e.preventDefault();
-                            void openExactPlace(b, nombre);
+                            openExactPlace(b, nombre);
                           }}
                         >
                           {t('seeOnMap')} ↗
@@ -422,6 +611,7 @@ export default function Cerca() {
           </button>
         </div>
       )}
+
     </section>
   );
 }

@@ -6,7 +6,7 @@ import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
-import { googleMapsSearchUrl } from '../lib/googleMaps';
+import { googleMapsExactUrl, googleMapsSearchUrl } from '../lib/googleMaps';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
 import type { Branch, Promo } from '../types';
 import './Promos.css';
@@ -289,16 +289,14 @@ export default function PromoDetalle() {
                   setLocNote(t('locationNone'));
                   return;
                 }
-                const dir = await api.get('/api/sucursales/direccion', {
-                  params: {
+                const placeName = String(hit.nombre || hit.name || brand || '');
+                const url =
+                  googleMapsExactUrl({
                     lat: placeLat,
                     lng: placeLng,
-                    nombre: hit.nombre || hit.name || brand,
-                  },
-                });
-                const url = googleMapsSearchUrl({
-                  address: String(dir.data?.address || ''),
-                });
+                    name: placeName,
+                  }) ||
+                  googleMapsSearchUrl({ name: placeName });
                 if (!url) {
                   setLocNote(t('locationNone'));
                   return;

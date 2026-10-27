@@ -55,6 +55,8 @@ export type Promo = {
   imagen?: string;
   origin?: string;
   origen?: 'oficial' | 'empresa' | 'demo' | 'usuario' | string;
+  /** Cerca: oferta 18+ visible solo con cuenta adulta. */
+  requiresAuth?: boolean;
   url_fuente?: string;
   ubicacionesCercanas?: {
     _id: string;
@@ -94,6 +96,8 @@ export type Branch = {
   osmUrl?: string;
   hasOfficialPromos?: boolean;
   officialBrand?: string | null;
+  logoUrl?: string | null;
+  website?: string | null;
   lat?: number;
   long?: number;
   lng?: number;

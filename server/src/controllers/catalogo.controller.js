@@ -18,6 +18,7 @@ import {
   vinculoMeta,
 } from '../services/promoBranchLinks.js';
 import {
+  canSeeRestricted,
   filterPromosForViewer,
   isRestrictedPromo,
   mongoExcludeRestricted,
@@ -396,15 +397,33 @@ export async function nearbyPromos(req, res) {
           })),
       };
     });
-    const mapped = filterPromosForViewer(mappedRaw, req.viewer);
+    // Cerca: no borrar alcohol en silencio. Si falta cuenta 18+, marcar candado
+    // para que "Ver ofertas" de 7-Eleven/etc. no quede vacío solo en OXXO.
+    const viewerOk = canSeeRestricted(req.viewer);
+    const mapped = mappedRaw.map((promo) => {
+      if (viewerOk || !isRestrictedPromo(promo)) return promo;
+      return { ...promo, requiresAuth: true };
+    });
+    const brandOfferStats = {};
+    for (const promo of mapped) {
+      const key = String(promo.chainName || '').trim();
+      if (!key) continue;
+      if (!brandOfferStats[key]) {
+        brandOfferStats[key] = { total: 0, visible: 0, requiresAuth: 0 };
+      }
+      brandOfferStats[key].total += 1;
+      if (promo.requiresAuth) brandOfferStats[key].requiresAuth += 1;
+      else brandOfferStats[key].visible += 1;
+    }
     return res.json({
       count: mapped.length,
       radiusMeters: maxMeters,
       birthdayOnly,
       promos: mapped,
+      brandOfferStats,
       ageGate: {
         band: req.viewer?.band || null,
-        restrictedHidden: Boolean(req.viewer && !req.viewer.canSeeAlcohol),
+        restrictedHidden: Boolean(!viewerOk && mapped.some((p) => p.requiresAuth)),
       },
       sources,
       sourcesRefreshedAt: refresh.at,
@@ -460,14 +479,28 @@ export async function nearBranches(req, res) {
         message: 'maxMeters debe ser numérico (se cuantiza a 1000/2000/2500/5000/8000)',
       });
     }
+    const LOCAL_BRAND_LOGOS = {
+      oxxo: '/brands/oxxo.svg',
+      '7-eleven': '/brands/7-eleven.svg',
+      chedraui: '/brands/chedraui.svg',
+      walmart: '/brands/walmart.svg',
+      mcdonalds: '/brands/mcdonalds.svg',
+      'burger-king': '/brands/burger-king.svg',
+      'circle-k': '/brands/circle-k.svg',
+      heb: '/brands/heb.svg',
+      vips: '/brands/vips.svg',
+      'krispy-kreme': '/brands/krispy-kreme.svg',
+    };
     const discovery = await discoverNearbyBranches(lat, lng, maxMeters);
     const mapped = discovery.branches.map((branch) => {
       const brand = resolveOfficialBrand(branch);
+      const logoUrl = brand ? LOCAL_BRAND_LOGOS[brand.slug] || null : null;
       return {
         ...branch,
         osmUrl: branch.osmUrl,
         hasOfficialPromos: Boolean(brand && hasOfficialPromoSource(brand.slug)),
         officialBrand: brand?.nombre || null,
+        logoUrl,
       };
     });
     return res.json({
