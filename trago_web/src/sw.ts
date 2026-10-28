@@ -21,9 +21,36 @@ const SW_RELEASE = SW_ICON_TAG;
 void SW_RELEASE;
 
 clientsClaim();
+
+/** Tras “Actualizar”: skipWaiting + navegar clientes (no depender de isUpdate en Workbox). */
+let reloadClientsAfterSkip = false;
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') void self.skipWaiting();
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    reloadClientsAfterSkip = true;
+    void self.skipWaiting();
+  }
 });
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      if (!reloadClientsAfterSkip) return;
+      await self.clients.claim();
+      const windows = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+      await Promise.all(
+        windows.map((client) =>
+          'navigate' in client
+            ? (client as WindowClient).navigate(client.url)
+            : Promise.resolve(null)
+        )
+      );
+    })()
+  );
+});
+
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
