@@ -3,6 +3,7 @@ import Promocion from '../models/Promocion.js';
 import Empresa from '../models/Empresa.js';
 import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
 import { looksLikeAlcohol } from '../lib/ageGate.js';
+import { parsePromoPrice, resolvePromoPrice } from '../lib/promoPrice.js';
 
 const UA = 'Mozilla/5.0 (compatible; TraGoPromoCollector/1.0; +https://trago.app)';
 
@@ -515,6 +516,11 @@ function parseVtexDiscountSearch(body, url, company) {
       sourceUrl,
       image: absUrl(img, url),
       evidence: `${title} descuento oferta promoción ${discount}%`,
+      price: hasDiscount || Number.isFinite(price) ? price : null,
+      listPrice: hasDiscount ? list : null,
+      priceText: Number.isFinite(price) && price > 0
+        ? `$${price % 1 === 0 ? price.toFixed(0) : price.toFixed(2)}`
+        : '',
     });
   }
   return found;
@@ -1213,6 +1219,18 @@ export async function collectNearbyPromos(companies) {
             : dates(hit.evidence);
         const { start, end } = fromHit;
         const flags = classify(hit.evidence);
+        const priced = resolvePromoPrice({
+          precio: hit.price ?? hit.precio,
+          precioLista: hit.listPrice ?? hit.precio_lista,
+          precioTexto: hit.priceText ?? hit.precio_texto,
+          title: hit.title,
+          description: hit.description,
+        });
+        // Si el scraper no trae cifra, intenta del título (2X$48, Lunch King $99…).
+        const fromTitle =
+          priced.precio != null
+            ? priced
+            : parsePromoPrice(`${hit.title || ''} ${hit.description || ''}`);
         return {
           updateOne: {
             filter: { slug: `oficial-${key}` },
@@ -1244,6 +1262,9 @@ export async function collectNearbyPromos(companies) {
                 nocturno: flags.nocturno,
                 estatus: end && end < now ? 'caduco' : 'activo',
                 destacada: false,
+                precio: fromTitle.precio,
+                precio_lista: fromTitle.precioLista,
+                precio_texto: fromTitle.precioTexto || '',
               },
             },
             upsert: true,

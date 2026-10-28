@@ -57,6 +57,15 @@ export type Promo = {
   origen?: 'oficial' | 'empresa' | 'demo' | 'usuario' | string;
   /** Cerca: oferta 18+ visible solo con cuenta adulta. */
   requiresAuth?: boolean;
+  /** Precio publicado por la fuente (null si no hay cifra legible). */
+  precio?: number | null;
+  price?: number | null;
+  precioLista?: number | null;
+  precio_lista?: number | null;
+  listPrice?: number | null;
+  precioTexto?: string | null;
+  precio_texto?: string | null;
+  priceLabel?: string | null;
   url_fuente?: string;
   ubicacionesCercanas?: {
     _id: string;

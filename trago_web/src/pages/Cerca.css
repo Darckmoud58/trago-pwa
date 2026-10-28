@@ -6,25 +6,33 @@
 }
 
 .cerca-hero {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.85rem;
-  padding: 1.05rem 1.1rem;
-  border-radius: 1.15rem;
-  border: 1px solid var(--line);
+  padding: 1.25rem 1.2rem 1.3rem;
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in srgb, #f7e5b5 14%, var(--line));
+  color: #f7e5b5;
   background:
     radial-gradient(
       120% 90% at 100% 0%,
-      color-mix(in srgb, var(--rojo) 22%, transparent),
+      rgba(216, 26, 28, 0.42),
       transparent 55%
     ),
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--surface) 92%, #000 8%),
-      var(--surface)
-    );
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--chrome) 16%, transparent);
+    linear-gradient(160deg, #4a1018 0%, #2a0810 55%, #140408 100%);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--chrome) 22%, transparent);
+}
+
+.cerca-hero .cerca-kicker,
+.cerca-hero .cerca-soft {
+  color: color-mix(in srgb, #f7e5b5 78%, transparent);
+}
+
+.cerca-hero h1 {
+  color: #f7e5b5;
 }
 
 .cerca-kicker {
@@ -53,6 +61,9 @@
 .cerca-refresh {
   flex-shrink: 0;
   white-space: nowrap;
+  border-color: color-mix(in srgb, #f7e5b5 35%, transparent) !important;
+  color: #f7e5b5 !important;
+  background: color-mix(in srgb, #000 28%, transparent) !important;
 }
 
 .cerca-section-head {

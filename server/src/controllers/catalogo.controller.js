@@ -24,6 +24,7 @@ import {
   mongoExcludeRestricted,
 } from '../lib/ageGate.js';
 import { assertMexicoCoords, quantizeMaxMeters } from '../lib/geoNear.js';
+import { resolvePromoPrice } from '../lib/promoPrice.js';
 
 /** Evita CastError cuando id_empresa viene null/undefined (String(undefined) === "undefined"). */
 function validObjectIds(values) {
@@ -88,6 +89,13 @@ function isPublicPromo(promo, empresa) {
 
 function mapPromo(p, empresaById = {}) {
   const emp = empresaById[String(p.id_empresa)] || {};
+  const priced = resolvePromoPrice({
+    precio: p.precio,
+    precioLista: p.precio_lista,
+    precioTexto: p.precio_texto,
+    title: p.nombre,
+    description: p.descripcion,
+  });
   return {
     ...p,
     // aliases front (Todo_pwa / UI previa)
@@ -106,6 +114,14 @@ function mapPromo(p, empresaById = {}) {
     isBirthday: p.cumpleanos,
     isNocturno: p.nocturno,
     audience: p.audiencia === 'adulto' ? 'adult' : 'all',
+    precio: priced.precio,
+    precioLista: priced.precioLista,
+    precio_lista: priced.precioLista,
+    precioTexto: priced.precioTexto || '',
+    precio_texto: priced.precioTexto || '',
+    priceLabel: priced.precioTexto || '',
+    listPrice: priced.precioLista,
+    price: priced.precio,
   };
 }
 

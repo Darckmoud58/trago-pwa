@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
+import PromoPrice from '../components/PromoPrice';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
@@ -209,6 +210,7 @@ export default function PromoDetalle() {
           )}
         </div>
         <h1>{title}</h1>
+        <PromoPrice promo={promo} className="promo-price-lg" />
         {desc && <p className="lead">{desc}</p>}
       </header>
 

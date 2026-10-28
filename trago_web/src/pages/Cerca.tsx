@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import PlaceBrandMark from '../components/PlaceBrandMark';
+import PromoPrice from '../components/PromoPrice';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
@@ -340,6 +341,7 @@ export default function Cerca() {
                       )}
                       <span className="cerca-collage-caption">
                         <strong>{locked ? t('offerLocked') : title}</strong>
+                        {!locked ? <PromoPrice promo={promo} /> : null}
                         <em>
                           {locked
                             ? loggedIn
@@ -444,6 +446,7 @@ export default function Cerca() {
                         {title}
                       </Link>
                     </h3>
+                    <PromoPrice promo={promo} />
                     <div className="cerca-offer-actions">
                       <Link
                         className="btn primary btn-sm"

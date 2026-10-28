@@ -37,6 +37,10 @@ const schema = new mongoose.Schema(
     cumpleanos: { type: Boolean, default: false },
     audiencia: { type: String, enum: ['todos', 'adulto'], default: 'todos' },
     destacada: { type: Boolean, default: false },
+    /** Precio de oferta si la fuente lo publica (no inventar). */
+    precio: { type: Number, default: null },
+    precio_lista: { type: Number, default: null },
+    precio_texto: { type: String, default: '' },
     estatus: {
       type: String,
       enum: ['activo', 'inactivo', 'caduco'],

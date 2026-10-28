@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import PromoPrice from '../components/PromoPrice';
+import { useAuthUser } from '../hooks/useAuthUser';
 import {
   CACHE_KEYS,
   cacheGet,
@@ -14,16 +16,11 @@ import './Promos.css';
 
 type FilterId = 'todas' | 'destacadas' | 'cumple' | 'comida' | 'cafe';
 
-const FILTER_IDS: FilterId[] = [
-  'todas',
-  'destacadas',
-  'cumple',
-  'comida',
-  'cafe',
-];
+const PUBLIC_FILTERS: FilterId[] = ['todas', 'destacadas', 'comida', 'cafe'];
 
-function parseFilter(raw: string | null): FilterId {
-  if (raw && (FILTER_IDS as string[]).includes(raw)) return raw as FilterId;
+function parseFilter(raw: string | null, allowBday: boolean): FilterId {
+  if (raw === 'cumple' && allowBday) return 'cumple';
+  if (raw && (PUBLIC_FILTERS as string[]).includes(raw)) return raw as FilterId;
   return 'todas';
 }
 
@@ -49,6 +46,9 @@ function daysLeft(iso?: string) {
 
 export default function Promos() {
   const { t, locale } = useI18n();
+  const navigate = useNavigate();
+  const { token, birthdayToday, firstName } = useAuthUser();
+  const allowBday = birthdayToday;
   const [searchParams, setSearchParams] = useSearchParams();
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
@@ -57,11 +57,21 @@ export default function Promos() {
   const [emptyOfficial, setEmptyOfficial] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>(() =>
-    parseFilter(searchParams.get('f'))
+    parseFilter(searchParams.get('f'), false)
   );
+  const [bdayLockedNote, setBdayLockedNote] = useState(false);
+
   useEffect(() => {
-    setFilter(parseFilter(searchParams.get('f')));
-  }, [searchParams]);
+    const raw = searchParams.get('f');
+    if (raw === 'cumple' && !allowBday) {
+      setBdayLockedNote(true);
+      setFilter('todas');
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    setBdayLockedNote(false);
+    setFilter(parseFilter(raw, allowBday));
+  }, [searchParams, allowBday, setSearchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +108,15 @@ export default function Promos() {
   }, [t]);
 
   function applyFilter(next: FilterId) {
+    if (next === 'cumple' && !allowBday) {
+      setBdayLockedNote(true);
+      if (!token) {
+        navigate('/entrar', { state: { from: '/promos?f=cumple', reason: 'account' } });
+      }
+      return;
+    }
     setFilter(next);
+    setBdayLockedNote(false);
     if (next === 'todas') {
       setSearchParams({}, { replace: true });
     } else {
@@ -110,7 +128,10 @@ export default function Promos() {
     const q = query.trim().toLowerCase();
     return promos.filter((p) => {
       if (filter === 'destacadas' && !(p.featured || p.destacada)) return false;
-      if (filter === 'cumple' && !(p.cumpleanos || p.isBirthday)) return false;
+      if (filter === 'cumple') {
+        if (!allowBday) return false;
+        if (!(p.cumpleanos || p.isBirthday)) return false;
+      }
       if (
         filter === 'comida' &&
         !matchesKind(p, [
@@ -135,14 +156,16 @@ export default function Promos() {
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [promos, filter, query]);
+  }, [promos, filter, query, allowBday]);
 
   const filters: { id: FilterId; label: string }[] = [
     { id: 'todas', label: t('filterAll') },
     { id: 'destacadas', label: t('filterFeatured') },
     { id: 'comida', label: t('filterFood') },
     { id: 'cafe', label: t('filterCafe') },
-    { id: 'cumple', label: t('filterBday') },
+    ...(allowBday
+      ? [{ id: 'cumple' as const, label: t('filterBday') }]
+      : []),
   ];
 
   const countLabel =
@@ -152,10 +175,28 @@ export default function Promos() {
 
   return (
     <section className="promos-page">
-      <header className="ui-hero promos-hero rise">
-        <p className="ui-kicker">{t('titlePromos')}</p>
-        <h2>{t('featured')}</h2>
-        <p className="meta">{countLabel}</p>
+      <header className={`promos-hero-stage${allowBday && filter === 'cumple' ? ' is-bday' : ''}`}>
+        <div className="promos-hero-visual" aria-hidden />
+        <div className="promos-hero-copy">
+          <p className="ui-kicker">
+            {allowBday && filter === 'cumple'
+              ? t('catBdayToday')
+              : t('titlePromos')}
+          </p>
+          <h1>
+            {allowBday && filter === 'cumple'
+              ? t('bdayTitle').replace(
+                  '{name}',
+                  firstName ? `, ${firstName}` : ''
+                )
+              : t('featured')}
+          </h1>
+          <p className="meta">
+            {allowBday && filter === 'cumple'
+              ? t('bdayBody')
+              : countLabel}
+          </p>
+        </div>
       </header>
 
       <div className="promos-toolbar" data-reveal>
@@ -175,19 +216,30 @@ export default function Promos() {
           aria-label={t('filtersAria')}
         >
           {filters.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={filter === f.id}
-                className={`filter-chip ${filter === f.id ? 'is-on' : ''}`}
-                onClick={() => applyFilter(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
+            <button
+              key={f.id}
+              type="button"
+              role="tab"
+              aria-selected={filter === f.id}
+              className={`filter-chip${filter === f.id ? ' is-on' : ''}${f.id === 'cumple' ? ' is-bday-chip' : ''}`}
+              onClick={() => applyFilter(f.id)}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
       </div>
+
+      {bdayLockedNote && !allowBday && (
+        <p className="promos-note" role="status">
+          {t('bdayLockedFilter')}{' '}
+          {!token ? (
+            <Link to="/entrar" state={{ from: '/promos', reason: 'account' }}>
+              {t('quickLogin')}
+            </Link>
+          ) : null}
+        </p>
+      )}
 
       <p className="promos-count meta">
         {loading
@@ -232,6 +284,9 @@ export default function Promos() {
                   {(p.featured || p.destacada) && (
                     <span className="tag accent">{t('featuredTag')}</span>
                   )}
+                  {(p.cumpleanos || p.isBirthday) && allowBday && (
+                    <span className="tag accent">{t('bdayTag')}</span>
+                  )}
                 </div>
 
                 <h3>
@@ -243,6 +298,7 @@ export default function Promos() {
                     {title}
                   </Link>
                 </h3>
+                <PromoPrice promo={p} />
                 {desc && <p className="promo-desc">{desc}</p>}
 
                 <div className="promo-meta-row">

@@ -346,6 +346,44 @@ p {
   }
 }
 
+.promo-price {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.2rem 0 0.15rem;
+  font-family: var(--display, var(--sans));
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--rojo, #d81a1c);
+  letter-spacing: 0.01em;
+}
+
+.promo-price strong {
+  font-weight: 700;
+}
+
+.promo-price s {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--fg-soft);
+  text-decoration-thickness: 1px;
+}
+
+.promo-price-lg {
+  font-size: 1.35rem;
+  margin: 0.35rem 0 0.45rem;
+}
+
+.cerca-collage-caption .promo-price {
+  margin: 0.1rem 0;
+  font-size: 0.95rem;
+  color: #f7e5b5;
+}
+
+.cerca-collage-caption .promo-price s {
+  color: color-mix(in srgb, #f7e5b5 70%, transparent);
+}
+
 .promo-card {
   padding: 1.05rem 1.15rem;
   border: 1px solid var(--line);
@@ -662,8 +700,13 @@ html[data-theme='night'] .app-header {
 }
 
 html[data-theme='night'] .bottom-nav {
-  background: rgba(0, 0, 0, 0.96);
-  border-top-color: rgba(247, 229, 181, 0.14);
+  background: transparent;
+  border-top-color: transparent;
+}
+
+html[data-theme='night'] .bottom-nav-inner {
+  background: color-mix(in srgb, #000 92%, transparent);
+  border-color: rgba(247, 229, 181, 0.2);
 }
 
 html[data-theme='night'] .app-shell {
