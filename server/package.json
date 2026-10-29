@@ -11,7 +11,7 @@
     "refresh": "node src/scripts/refresh-official.js",
     "vapid": "node src/scripts/generate-vapid.js",
     "migrate:drop-token-login": "node src/scripts/migrate-drop-token-login.js",
-    "test": "node --test 'src/**/*.test.js'"
+    "test": "node scripts/run-tests.mjs"
   },
   "author": "Equipo TraGo",
   "license": "ISC",
