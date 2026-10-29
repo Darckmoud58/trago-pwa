@@ -1,0 +1,21 @@
+# Refresca scrapers de promos oficiales cada 6 h (paridad Netlify Scheduled).
+# Secrets (Settings → Secrets and variables → Actions):
+#   API_URL     = https://tu-api.vercel.app   (sin "/" al final)
+#   CRON_SECRET = el mismo valor que en Vercel (API)
+name: TraGo refresh official
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/cron/refresh-official
+        run: |
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.API_URL }}/api/cron/refresh-official"

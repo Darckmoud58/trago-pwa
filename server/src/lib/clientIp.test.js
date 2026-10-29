@@ -5,6 +5,7 @@ import { clientIp } from './clientIp.js';
 describe('clientIp', () => {
   afterEach(() => {
     delete process.env.NETLIFY;
+    delete process.env.VERCEL;
     delete process.env.TRUST_PROXY;
   });
 

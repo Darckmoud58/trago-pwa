@@ -12,6 +12,8 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   NODE_ENV: z.string().optional(),
   NETLIFY: z.string().optional(),
+  /** Vercel inyecta VERCEL=1; también aceptamos string "true". */
+  VERCEL: z.string().optional(),
 });
 
 /** @type {z.infer<typeof envSchema> | null} */
@@ -26,6 +28,7 @@ export function parseEnv(raw = process.env) {
     CORS_ORIGINS: raw.CORS_ORIGINS,
     NODE_ENV: raw.NODE_ENV,
     NETLIFY: raw.NETLIFY,
+    VERCEL: raw.VERCEL,
   });
 }
 
@@ -64,4 +67,14 @@ export function corsOriginList(env = getEnv()) {
 
 export function isDev(env = getEnv()) {
   return (env.NODE_ENV || process.env.NODE_ENV) !== 'production';
+}
+
+/** Netlify Function o Vercel serverless. */
+export function isServerless(env = getEnv()) {
+  const vercel = env.VERCEL || process.env.VERCEL;
+  return (
+    env.NETLIFY === 'true' ||
+    process.env.NETLIFY === 'true' ||
+    Boolean(vercel && vercel !== '0' && vercel !== 'false')
+  );
 }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { auth } from '../middleware/auth.js';
+import { cronAuthorized } from '../lib/cronAuth.js';
 import {
   getPushConfig,
   publicKey,
@@ -16,8 +17,11 @@ router.get('/subscribe', getPushConfig);
 router.post('/subscribe', auth, subscribePush);
 router.post('/unsubscribe', auth, unsubscribePush);
 router.post('/test', auth, testPush);
-/** Cron (x-cron-secret) o admin JWT. Auth opcional para permitir solo cron. */
+/** Cron (x-cron-secret / Bearer CRON_SECRET) o admin JWT. */
 router.post('/birthday', async (req, res, next) => {
+  if (cronAuthorized(req)) {
+    return sendBirthdayPushes(req, res);
+  }
   const header = req.headers.authorization || '';
   if (header.startsWith('Bearer ')) {
     return auth(req, res, (err) => {

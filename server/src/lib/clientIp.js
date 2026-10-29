@@ -9,8 +9,12 @@ export function clientIp(req) {
   const nf = req.headers['x-nf-client-connection-ip'];
   if (nf) return String(nf).trim() || 'unknown';
 
+  const onVercel = Boolean(
+    process.env.VERCEL && process.env.VERCEL !== '0' && process.env.VERCEL !== 'false'
+  );
   const behindProxy =
     process.env.NETLIFY === 'true' ||
+    onVercel ||
     process.env.TRUST_PROXY === '1' ||
     process.env.TRUST_PROXY === 'true';
 

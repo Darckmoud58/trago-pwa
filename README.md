@@ -26,6 +26,13 @@ npm install axios react-router-dom
 
 `VITE_API_URL=http://localhost:4000` (mismo patrón que Todo_pwa).
 
+## Deploy Vercel (recomendado · igual que Todo_pwa)
+
+Dos proyectos sobre este repo: Root Directory `server` (API) y `trago_web` (PWA).  
+Guía paso a paso, env vars, crons y smoke test: **[docs/VERCEL-DEPLOY.md](docs/VERCEL-DEPLOY.md)**.
+
+Netlify (`netlify.toml`) sigue disponible como legado hasta el cutover.
+
 ## Arranque local (2 terminales)
 
 ```bash
@@ -114,17 +121,17 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 
 - Rate limit en Mongo (`rate_limits` + TTL): login 5/15min, registro 5/h, `/cerca` 20/min, API 120/min.
 - `/cerca`: radio cuantizado `{1000,2500,5000,8000}`, coords solo México (422 si no), single-flight Overpass.
-- Scrapers **fuera** del hot path; `npm run refresh` + Scheduled Function `netlify/functions/refresh-official.mjs` (cada 6 h).
+- Scrapers **fuera** del hot path; `npm run refresh` + `POST /api/cron/refresh-official` (GitHub Actions cada 6 h en Vercel; Scheduled Function Netlify como legado).
 - Estado en colección `official_refresh` (sirve en Functions sin `setInterval`).
 - McDonald’s: sin intermediario `r.jina.ai` (no se inventa como oficial).
 - Límites alineados a `web_next_legacy` / patrones Todo_pwa (`LOGIN_MAX_FAILURES`, etc.).
 
 ## Web Push / VAPID (paridad Todo_pwa)
 
-- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Netlify).
-- `GET/POST /api/push/subscribe` — clave pública + guardar suscripción (JWT).
-- `POST /api/push/birthday` — cron con `x-cron-secret` (`CRON_SECRET`) o admin JWT.
-- Scheduled Function `netlify/functions/push-birthday.mjs` (diario ~09:00 CDMX).
+- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Vercel/Netlify).
+- `GET /api/push/publicKey` · `GET/POST /api/push/subscribe` — clave + guardar suscripción (JWT).
+- `POST /api/push/birthday` — cron con `x-cron-secret` / Bearer `CRON_SECRET` o admin JWT.
+- Crons Vercel: workflows `trago-refresh-official` y `trago-push-birthday` (ver `docs/VERCEL-DEPLOY.md`).
 - Front: Cuenta → Notificaciones; SW maneja `push` / `notificationclick`.
 
 ## Gate 18+ (R1)

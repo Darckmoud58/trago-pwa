@@ -65,10 +65,15 @@ export function verifyAgeDeclaration(token) {
 }
 
 export function ageCookieOptions() {
+  const onVercel = Boolean(
+    process.env.VERCEL && process.env.VERCEL !== '0' && process.env.VERCEL !== 'false'
+  );
   const secure =
     process.env.NODE_ENV === 'production' ||
     process.env.NETLIFY === 'true' ||
+    onVercel ||
     process.env.CONTEXT === 'production';
+  // Front y API en dominios distintos (2 proyectos Vercel): SameSite=None.
   const crossSite = process.env.AGE_COOKIE_SAMESITE === 'none';
   return {
     httpOnly: true,

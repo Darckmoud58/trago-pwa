@@ -14,6 +14,7 @@
 |-----|----------|
 | [docs/PITCH-TRAGO.md](docs/PITCH-TRAGO.md) | Tesis comercial, GTM, ingresos, riesgos |
 | [README.md](README.md) | Stack, rutas, OSM/cerca, scrapers oficiales, favoritos |
+| [docs/VERCEL-DEPLOY.md](docs/VERCEL-DEPLOY.md) | Import Vercel (2 proyectos) + crons Actions + smoke PWA |
 | [GUIA_MONGODB_TRAGO.txt](GUIA_MONGODB_TRAGO.txt) | Colecciones y seed |
 | [.cursor/rules/trago-vision.mdc](.cursor/rules/trago-vision.mdc) | Regla siempre activa |
 | [CLAUDE.md](CLAUDE.md) | Mapa del repo para Claude Code (carpeta local) |

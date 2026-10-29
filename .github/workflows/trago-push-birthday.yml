@@ -1,0 +1,20 @@
+# Push de cumpleaños ~09:00 America/Mexico_City ≈ 15:00 UTC.
+# Secrets: API_URL, CRON_SECRET (iguales que trago-refresh-official).
+name: TraGo push birthday
+
+on:
+  schedule:
+    - cron: '0 15 * * *'
+  workflow_dispatch:
+
+jobs:
+  birthday:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /api/push/birthday
+        run: |
+          curl --fail-with-body -sS -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.API_URL }}/api/push/birthday"

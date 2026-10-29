@@ -2,6 +2,7 @@ import { z } from 'zod';
 import PushSubscription from '../models/PushSubscription.js';
 import Usuario from '../models/Usuario.js';
 import Rol from '../models/Rol.js';
+import { cronAuthorized } from '../lib/cronAuth.js';
 import { publicVapidKey, sendPush, vapidConfigured } from '../lib/push.js';
 import { runBirthdayPushJob } from '../services/birthdayPushJob.js';
 
@@ -117,8 +118,7 @@ export async function subscribePush(req, res) {
 }
 
 async function authorizedBirthday(req) {
-  const cron = process.env.CRON_SECRET;
-  if (cron && req.headers['x-cron-secret'] === cron) return true;
+  if (cronAuthorized(req)) return true;
 
   if (!req.userId) return false;
   const user = await Usuario.findById(req.userId).lean();
