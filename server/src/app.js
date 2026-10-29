@@ -4,7 +4,6 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { corsOriginList, getEnv, isDev, isServerless } from './config/env.js';
-import { connectDB } from './db/connect.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import ageRoutes from './routes/age.routes.js';
@@ -19,6 +18,7 @@ import pushRoutes from './routes/push.routes.js';
 /**
  * App Express (sin listen) — local, Netlify Functions y Vercel.
  * Requiere requireEnv() antes de llamar (server.js / netlify / api/index).
+ * Mongo se conecta fuera (server.js, netlify ensureDb, api/index.js).
  */
 export function createApp() {
   const env = getEnv();
@@ -99,16 +99,6 @@ export function createApp() {
   }
 
   app.get('/', (_req, res) => res.json({ ok: true, name: 'trago-api' }));
-
-  // Mongo cacheada (segura en serverless; en local server.js ya conectó).
-  app.use(async (_req, _res, next) => {
-    try {
-      await connectDB();
-      next();
-    } catch (err) {
-      next(err);
-    }
-  });
 
   app.use('/api/auth', authRoutes);
   app.use('/api/edad', ageRoutes);

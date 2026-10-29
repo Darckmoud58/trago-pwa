@@ -105,7 +105,8 @@ describe('HTTP P1', () => {
   it('GET / solo ok', async () => {
     const res = await request(app).get('/');
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { ok: true });
+    assert.equal(res.body.ok, true);
+    assert.equal(res.body.name, 'trago-api');
     assert.equal(res.body.collections, undefined);
   });
 

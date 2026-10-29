@@ -26,6 +26,7 @@ export async function connectDB() {
         dbName: process.env.MONGODB_DB || 'trago',
         // En serverless no construimos índices en cada cold start.
         autoIndex: !onServerless,
+        serverSelectionTimeoutMS: onServerless ? 8_000 : 15_000,
       })
       .then((m) => m.connection)
       .catch((err) => {
