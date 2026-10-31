@@ -35,13 +35,20 @@
 }
 
 .cadena-card input,
-.cadena-card textarea {
+.cadena-card textarea,
+.cadena-card select {
   padding: 0.65rem 0.75rem;
   border-radius: 0.55rem;
   border: 1px solid rgba(59, 11, 19, 0.18);
   background: #fff;
   font: inherit;
   color: #3b0b13;
+}
+
+.cadena-ad-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .cadena-row {

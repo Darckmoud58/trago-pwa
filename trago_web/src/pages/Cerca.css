@@ -5,6 +5,10 @@
   padding-bottom: 0.5rem;
 }
 
+.cerca-sponsored {
+  margin: 0;
+}
+
 .cerca-hero {
   position: relative;
   overflow: hidden;
@@ -496,24 +500,180 @@
   align-items: flex-start;
 }
 
-/* Skeleton loading */
-.cerca-skeleton {
-  display: grid;
-  gap: 0.75rem;
+/* —— Loading Cerca: escenario + skeletons con forma real —— */
+.cerca-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.cerca-skeleton-card {
-  height: 5.6rem;
+.cerca-loading-stage {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.15rem 1.1rem 1.2rem;
+  border-radius: 1.2rem;
+  color: #f7e5b5;
+  border: 1px solid color-mix(in srgb, #f7e5b5 14%, transparent);
+  background:
+    radial-gradient(90% 80% at 0% 0%, rgba(216, 26, 28, 0.4), transparent 55%),
+    linear-gradient(155deg, #4a1018 0%, #2a0810 52%, #140408 100%);
+  box-shadow: 0 14px 28px rgba(42, 8, 16, 0.22);
+}
+
+.cerca-loading-radar {
+  position: relative;
+  width: 4.6rem;
+  height: 4.6rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.cerca-loading-ring {
+  position: absolute;
+  inset: 0.35rem;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, #f7e5b5 35%, transparent);
+  animation: cerca-radar 2.2s ease-out infinite;
+}
+
+.cerca-loading-ring-2 {
+  inset: 0;
+  animation-delay: 0.7s;
+  opacity: 0.7;
+}
+
+.cerca-loading-pin {
+  position: relative;
+  z-index: 1;
+  color: #f7e5b5;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  animation: cerca-pin-bob 1.8s ease-in-out infinite;
+}
+
+.cerca-loading-copy {
+  min-width: 0;
+}
+
+.cerca-loading-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #f7e5b5 70%, transparent);
+}
+
+.cerca-loading-title {
+  margin: 0.25rem 0 0;
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 4.5vw, 1.45rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.cerca-loading-lead {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, #f7e5b5 74%, transparent);
+}
+
+.cerca-loading-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(9.5rem, 42vw);
+  gap: 0.65rem;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    90deg,
+    #000 0,
+    #000 calc(100% - 1.5rem),
+    transparent
+  );
+}
+
+.cerca-skel-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem;
+  border-radius: 1rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--chrome) 8%, transparent);
+}
+
+.cerca-skel-offer-media {
+  display: block;
+  height: 5.4rem;
+  border-radius: 0.75rem;
+}
+
+.cerca-loading-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.cerca-skel-place {
+  display: grid;
+  grid-template-columns: 3.4rem 1fr;
+  gap: 0.85rem;
+  align-items: start;
+  padding: 0.9rem;
   border-radius: 1.1rem;
   border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--chrome) 10%, transparent);
+  animation: cerca-skel-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cerca-skel-mark {
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 0.95rem;
+}
+
+.cerca-skel-place-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+  min-width: 0;
+}
+
+.cerca-skel-bone {
+  display: block;
+  border-radius: 0.45rem;
   background: linear-gradient(
-    90deg,
-    var(--surface) 0%,
-    color-mix(in srgb, var(--surface) 70%, var(--fg) 8%) 45%,
-    var(--surface) 100%
+    105deg,
+    color-mix(in srgb, var(--chrome) 8%, var(--surface)) 0%,
+    color-mix(in srgb, #f7e5b5 55%, var(--surface)) 42%,
+    color-mix(in srgb, var(--rojo) 12%, var(--surface)) 58%,
+    color-mix(in srgb, var(--chrome) 8%, var(--surface)) 100%
   );
-  background-size: 200% 100%;
-  animation: cerca-shimmer 1.2s ease-in-out infinite;
+  background-size: 220% 100%;
+  animation: cerca-shimmer 1.35s ease-in-out infinite;
+}
+
+.cerca-skel-line.xs {
+  width: 34%;
+  height: 0.55rem;
+}
+.cerca-skel-line.sm {
+  width: 55%;
+  height: 0.55rem;
+}
+.cerca-skel-line.md {
+  width: 72%;
+  height: 0.65rem;
+}
+.cerca-skel-line.lg {
+  width: 88%;
+  height: 0.75rem;
 }
 
 @keyframes cerca-shimmer {
@@ -522,6 +682,38 @@
   }
   100% {
     background-position: -100% 0;
+  }
+}
+
+@keyframes cerca-radar {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+}
+
+@keyframes cerca-pin-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes cerca-skel-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -561,7 +753,10 @@ html[data-theme='night'] .dist-pill {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cerca-skeleton-card {
+  .cerca-skel-bone,
+  .cerca-loading-ring,
+  .cerca-loading-pin,
+  .cerca-skel-place {
     animation: none;
   }
 
@@ -569,4 +764,20 @@ html[data-theme='night'] .dist-pill {
   .cerca-offer-card {
     animation: none !important;
   }
+}
+
+html[data-theme='night'] .cerca-skel-offer,
+html[data-theme='night'] .cerca-skel-place {
+  background: linear-gradient(160deg, #451018 0%, #2e0a12 100%);
+  border-color: rgba(247, 229, 181, 0.14);
+}
+
+html[data-theme='night'] .cerca-skel-bone {
+  background: linear-gradient(
+    105deg,
+    #2a0810 0%,
+    #5c1822 45%,
+    #3b0b13 100%
+  );
+  background-size: 220% 100%;
 }

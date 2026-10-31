@@ -31,6 +31,16 @@ const schema = new mongoose.Schema(
       enum: ['freemium', 'pro', 'premium'],
       default: 'freemium',
     },
+    /**
+     * Capacidad de subir pauta propia (piloto).
+     * none = no puede; basic/campaign = slots según suscripción activa.
+     */
+    plan_pauta: {
+      type: String,
+      enum: ['none', 'basic', 'campaign'],
+      default: 'none',
+      index: true,
+    },
     estatus: {
       type: String,
       enum: ['activo', 'inactivo'],

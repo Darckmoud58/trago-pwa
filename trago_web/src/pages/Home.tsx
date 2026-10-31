@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
+import SponsoredSlot from '../components/SponsoredSlot';
 import { isBirthdayFreebie, useAuthUser } from '../hooks/useAuthUser';
 import {
   CACHE_KEYS,
@@ -65,6 +67,69 @@ function isLandingTitle(promo: Promo) {
   return /^(promociones|ofertas|promos)(oficiales)?/.test(title) && title.length < 28;
 }
 
+type ExploreIconName = 'pin' | 'grid' | 'food' | 'cafe' | 'heart' | 'user';
+
+function ExploreIcon({ name }: { name: ExploreIconName }) {
+  if (name === 'pin') {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"
+        />
+      </svg>
+    );
+  }
+  if (name === 'grid') {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"
+        />
+      </svg>
+    );
+  }
+  if (name === 'food') {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M7 3v7.2c0 1.1-.6 1.8-1.5 2.1V21H4v-8.7C3.1 12 2.5 11.3 2.5 10.2V3H4v6h.8V3H7Zm7.2 0c1.8 0 3.3 1.4 3.3 3.6V13h-1.8v8h-2.1v-8H11.8V6.6C11.8 4.4 13.1 3 14.2 3Zm5.3 0H21v13.5h-1.8v-5.2c-1.1-.2-1.9-1-1.9-2.2V3h1.9Z"
+        />
+      </svg>
+    );
+  }
+  if (name === 'cafe') {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M4 5h12v7.5A3.5 3.5 0 0 1 12.5 16H7.5A3.5 3.5 0 0 1 4 12.5V5Zm12 2h1.8A3.2 3.2 0 0 1 21 10.2 3.2 3.2 0 0 1 17.8 13.4H16V7ZM5 18h12v2H5v-2Z"
+        />
+      </svg>
+    );
+  }
+  if (name === 'heart') {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M12 20.4 10.6 19.1C5.4 14.4 2 11.3 2 7.6A4.5 4.5 0 0 1 6.5 3.1c1.7 0 3.4.9 4.5 2.3A5.7 5.7 0 0 1 15.5 3.1 4.5 4.5 0 0 1 20 7.6c0 3.7-3.4 6.8-8.6 11.5L12 20.4Z"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 12.4a4.2 4.2 0 1 0-4.2-4.2A4.2 4.2 0 0 0 12 12.4Zm0 2.1c-3.5 0-8 1.7-8 5.1V21h16v-1.4c0-3.4-4.5-5.1-8-5.1Z"
+      />
+    </svg>
+  );
+}
+
 export default function Home() {
   const { t } = useI18n();
   const { token, birthdayToday, firstName } = useAuthUser();
@@ -89,10 +154,52 @@ export default function Home() {
     [bdayPromos]
   );
 
-  const categories = [
-    { id: 'todas', label: t('catAll'), to: '/promos' },
-    { id: 'comida', label: t('catFood'), to: '/promos?f=comida' },
-    { id: 'cafe', label: t('catCafe'), to: '/promos?f=cafe' },
+  const exploreLinks = [
+    {
+      id: 'cerca',
+      icon: 'pin' as const,
+      label: t('quickNear'),
+      hint: t('exploreHintNear'),
+      to: '/cerca',
+      accent: true,
+    },
+    {
+      id: 'todas',
+      icon: 'grid' as const,
+      label: t('catAll'),
+      hint: t('exploreHintAll'),
+      to: '/promos',
+    },
+    {
+      id: 'comida',
+      icon: 'food' as const,
+      label: t('catFood'),
+      hint: t('exploreHintFood'),
+      to: '/promos?f=comida',
+    },
+    {
+      id: 'cafe',
+      icon: 'cafe' as const,
+      label: t('catCafe'),
+      hint: t('exploreHintCafe'),
+      to: '/promos?f=cafe',
+    },
+    token
+      ? {
+          id: 'fav',
+          icon: 'heart' as const,
+          label: t('quickFavorites'),
+          hint: t('exploreHintFav'),
+          to: '/favoritos',
+        }
+      : {
+          id: 'login',
+          icon: 'user' as const,
+          label: t('quickLogin'),
+          hint: '',
+          to: '/entrar',
+          state: { from: '/', reason: 'account' as const },
+        },
   ];
 
   /** Home = certeza local: GPS × ofertas oficiales cerca. */
@@ -242,19 +349,14 @@ export default function Home() {
         viewTransition
       >
         <div className="home-deal-media" aria-hidden>
-          {img ? (
-            <img
-              src={img}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <span className="home-deal-fallback">
-              {(p.chainName || 'TG').slice(0, 2).toUpperCase()}
-            </span>
-          )}
+          <PromoMediaImg
+            src={img}
+            fallback={
+              <span className="home-deal-fallback">
+                {(p.chainName || 'TG').slice(0, 2).toUpperCase()}
+              </span>
+            }
+          />
           <div className="home-deal-shade" />
         </div>
         <div className="home-deal-copy">
@@ -324,7 +426,16 @@ export default function Home() {
             <>
               <p className="home-hero-kicker">{t('hello')}</p>
               <h1 className="brand-mark home-brand">
-                Tr<span className="home-brand-pin" aria-hidden />
+                Tr
+                <span className="home-brand-pin" aria-hidden title="ubicación">
+                  <svg viewBox="0 0 24 32" width="1em" height="1.28em" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.4 18.6 0 12 0zm0 16.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"
+                    />
+                    <circle cx="12" cy="12" r="3.2" fill="#3B0B13" />
+                  </svg>
+                </span>
                 go
               </h1>
               <p className="home-headline">{t('homeCertainty')}</p>
@@ -407,6 +518,45 @@ export default function Home() {
         </section>
       )}
 
+      <section
+        className="home-explore"
+        data-reveal
+        aria-label={t('homeExploreTitle')}
+      >
+        <div className="home-explore-stage">
+          <div className="home-explore-glow" aria-hidden />
+          <div className="home-explore-copy">
+            <p className="ui-kicker">{t('homeExploreKicker')}</p>
+            <h2>{t('homeExploreTitle')}</h2>
+            <p className="home-explore-lead">{t('homeExploreLead')}</p>
+          </div>
+          <div className="home-explore-rail scroll-rail" role="list">
+            {exploreLinks.map((item) => (
+              <Link
+                key={item.id}
+                className={`home-explore-card home-explore-card--${item.icon}${'accent' in item && item.accent ? ' is-accent' : ''}`}
+                to={item.to}
+                state={'state' in item ? item.state : undefined}
+                role="listitem"
+                viewTransition
+              >
+                <span className="home-explore-ico" aria-hidden>
+                  <ExploreIcon name={item.icon} />
+                </span>
+                <span className="home-explore-card-text">
+                  <span className="home-explore-card-label">{item.label}</span>
+                  {item.hint ? (
+                    <span className="home-explore-card-hint">{item.hint}</span>
+                  ) : null}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <SponsoredSlot slot="home_rail" className="home-sponsored" />
+
       {showNearFeed && (
         <section
           className="home-block home-near-block"
@@ -484,36 +634,6 @@ export default function Home() {
           )}
         </section>
       )}
-
-      <section className="home-block home-cats" data-reveal data-reveal-delay="2">
-        <div className="block-head">
-          <h2>{t('categories')}</h2>
-        </div>
-        <div className="cat-scroll scroll-rail" role="list">
-          {categories.map((c) => (
-            <Link key={c.id} className="cat-chip" to={c.to} role="listitem">
-              {c.label}
-            </Link>
-          ))}
-          <Link className="cat-chip cat-chip-accent" to="/cerca" role="listitem">
-            {t('quickNear')}
-          </Link>
-          {token ? (
-            <Link className="cat-chip" to="/favoritos" role="listitem">
-              {t('quickFavorites')}
-            </Link>
-          ) : (
-            <Link
-              className="cat-chip"
-              to="/entrar"
-              state={{ from: '/', reason: 'account' }}
-              role="listitem"
-            >
-              {t('quickLogin')}
-            </Link>
-          )}
-        </div>
-      </section>
     </div>
   );
 }

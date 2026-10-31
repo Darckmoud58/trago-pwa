@@ -8,6 +8,8 @@ import Layout from './Layout';
 import RequireAuth from './components/RequireAuth';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import EmpresaLogin from './pages/EmpresaLogin';
+import EmpresaRegister from './pages/EmpresaRegister';
 import Register from './pages/Register';
 import Promos from './pages/Promos';
 import PromoDetalle from './pages/PromoDetalle';
@@ -28,6 +30,8 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<Layout />}>
             <Route path="/" element={<Home />} />
             <Route path="/entrar" element={<Login />} />
+            <Route path="/entrar-empresa" element={<EmpresaLogin />} />
+            <Route path="/registro-empresa" element={<EmpresaRegister />} />
             <Route path="/registro" element={<Register />} />
             <Route path="/promos" element={<Promos />} />
             <Route path="/promos/:promoId" element={<PromoDetalle />} />

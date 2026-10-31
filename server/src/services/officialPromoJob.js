@@ -1,5 +1,7 @@
 import OfficialRefresh from '../models/OfficialRefresh.js';
+import Promocion from '../models/Promocion.js';
 import {
+  backfillMissingProductImages,
   collectNearbyPromos,
   ensureOfficialCompanies,
 } from './officialPromoCollector.js';
@@ -57,6 +59,26 @@ export async function refreshOfficialSources() {
       return [];
     }
     const sources = await collectNearbyPromos(companies);
+    // Empresas sin scraper (p.ej. FG con URL de producto) también rellenan foto.
+    try {
+      const missingEmpresas = await Promocion.distinct('id_empresa', {
+        origen: 'oficial',
+        estatus: 'activo',
+        $or: [{ imagen: '' }, { imagen: null }],
+        url_fuente: { $regex: /^https?:\/\//i },
+      });
+      let filled = 0;
+      for (const id of missingEmpresas) {
+        filled += await backfillMissingProductImages(id, 20);
+      }
+      if (filled) {
+        console.log(
+          `[officialPromoJob] imágenes rellenadas desde ficha: ${filled}`
+        );
+      }
+    } catch (e) {
+      console.error('[officialPromoJob] backfill imágenes:', e.message);
+    }
     await persistStatus({ at: new Date(), sources, error: null });
     console.log(
       `[officialPromoJob] refresco OK · ${sources.length} fuentes · ${new Date().toISOString()}`

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
+import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
@@ -172,21 +173,18 @@ export default function PromoDetalle() {
   return (
     <section className="promo-detail">
       <div className="detail-stage rise">
-        {img ? (
-          <div className="detail-cover">
-            <img
-              src={img}
-              alt=""
-              loading="eager"
-              decoding="async"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-        ) : (
-          <div className="detail-cover detail-cover-fallback" aria-hidden>
-            <span>{(promo.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
-          </div>
-        )}
+        <div
+          className={`detail-cover${img ? '' : ' detail-cover-fallback'}`}
+          aria-hidden={!img}
+        >
+          <PromoMediaImg
+            src={img}
+            loading="eager"
+            fallback={
+              <span>{(promo.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
+            }
+          />
+        </div>
         {favPlace && (
           <FavoriteButton
             variant="overlay"
@@ -297,8 +295,17 @@ export default function PromoDetalle() {
                     lat: placeLat,
                     lng: placeLng,
                     name: placeName,
+                    address: hit.address,
+                    city: [hit.colonia, hit.city].filter(Boolean).join(', '),
+                    originLat: lat,
+                    originLng: lng,
+                    distanceMeters: hit.distanceMeters,
                   }) ||
-                  googleMapsSearchUrl({ name: placeName });
+                  googleMapsSearchUrl({
+                    name: placeName,
+                    address: hit.address,
+                    city: [hit.colonia, hit.city].filter(Boolean).join(', '),
+                  });
                 if (!url) {
                   setLocNote(t('locationNone'));
                   return;

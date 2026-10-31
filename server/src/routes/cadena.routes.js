@@ -11,6 +11,7 @@ import {
   listVigencia,
   reafirmarVigencia,
   registerCadena,
+  registerEmpresaCompleto,
   setParticipacion,
   setPromoSucursales,
   updatePromo,
@@ -31,7 +32,19 @@ async function attachOwnEmpresa(req, _res, next) {
   }
 }
 
-/** Cualquier usuario autenticado puede registrar su primera cadena. */
+/** Alta unificada empresa (público): responsable + cadena en un paso. */
+router.post(
+  '/registro-empresa',
+  rateLimit({
+    name: 'cadena-registro-empresa',
+    max: LIMITS.register.max,
+    windowMs: LIMITS.register.windowMs,
+    keyFn: (_req, ip) => `rl:cadena-registro-empresa:${ip}`,
+  }),
+  registerEmpresaCompleto
+);
+
+/** Usuario ya autenticado puede vincular su primera cadena. */
 router.post(
   '/registro',
   auth,

@@ -5,7 +5,9 @@ import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
 import { looksLikeAlcohol } from '../lib/ageGate.js';
 import { parsePromoPrice, resolvePromoPrice } from '../lib/promoPrice.js';
 
-const UA = 'Mozilla/5.0 (compatible; TraGoPromoCollector/1.0; +https://trago.app)';
+// UA de navegador: FG/Demandware y otros CDN responden 403 al bot corto.
+const UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 TraGoPromoCollector/1.1';
 
 /**
  * Cadenas con sitio oficial parseable + alias para emparejar nombres OSM.
@@ -72,7 +74,8 @@ export const OFFICIAL_BRANDS = {
     nombre: 'Starbucks',
     aliases: ['starbucks'],
     sitio_web: 'https://www.starbucks.com.mx',
-    urls: ['special:starbucks-next'],
+    // Liferay (ya no Next.js / __NEXT_DATA__)
+    urls: ['special:starbucks-home'],
   },
   'krispy-kreme': {
     nombre: 'Krispy Kreme',
@@ -314,7 +317,18 @@ function absUrl(src, pageUrl) {
     cleaned = cleaned.split(',')[0].trim().split(/\s+/)[0];
   }
   if (cleaned.startsWith('//')) cleaned = `https:${cleaned}`;
-  if (cleaned.startsWith('http')) return cleaned;
+  if (cleaned.startsWith('http')) {
+    // HEB y otros Next: /_next/image?url=https%3A%2F%2F… → asset real
+    try {
+      const u = new URL(cleaned);
+      if (/\/_next\/image\/?$/i.test(u.pathname) && u.searchParams.get('url')) {
+        return absUrl(u.searchParams.get('url'), pageUrl);
+      }
+    } catch {
+      /* keep */
+    }
+    return cleaned;
+  }
   if (!pageUrl) return '';
   try {
     return new URL(cleaned, pageUrl).href;
@@ -327,7 +341,18 @@ function absUrl(src, pageUrl) {
 function sanitizePromoImage(src, pageUrl = '') {
   const href = absUrl(src, pageUrl);
   if (!/^https?:\/\//i.test(href)) return '';
-  if (/\.(svg)(?:$|\?)/i.test(href) && /logo|icon|sprite/i.test(href)) return '';
+  if (/^data:/i.test(href)) return '';
+  if (
+    /\/(?:logo|icon|sprite|favicon|brand)(?:[-_.][^/]*)?\.(?:png|jpe?g|webp|gif|svg)(?:$|\?)/i.test(
+      href
+    )
+  ) {
+    return '';
+  }
+  if (/\.(svg)(?:$|\?)/i.test(href) && /logo|icon|sprite|favicon/i.test(href)) {
+    return '';
+  }
+  if (/1x1|pixel|spacer|blank\.gif|transparent/i.test(href)) return '';
   return href;
 }
 
@@ -345,32 +370,189 @@ function pageOgImage(body, pageUrl) {
   return sanitizePromoImage(og, pageUrl);
 }
 
-function imageNearMatch(body, index, pageUrl) {
-  if (!body || index == null || index < 0) return '';
-  const windowStart = Math.max(0, index - 1800);
-  const before = body.slice(windowStart, index);
-  const patterns = [
-    /(?:src|data-src|data-lazy-src)=["']([^"']+)["'][^>]*>?\s*$/i,
-    /<img[^>]+(?:src|data-src)=["']([^"']+)["'][^>]*>/gi,
-  ];
-  const lastSrc = before.match(
-    /(?:src|data-src|data-lazy-src)=["']([^"']+)["'](?![^<]*<img)/gi
-  );
-  if (lastSrc?.length) {
-    const m = lastSrc[lastSrc.length - 1].match(/["']([^"']+)["']/);
-    const img = sanitizePromoImage(m?.[1] || '', pageUrl);
-    if (img) return img;
-  }
-  for (const re of patterns) {
-    re.lastIndex = 0;
-    let match;
-    let best = '';
-    while ((match = re.exec(before))) {
-      best = sanitizePromoImage(match[1], pageUrl) || best;
+/** Demandware/Shopify: Product.image en JSON-LD cuando no hay og:image. */
+function pageJsonLdProductImage(body, pageUrl) {
+  if (!body) return '';
+  for (const m of body.matchAll(
+    /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  )) {
+    try {
+      const data = JSON.parse(m[1]);
+      const nodes = [];
+      const push = (n) => {
+        if (!n) return;
+        if (Array.isArray(n)) n.forEach(push);
+        else nodes.push(n);
+      };
+      push(data);
+      if (data?.['@graph']) push(data['@graph']);
+      for (const node of nodes) {
+        const type = String(node['@type'] || '');
+        if (!/Product/i.test(type)) continue;
+        const raw = node.image;
+        const candidates = Array.isArray(raw)
+          ? raw
+          : typeof raw === 'string'
+            ? [raw]
+            : raw?.url
+              ? [raw.url]
+              : [];
+        for (const c of candidates) {
+          const img = sanitizePromoImage(
+            typeof c === 'string' ? c : c?.url || '',
+            pageUrl
+          );
+          if (img) return img;
+        }
+      }
+    } catch {
+      /* JSON-LD roto — sigue */
     }
-    if (best) return best;
   }
   return '';
+}
+
+function pagePrimaryImage(body, pageUrl) {
+  return (
+    pageOgImage(body, pageUrl) || pageJsonLdProductImage(body, pageUrl) || ''
+  );
+}
+
+const IMG_ATTR_RE =
+  /(?:src|data-src|data-srcset|srcset|data-lazy-src|data-original)=["']([^"']+)["']/gi;
+
+/** Primera URL usable de src / srcset. */
+function firstSrcFromAttr(raw, pageUrl) {
+  if (!raw) return '';
+  const candidate = String(raw)
+    .replace(/&amp;/gi, '&')
+    .split(',')[0]
+    .trim()
+    .split(/\s+/)[0];
+  return sanitizePromoImage(candidate, pageUrl);
+}
+
+function imageNearMatch(body, index, pageUrl) {
+  if (!body || index == null || index < 0) return '';
+  // Ventana amplia: Shopify/cards meten el <img> lejos del título.
+  const windowStart = Math.max(0, index - 4200);
+  const windowEnd = Math.min(body.length, index + 2200);
+  const before = body.slice(windowStart, index);
+  const around = body.slice(windowStart, windowEnd);
+  const lastSrc = before.match(IMG_ATTR_RE);
+  if (lastSrc?.length) {
+    const m = lastSrc[lastSrc.length - 1].match(/["']([^"']+)["']/);
+    const img = firstSrcFromAttr(m?.[1] || '', pageUrl);
+    if (img && !/logo|icon|sprite|banner|placeholder|pixel|favicon/i.test(img)) {
+      return img;
+    }
+  }
+  const aroundImgs = [...around.matchAll(IMG_ATTR_RE)];
+  for (let i = aroundImgs.length - 1; i >= 0; i--) {
+    const img = firstSrcFromAttr(aroundImgs[i][1], pageUrl);
+    if (!img) continue;
+    if (/logo|icon|sprite|banner|placeholder|pixel|favicon/i.test(img)) continue;
+    return img;
+  }
+  return '';
+}
+
+/** Empareja imagen cuyo path/alt contiene tokens del título (Dobel → MaestroDobel…). */
+function imageByTitleTokens(body, title, pageUrl, nearIndex = null) {
+  if (!body || !title) return '';
+  const stop = new Set([
+    'promo',
+    'oferta',
+    'variedad',
+    'solo',
+    'hasta',
+    'descuento',
+    'tabletas',
+    'pack',
+    'combo',
+    'gratis',
+    'promocion',
+    'promociones',
+  ]);
+  const tokens = (normalize(title).match(/[a-z0-9]{4,}/g) || []).filter(
+    (t) => !stop.has(t)
+  );
+  if (!tokens.length) return '';
+
+  const scope =
+    nearIndex != null
+      ? body.slice(
+          Math.max(0, nearIndex - 5500),
+          Math.min(body.length, nearIndex + 2800)
+        )
+      : body.slice(0, Math.min(body.length, 600_000));
+
+  let best = '';
+  let bestScore = 0;
+  for (const m of scope.matchAll(IMG_ATTR_RE)) {
+    const img = firstSrcFromAttr(m[1], pageUrl);
+    if (!img) continue;
+    if (/logo|icon|sprite|banner|placeholder|pixel|favicon|\.svg(?:$|\?)/i.test(img)) {
+      continue;
+    }
+    const u = normalize(img);
+    let score = 0;
+    for (const t of tokens) {
+      if (u.includes(t)) score += t.length;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = img;
+    }
+  }
+  return bestScore >= 5 ? best : '';
+}
+
+/**
+ * Si la URL de imagen nombra otra marca/producto que el título, la descarta.
+ * Evita cruces tipo Act II con foto de Maruchan (OG genérico de la página).
+ */
+function imageConflictsWithTitle(title, imageUrl) {
+  if (!title || !imageUrl) return false;
+  let path = imageUrl;
+  try {
+    path = decodeURIComponent(imageUrl);
+  } catch {
+    /* keep raw */
+  }
+  const t = normalize(title);
+  const u = normalize(path);
+  const markers = [
+    { tag: 'maruchan', keys: ['maruchan', 'instantlunch', 'camarones'] },
+    { tag: 'actii', keys: ['actii', 'act2', 'act-ii', 'palomitasact'] },
+    { tag: 'doritos', keys: ['doritos'] },
+    { tag: 'ruffles', keys: ['ruffles'] },
+    { tag: 'cheetos', keys: ['cheetos'] },
+    { tag: 'sabritas', keys: ['sabritas'] },
+    { tag: 'coca', keys: ['coca', 'cocacola'] },
+    { tag: 'pepsi', keys: ['pepsi'] },
+    { tag: 'gatorade', keys: ['gatorade'] },
+    { tag: 'snickers', keys: ['snickers'] },
+    { tag: 'mnm', keys: ['mms', 'mandms'] },
+  ];
+  let titleTag = '';
+  let urlTag = '';
+  for (const m of markers) {
+    if (!titleTag && m.keys.some((k) => t.includes(normalize(k)))) {
+      titleTag = m.tag;
+    }
+    if (!urlTag && m.keys.some((k) => u.includes(normalize(k)))) {
+      urlTag = m.tag;
+    }
+  }
+  return Boolean(titleTag && urlTag && titleTag !== urlTag);
+}
+
+function pickPromoImage(title, image, pageUrl = '') {
+  const img = sanitizePromoImage(image, pageUrl);
+  if (!img) return '';
+  if (imageConflictsWithTitle(title, img)) return '';
+  return img;
 }
 
 /**
@@ -411,27 +593,45 @@ function deepenOfficialSourceUrl(url) {
 
 function finalizeHit(hit, pageUrl, pageBody = '') {
   const sourceUrl = deepenOfficialSourceUrl(hit.sourceUrl || pageUrl || '');
-  let image = sanitizePromoImage(hit.image, pageUrl || sourceUrl);
-  if (!image && pageBody) {
-    image =
+  let image = pickPromoImage(hit.title, hit.image, pageUrl || sourceUrl);
+  if (!image && pageBody && hit._matchIndex != null) {
+    image = pickPromoImage(
+      hit.title,
       imageNearMatch(pageBody, hit._matchIndex, pageUrl) ||
-      pageOgImage(pageBody, pageUrl);
+        imageByTitleTokens(pageBody, hit.title, pageUrl, hit._matchIndex),
+      pageUrl
+    );
   }
-  const { _matchIndex, ...rest } = hit;
+  if (!image && pageBody && hit.title) {
+    image = pickPromoImage(
+      hit.title,
+      imageByTitleTokens(pageBody, hit.title, pageUrl, hit._matchIndex ?? null),
+      pageUrl
+    );
+  }
+  // OG/JSON-LD de página solo si es la única promo del batch (si no, cruza marcas).
+  if (!image && pageBody && hit._allowOgFallback) {
+    image = pickPromoImage(
+      hit.title,
+      pagePrimaryImage(pageBody, pageUrl),
+      pageUrl
+    );
+  }
+  const { _matchIndex, _allowOgFallback, ...rest } = hit;
   return { ...rest, sourceUrl, image };
 }
 
 function parseCircleK(body, url) {
   const found = [];
-  const headings = [...body.matchAll(/<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/gi)].map((m) =>
-    clean(m[1])
-  );
+  const headingMatches = [
+    ...body.matchAll(/<h[2-4][^>]*>([\s\S]*?)<\/h[2-4]>/gi),
+  ].map((m) => ({ text: clean(m[1]), index: m.index ?? 0 }));
   const og = clean(
     body.match(/property="og:description"\s+content="([^"]+)"/i)?.[1] || ''
   );
-  for (let i = 0; i < headings.length - 1; i++) {
-    const title = headings[i];
-    const deal = headings[i + 1];
+  for (let i = 0; i < headingMatches.length - 1; i++) {
+    const title = headingMatches[i].text;
+    const deal = headingMatches[i + 1].text;
     if (
       !title ||
       title.length < 4 ||
@@ -447,14 +647,22 @@ function parseCircleK(body, url) {
       )
     );
     const until = untilMatch?.[1] ? clean(untilMatch[1]) : '';
+    const fullTitle = `${title} — ${deal}`;
+    // Imagen local al heading — NUNCA el og:image de toda la página (cruzaba Maruchan/Act II).
+    const localImg = pickPromoImage(
+      fullTitle,
+      imageNearMatch(body, headingMatches[i].index, url),
+      url
+    );
     found.push({
-      title: `${title} — ${deal}`,
+      title: fullTitle,
       description: until
         ? `${deal}. Oferta válida hasta el ${until}.`
         : `${deal}. Consulta vigencia en Circle K.`,
       sourceUrl: url,
-      image: pageOgImage(body, url),
+      image: localImg,
       evidence: `${title} ${deal} ${until} promoción oferta`,
+      _matchIndex: headingMatches[i].index,
     });
     i++;
   }
@@ -472,7 +680,11 @@ function parseHeb(body, url) {
       title,
       description: `Promoción publicada en heb.com.mx. Confirma vigencia en tienda.`,
       sourceUrl: url,
-      image: imageNearMatch(body, m.index, url) || pageOgImage(body, url),
+      image: pickPromoImage(
+        title,
+        imageNearMatch(body, m.index, url),
+        url
+      ),
       evidence: `${title} promoción oferta`,
       _matchIndex: m.index,
     });
@@ -875,8 +1087,9 @@ function parsePage(body, url, company) {
       const title = clean(m[1]);
       const price = clean(m[2]);
       if (title.length < 4 || /^promociones$/i.test(title)) continue;
-      const before = body.slice(Math.max(0, m.index - 1200), m.index);
-      const img = before.match(/<img[^>]+src="([^"]+)"[^>]*>/i);
+      const local =
+        imageByTitleTokens(body, title, url, m.index) ||
+        imageNearMatch(body, m.index, url);
       found.push({
         title,
         description: (
@@ -885,8 +1098,9 @@ function parsePage(body, url, company) {
             : `Promoción publicada por ${company?.nombre || 'La Europea'}`
         ).slice(0, 500),
         sourceUrl: url,
-        image: absUrl(img?.[1] || '', url),
+        image: pickPromoImage(title, local, url),
         evidence: `${title} ${price} promoción oferta`,
+        _matchIndex: m.index,
       });
     }
   }
@@ -929,41 +1143,63 @@ function parsePage(body, url, company) {
     .slice(0, 40);
 }
 
-async function fetchStarbucksNext() {
+/**
+ * Starbucks MX pasó de Next.js a Liferay: banners block--banner + /documents/…
+ * Las URLs viejas djftrby1k8irl.cloudfront.net/s3fs-public ya no sirven (text/plain).
+ */
+async function fetchStarbucksHome() {
   const sourceUrl = 'https://www.starbucks.com.mx/';
   const body = await fetchPage(sourceUrl);
-  const match = body.match(
-    /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/
-  );
-  if (!match) throw new Error('Sin __NEXT_DATA__ en Starbucks');
-  const data = JSON.parse(match[1]);
-  const grids = data.props?.pageProps?.grids || [];
   const found = [];
-  for (const grid of grids) {
-    const title = clean(grid.title || grid.image?.alt || '');
-    const text = clean(grid.text || '');
-    if (title.length < 4) continue;
-    if (/undefined|^$/.test(title)) continue;
-    const link =
-      grid.link ||
-      grid.url ||
-      grid.href ||
-      grid.cta?.url ||
-      grid.image?.link ||
-      sourceUrl;
+  const seen = new Set();
+
+  const push = (title, description, image, matchIndex) => {
+    const t = clean(title);
+    if (t.length < 4 || /^home$/i.test(t)) return;
+    if (/noticias|promociones$/i.test(t) && t.length < 16) return;
+    const key = slugify(t);
+    if (!key || seen.has(key)) return;
+    seen.add(key);
     found.push({
-      title,
+      title: t,
       description:
-        text.slice(0, 400) ||
+        clean(description).slice(0, 400) ||
         'Campaña publicada en starbucks.com.mx. Confirma vigencia en tienda o app.',
-      sourceUrl: deepenOfficialSourceUrl(
-        typeof link === 'string' ? absUrl(link, sourceUrl) : sourceUrl
-      ),
-      image: sanitizePromoImage(grid.image?.url || '', sourceUrl),
-      evidence: `${title} ${text} promoción oferta starbucks`,
+      sourceUrl,
+      image: pickPromoImage(t, image, sourceUrl),
+      evidence: `${t} ${description || ''} promoción oferta starbucks`,
+      _matchIndex: matchIndex,
+      _allowOgFallback: false,
     });
+  };
+
+  // Bloques banner: imagen + h1.title (+ abstract opcional)
+  for (const m of body.matchAll(
+    /block--banner[\s\S]{0,4500}?<img[^>]+src=["']([^"']+)["'][\s\S]{0,2500}?<h1[^>]*>([\s\S]*?)<\/h1>(?:[\s\S]{0,1200}?field-abstract[^>]*>[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>)?/gi
+  )) {
+    push(m[2], m[3] || '', absUrl(m[1], sourceUrl), m.index);
   }
-  return found;
+
+  // Fallback: títulos h1.title con imagen cercana / adaptive-media
+  if (found.length < 2) {
+    for (const m of body.matchAll(
+      /<h1[^>]*class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/h1>/gi
+    )) {
+      const title = clean(m[1]);
+      const local =
+        imageNearMatch(body, m.index, sourceUrl) ||
+        imageByTitleTokens(body, title, sourceUrl, m.index);
+      push(title, '', local, m.index);
+    }
+  }
+
+  if (!found.length) {
+    throw new Error('Starbucks Liferay sin banners legibles');
+  }
+
+  return found
+    .map((hit) => finalizeHit(hit, sourceUrl, body))
+    .slice(0, 20);
 }
 
 function isWalmartAssetName(title = '') {
@@ -1128,10 +1364,10 @@ async function fetchSourceHits(url, company) {
       };
     }
   }
-  if (url === 'special:starbucks-next') {
+  if (url === 'special:starbucks-home' || url === 'special:starbucks-next') {
     return {
       url: 'https://www.starbucks.com.mx/',
-      hits: await fetchStarbucksNext(),
+      hits: await fetchStarbucksHome(),
       error: null,
     };
   }
@@ -1154,17 +1390,94 @@ async function fetchSourceHits(url, company) {
 }
 
 async function fetchPage(url, timeoutMs = 22000) {
-  const response = await fetch(url, {
+  let href = url;
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'http:') u.protocol = 'https:';
+    href = u.href;
+  } catch {
+    href = url;
+  }
+  const response = await fetch(href, {
     headers: {
       'User-Agent': UA,
-      Accept: 'text/html,application/json;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'es-MX,es;q=0.9',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+      'Cache-Control': 'no-cache',
     },
     signal: AbortSignal.timeout(timeoutMs),
     redirect: 'follow',
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
+}
+
+function isListingSourceUrl(href) {
+  return (
+    /\/promociones\/?$/i.test(href) ||
+    /\/promociones\.html$/i.test(href) ||
+    /\/ofertas\/?$/i.test(href) ||
+    /\/menu\/?$/i.test(href) ||
+    /tienda\/promociones/i.test(href) ||
+    /collections\/promociones/i.test(href)
+  );
+}
+
+/**
+ * Rellena imagen desde la URL oficial ya guardada (ficha o listado).
+ * No inventa: JSON-LD / OG / img cercana al título en el HTML de la fuente.
+ */
+export async function backfillMissingProductImages(empresaId, limit = 20) {
+  const missing = await Promocion.find({
+    id_empresa: empresaId,
+    origen: 'oficial',
+    estatus: 'activo',
+    $or: [{ imagen: '' }, { imagen: null }, { imagen: { $exists: false } }],
+    url_fuente: { $regex: /^https?:\/\//i },
+    nombre: { $exists: true, $nin: ['', null] },
+  })
+    .select('_id nombre url_fuente')
+    .limit(limit)
+    .lean();
+
+  const listingCache = new Map();
+  let filled = 0;
+
+  for (const promo of missing) {
+    const href = String(promo.url_fuente || '');
+    const listing = isListingSourceUrl(href);
+    try {
+      let body = listingCache.get(href);
+      if (body == null) {
+        body = await fetchPage(href, listing ? 22_000 : 12_000);
+        if (listing) listingCache.set(href, body);
+      }
+      const idx = body.indexOf(String(promo.nombre || '').slice(0, 48));
+      const near =
+        idx >= 0 ? imageNearMatch(body, idx, href) : '';
+      const byTokens = imageByTitleTokens(
+        body,
+        promo.nombre,
+        href,
+        idx >= 0 ? idx : null
+      );
+      const primary = listing
+        ? ''
+        : pagePrimaryImage(body, href);
+      const img = pickPromoImage(
+        promo.nombre,
+        near || byTokens || primary,
+        href
+      );
+      if (!img) continue;
+      await Promocion.updateOne({ _id: promo._id }, { $set: { imagen: img } });
+      filled += 1;
+    } catch {
+      /* página caída o bloqueada — se reintenta en el próximo job */
+    }
+  }
+  return filled;
 }
 
 /** Importa promociones oficiales con solicitudes concurrentes. */
@@ -1231,42 +1544,41 @@ export async function collectNearbyPromos(companies) {
           priced.precio != null
             ? priced
             : parsePromoPrice(`${hit.title || ''} ${hit.description || ''}`);
+        const nextImage = pickPromoImage(
+          hit.title,
+          hit.image || '',
+          hit.sourceUrl || ''
+        );
+        const $set = {
+          slug: `oficial-${key}`,
+          id_empresa: company._id,
+          nombre: hit.title,
+          descripcion:
+            hit.description || `Promoción publicada por ${company.nombre}.`,
+          politicas: `Fuente oficial consultada automáticamente. ${
+            start && end
+              ? 'Vigencia extraída del texto publicado.'
+              : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'
+          }`,
+          origen: 'oficial',
+          url_fuente: deepenOfficialSourceUrl(hit.sourceUrl || ''),
+          inicia_en: start,
+          termina_en: end,
+          alcohol: flags.alcohol,
+          audiencia: flags.alcohol ? 'adulto' : 'todos',
+          nocturno: flags.nocturno,
+          estatus: end && end < now ? 'caduco' : 'activo',
+          destacada: false,
+          precio: fromTitle.precio,
+          precio_lista: fromTitle.precioLista,
+          precio_texto: fromTitle.precioTexto || '',
+        };
+        // Solo escribe imagen si el scrape trae una; no borra fotos buenas ni pone logo de cadena.
+        if (nextImage) $set.imagen = nextImage;
         return {
           updateOne: {
             filter: { slug: `oficial-${key}` },
-            update: {
-              $set: {
-                slug: `oficial-${key}`,
-                id_empresa: company._id,
-                nombre: hit.title,
-                descripcion:
-                  hit.description || `Promoción publicada por ${company.nombre}.`,
-                politicas: `Fuente oficial consultada automáticamente. ${
-                  start && end
-                    ? 'Vigencia extraída del texto publicado.'
-                    : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'
-                }`,
-                imagen: sanitizePromoImage(
-                  hit.image ||
-                    ( /^https?:\/\//i.test(company.imagen || '')
-                      ? company.imagen
-                      : '' ),
-                  hit.sourceUrl || ''
-                ),
-                origen: 'oficial',
-                url_fuente: deepenOfficialSourceUrl(hit.sourceUrl || ''),
-                inicia_en: start,
-                termina_en: end,
-                alcohol: flags.alcohol,
-                audiencia: flags.alcohol ? 'adulto' : 'todos',
-                nocturno: flags.nocturno,
-                estatus: end && end < now ? 'caduco' : 'activo',
-                destacada: false,
-                precio: fromTitle.precio,
-                precio_lista: fromTitle.precioLista,
-                precio_texto: fromTitle.precioTexto || '',
-              },
-            },
+            update: { $set },
             upsert: true,
           },
         };
@@ -1307,12 +1619,22 @@ export async function collectNearbyPromos(companies) {
         );
       }
 
+      let imagesBackfilled = 0;
+      try {
+        imagesBackfilled = await backfillMissingProductImages(company._id, 24);
+      } catch {
+        imagesBackfilled = 0;
+      }
+
       const report = {
         empresa: company.nombre,
         ok: errors.length < urls.length,
         count: operations.length,
         ...(linkedFromSource
           ? { sucursalesVinculadasPorFuente: linkedFromSource }
+          : {}),
+        ...(imagesBackfilled
+          ? { imagenesRellenadas: imagesBackfilled }
           : {}),
         ...(errors.length ? { errors } : {}),
         ...(operations.length === 0 && !errors.length

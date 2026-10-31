@@ -11,9 +11,10 @@ type Props = {
 export default function RequireAuth({ children, reason }: Props) {
   const location = useLocation();
   if (hasSession()) return <>{children}</>;
+  const to = reason === 'chain' ? '/entrar-empresa' : '/entrar';
   return (
     <Navigate
-      to="/entrar"
+      to={to}
       replace
       state={{
         from: `${location.pathname}${location.search}`,

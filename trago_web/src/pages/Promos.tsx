@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
+import SponsoredSlot from '../components/SponsoredSlot';
 import { useAuthUser } from '../hooks/useAuthUser';
 import {
   CACHE_KEYS,
@@ -173,35 +175,68 @@ export default function Promos() {
       ? t('promoCount', { n: visible.length })
       : t('promoCountPlural', { n: visible.length });
 
+  const hero =
+    allowBday && filter === 'cumple'
+      ? {
+          kicker: t('catBdayToday'),
+          title: t('bdayTitle').replace(
+            '{name}',
+            firstName ? `, ${firstName}` : ''
+          ),
+          lead: t('bdayBody'),
+          bday: true,
+        }
+      : filter === 'destacadas'
+        ? {
+            kicker: t('navExplore'),
+            title: t('featured'),
+            lead: t('exploreHeroFeatured'),
+            bday: false,
+          }
+        : filter === 'comida'
+          ? {
+              kicker: t('navExplore'),
+              title: t('filterFood'),
+              lead: t('exploreHeroFood'),
+              bday: false,
+            }
+          : filter === 'cafe'
+            ? {
+                kicker: t('navExplore'),
+                title: t('filterCafe'),
+                lead: t('exploreHeroCafe'),
+                bday: false,
+              }
+            : {
+                kicker: t('navExplore'),
+                title: t('exploreHeroTitle'),
+                lead: t('exploreHeroLead'),
+                bday: false,
+              };
+
   return (
     <section className="promos-page">
-      <header className={`promos-hero-stage${allowBday && filter === 'cumple' ? ' is-bday' : ''}`}>
+      <header className={`promos-hero-stage${hero.bday ? ' is-bday' : ''}`}>
         <div className="promos-hero-visual" aria-hidden />
+        <div className="promos-hero-glow" aria-hidden />
         <div className="promos-hero-copy">
-          <p className="ui-kicker">
-            {allowBday && filter === 'cumple'
-              ? t('catBdayToday')
-              : t('titlePromos')}
-          </p>
-          <h1>
-            {allowBday && filter === 'cumple'
-              ? t('bdayTitle').replace(
-                  '{name}',
-                  firstName ? `, ${firstName}` : ''
-                )
-              : t('featured')}
-          </h1>
-          <p className="meta">
-            {allowBday && filter === 'cumple'
-              ? t('bdayBody')
-              : countLabel}
-          </p>
+          <p className="ui-kicker">{hero.kicker}</p>
+          <h1>{hero.title}</h1>
+          <p className="promos-hero-lead">{hero.lead}</p>
         </div>
       </header>
 
       <div className="promos-toolbar" data-reveal>
         <label className="promos-search">
           <span className="sr-only">{t('search')}</span>
+          <span className="promos-search-ico" aria-hidden>
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <path
+                fill="currentColor"
+                d="M10.5 3a7.5 7.5 0 1 1 0 15 7.5 7.5 0 0 1 0-15Zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11Zm7.2 11.1 3.5 3.5-1.4 1.4-3.5-3.5 1.4-1.4Z"
+              />
+            </svg>
+          </span>
           <input
             type="search"
             placeholder={t('searchPlaceholder')}
@@ -228,6 +263,11 @@ export default function Promos() {
             </button>
           ))}
         </div>
+        <p className="promos-count meta" aria-live="polite">
+          {loading
+            ? t('loading')
+            : `${countLabel}${fromCache ? t('localCache') : ''}`}
+        </p>
       </div>
 
       {bdayLockedNote && !allowBday && (
@@ -241,11 +281,7 @@ export default function Promos() {
         </p>
       )}
 
-      <p className="promos-count meta">
-        {loading
-          ? t('loading')
-          : `${countLabel}${fromCache ? t('localCache') : ''}`}
-      </p>
+      <SponsoredSlot slot="explorar_mid" className="promos-sponsored" />
 
       {error && <p className="error">{error}</p>}
 
@@ -265,17 +301,12 @@ export default function Promos() {
                 aria-label={title}
                 viewTransition
               >
-                {img ? (
-                  <img
-                    src={img}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span>{(p.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
-                )}
+                <PromoMediaImg
+                  src={img}
+                  fallback={
+                    <span>{(p.chainName || 'TG').slice(0, 2).toUpperCase()}</span>
+                  }
+                />
               </Link>
 
               <div className="promo-body">

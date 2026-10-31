@@ -85,7 +85,8 @@ export default function BottomNav({ hasSession }: Props) {
             (pathname.startsWith('/cuenta') ||
               pathname.startsWith('/entrar') ||
               pathname.startsWith('/registro') ||
-              pathname.startsWith('/idioma'));
+              pathname.startsWith('/idioma') ||
+              pathname.startsWith('/cadena'));
 
           return (
             <NavLink

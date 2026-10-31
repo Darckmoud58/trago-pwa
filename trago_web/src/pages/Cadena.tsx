@@ -36,6 +36,26 @@ type SucursalRow = {
   long?: number;
 };
 
+type AnuncioRow = {
+  _id: string;
+  titulo?: string;
+  copy?: string;
+  imagen_url?: string;
+  url_destino?: string;
+  slot?: string;
+  estatus?: string;
+  impresiones?: number;
+  clics?: number;
+};
+
+type SuscripcionRow = {
+  _id?: string;
+  plan?: string;
+  estatus?: string;
+  activo?: boolean;
+  termina?: string | null;
+};
+
 export default function Cadena() {
   const { t } = useI18n();
   const [token] = useState(() => readToken());
@@ -73,6 +93,14 @@ export default function Cadena() {
     funnel: { gpsToPromo: number; gpsToBranch: number; promoToBranch: number };
     definition?: string;
   } | null>(null);
+  const [anuncios, setAnuncios] = useState<AnuncioRow[]>([]);
+  const [puedePauta, setPuedePauta] = useState(false);
+  const [suscripcion, setSuscripcion] = useState<SuscripcionRow | null>(null);
+  const [adTitulo, setAdTitulo] = useState('');
+  const [adCopy, setAdCopy] = useState('');
+  const [adImagen, setAdImagen] = useState('');
+  const [adUrl, setAdUrl] = useState('');
+  const [adSlot, setAdSlot] = useState('home_rail');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,6 +110,9 @@ export default function Cadena() {
       setEmpresa(res.data.empresa || null);
       setPromos(res.data.promociones || []);
       setSucursales(res.data.sucursales || []);
+      setAnuncios((res.data.anuncios || []) as AnuncioRow[]);
+      setPuedePauta(Boolean(res.data.puedePauta));
+      setSuscripcion((res.data.suscripcion || null) as SuscripcionRow | null);
       if (res.data.empresa) {
         try {
           const vig = await api.get('/api/cadena/vigencia');
@@ -100,6 +131,9 @@ export default function Cadena() {
       } else {
         setVigencia([]);
         setMetricas(null);
+        setAnuncios([]);
+        setPuedePauta(false);
+        setSuscripcion(null);
       }
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { message?: string } } };
@@ -254,6 +288,81 @@ export default function Cadena() {
 
   const verified = Boolean(empresa?.verificada || empresa?.verified);
 
+  async function onSolicitarPauta() {
+    setBusy(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await api.post('/api/cadena/anuncios/suscripcion/solicitar', {
+        plan: 'basic',
+      });
+      setInfo(res.data.message || t('chainAdsRequestOk'));
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onCreateAnuncio(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setInfo('');
+    try {
+      await api.post('/api/cadena/anuncios', {
+        titulo: adTitulo,
+        copy: adCopy,
+        imagen_url: adImagen,
+        url_destino: adUrl,
+        slot: adSlot,
+        zonas: ['gdl'],
+      });
+      setAdTitulo('');
+      setAdCopy('');
+      setAdImagen('');
+      setAdUrl('');
+      setAdSlot('home_rail');
+      setInfo(t('chainAdSave'));
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onActivateAnuncio(id: string) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/api/cadena/anuncios/${id}/activar`);
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onPauseAnuncio(id: string) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.put(`/api/cadena/anuncios/${id}`, { estatus: 'pausado' });
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function crowdLabel(status: string) {
     if (status === 'en_duda' || status === 'en-duda') return t('crowdDoubt');
     if (status === 'caduco') return t('crowdExpired');
@@ -278,28 +387,36 @@ export default function Cadena() {
       {info && <p className="cadena-info">{info}</p>}
 
       {!loading && !empresa && (
-        <form className="cadena-card" onSubmit={onRegister}>
-          <h2>{t('chainRegisterTitle')}</h2>
-          <label>
-            {t('chainName')}
-            <input
-              value={regNombre}
-              onChange={(e) => setRegNombre(e.target.value)}
-              required
-            />
-          </label>
-          <label>
-            {t('chainDesc')}
-            <textarea
-              value={regDesc}
-              onChange={(e) => setRegDesc(e.target.value)}
-              rows={3}
-            />
-          </label>
-          <button className="btn primary" type="submit" disabled={busy}>
-            {t('chainRegisterCta')}
-          </button>
-        </form>
+        <article className="cadena-card">
+          <h2>{t('bizRegisterTitle')}</h2>
+          <p className="muted">{t('bizRegisterLead')}</p>
+          <p className="meta">{t('chainNeedRole')}</p>
+          <Link className="btn primary" to="/registro-empresa" viewTransition>
+            {t('bizRegisterSubmit')}
+          </Link>
+          <form className="cadena-ad-form" onSubmit={onRegister}>
+            <p className="muted">{t('chainRegisterTitle')}</p>
+            <label>
+              {t('chainName')}
+              <input
+                value={regNombre}
+                onChange={(e) => setRegNombre(e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              {t('chainDesc')}
+              <textarea
+                value={regDesc}
+                onChange={(e) => setRegDesc(e.target.value)}
+                rows={3}
+              />
+            </label>
+            <button className="btn ghost" type="submit" disabled={busy}>
+              {t('chainRegisterCta')}
+            </button>
+          </form>
+        </article>
       )}
 
       {empresa && (
@@ -452,6 +569,126 @@ export default function Cadena() {
                 ))}
               </ul>
             )}
+          </article>
+
+          <article className="cadena-card">
+            <h2>{t('chainAdsTitle')}</h2>
+            <p className="muted">{t('chainAdsLead')}</p>
+            <p className="meta">
+              {puedePauta
+                ? t('chainAdsActive')
+                : suscripcion?.estatus === 'pending'
+                  ? t('chainAdsPending')
+                  : t('chainAdsNeedPlan')}
+              {suscripcion?.plan ? ` · ${suscripcion.plan}` : ''}
+            </p>
+            {!puedePauta && (
+              <button
+                type="button"
+                className="btn primary"
+                disabled={busy || suscripcion?.estatus === 'pending'}
+                onClick={() => void onSolicitarPauta()}
+              >
+                {t('chainAdsRequest')}
+              </button>
+            )}
+            {puedePauta && (
+              <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
+                <label>
+                  {t('chainAdTitle')}
+                  <input
+                    value={adTitulo}
+                    onChange={(e) => setAdTitulo(e.target.value)}
+                    required
+                  />
+                </label>
+                <label>
+                  {t('chainAdCopy')}
+                  <textarea
+                    value={adCopy}
+                    onChange={(e) => setAdCopy(e.target.value)}
+                    rows={2}
+                  />
+                </label>
+                <label>
+                  {t('chainAdImage')}
+                  <input
+                    value={adImagen}
+                    onChange={(e) => setAdImagen(e.target.value)}
+                    placeholder="https://"
+                  />
+                </label>
+                <label>
+                  {t('chainAdUrl')}
+                  <input
+                    value={adUrl}
+                    onChange={(e) => setAdUrl(e.target.value)}
+                    placeholder="https://"
+                  />
+                </label>
+                <label>
+                  {t('chainAdSlot')}
+                  <select
+                    value={adSlot}
+                    onChange={(e) => setAdSlot(e.target.value)}
+                  >
+                    <option value="home_rail">{t('chainAdSlotHome')}</option>
+                    <option value="explorar_mid">{t('chainAdSlotExplore')}</option>
+                    <option value="cerca_top">{t('chainAdSlotNear')}</option>
+                  </select>
+                </label>
+                <button className="btn primary" type="submit" disabled={busy}>
+                  {t('chainAdSave')}
+                </button>
+              </form>
+            )}
+            {anuncios.length === 0 ? (
+              <p className="muted">{t('chainAdsEmpty')}</p>
+            ) : (
+              <ul className="cadena-list">
+                {anuncios.map((a) => (
+                  <li key={a._id}>
+                    <strong>{a.titulo}</strong>
+                    <span className="meta">
+                      {a.estatus === 'activo'
+                        ? t('chainAdLive')
+                        : a.estatus === 'pausado'
+                          ? t('chainAdPaused')
+                          : t('chainAdDraft')}
+                      {' · '}
+                      {a.slot}
+                      {' · '}
+                      {t('chainAdStats')
+                        .replace('{imp}', String(a.impresiones ?? 0))
+                        .replace('{clk}', String(a.clics ?? 0))}
+                    </span>
+                    <div className="cadena-vigencia-actions">
+                      {a.estatus !== 'activo' && puedePauta && (
+                        <button
+                          type="button"
+                          className="btn primary"
+                          disabled={busy}
+                          onClick={() => void onActivateAnuncio(a._id)}
+                        >
+                          {t('chainAdActivate')}
+                        </button>
+                      )}
+                      {a.estatus === 'activo' && puedePauta && (
+                        <button
+                          type="button"
+                          className="btn ghost"
+                          disabled={busy}
+                          onClick={() => void onPauseAnuncio(a._id)}
+                        >
+                          {t('chainAdPause')}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="meta">{t('adLegalNote')}</p>
           </article>
 
           {metricas && (

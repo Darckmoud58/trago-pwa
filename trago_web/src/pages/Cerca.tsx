@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import PlaceBrandMark from '../components/PlaceBrandMark';
+import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
+import SponsoredSlot from '../components/SponsoredSlot';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
@@ -19,7 +21,11 @@ import './Cerca.css';
 
 const NEAR_RADIUS_M = 2000;
 
-function openExactPlace(branch: Branch, nombre: string) {
+function openExactPlace(
+  branch: Branch,
+  nombre: string,
+  origin?: { lat: number; lng: number } | null
+) {
   const url =
     googleMapsExactUrl({
       lat: branch.lat,
@@ -27,6 +33,9 @@ function openExactPlace(branch: Branch, nombre: string) {
       name: nombre,
       address: branch.address,
       city: [branch.colonia, branch.city].filter(Boolean).join(', '),
+      originLat: origin?.lat,
+      originLng: origin?.lng,
+      distanceMeters: branch.distanceMeters,
     }) ||
     googleMapsSearchUrl({
       name: nombre,
@@ -127,6 +136,10 @@ export default function Cerca() {
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
   const [openOffersId, setOpenOffersId] = useState<string | null>(null);
+  const [userOrigin, setUserOrigin] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const bootstrapped = useRef(false);
   const catalogPromos = promos.filter(
     (promo) => !isLandingPromoTitle(promo) && !promo.requiresAuth
@@ -157,6 +170,7 @@ export default function Cerca() {
     setPromos([]);
     setOpenOffersId(null);
     setFromCache(false);
+    setUserOrigin({ lat, lng });
     void track({ tipo: 'cerca_open', lat, lng, meta: { label } });
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
@@ -324,12 +338,13 @@ export default function Cerca() {
                       }
                     >
                       {img && !locked ? (
-                        <img
+                        <PromoMediaImg
                           src={img}
-                          alt=""
-                          loading="lazy"
-                          decoding="async"
-                          referrerPolicy="no-referrer"
+                          fallback={
+                            <span className="cerca-collage-fallback">
+                              {(promo.chainName || 'TG').slice(0, 2).toUpperCase()}
+                            </span>
+                          }
                         />
                       ) : (
                         <span
@@ -380,10 +395,58 @@ export default function Cerca() {
       </header>
 
       {loading && (
-        <div className="cerca-skeleton" aria-hidden>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="cerca-skeleton-card" />
-          ))}
+        <div
+          className="cerca-loading"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div className="cerca-loading-stage">
+            <div className="cerca-loading-radar" aria-hidden>
+              <span className="cerca-loading-ring" />
+              <span className="cerca-loading-ring cerca-loading-ring-2" />
+              <span className="cerca-loading-pin">
+                <svg viewBox="0 0 24 24" width="28" height="28">
+                  <path
+                    fill="currentColor"
+                    d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"
+                  />
+                </svg>
+              </span>
+            </div>
+            <div className="cerca-loading-copy">
+              <p className="cerca-loading-kicker">{t('gpsLabel')}</p>
+              <p className="cerca-loading-title">{t('cercaLoadingTitle')}</p>
+              <p className="cerca-loading-lead">{t('cercaLoadingLead')}</p>
+            </div>
+          </div>
+
+          <div className="cerca-loading-rail" aria-hidden>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={`offer-${i}`} className="cerca-skel-offer">
+                <span className="cerca-skel-bone cerca-skel-offer-media" />
+                <span className="cerca-skel-bone cerca-skel-line lg" />
+                <span className="cerca-skel-bone cerca-skel-line sm" />
+              </div>
+            ))}
+          </div>
+
+          <div className="cerca-loading-list" aria-hidden>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={`place-${i}`}
+                className="cerca-skel-place"
+                style={{ animationDelay: `${0.08 * i}s` }}
+              >
+                <span className="cerca-skel-bone cerca-skel-mark" />
+                <div className="cerca-skel-place-body">
+                  <span className="cerca-skel-bone cerca-skel-line xs" />
+                  <span className="cerca-skel-bone cerca-skel-line lg" />
+                  <span className="cerca-skel-bone cerca-skel-line md" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -398,6 +461,10 @@ export default function Cerca() {
             {t('retryLocation')}
           </button>
         </div>
+      )}
+
+      {!loading && (
+        <SponsoredSlot slot="cerca_top" className="cerca-sponsored" />
       )}
 
       {!loading && catalogPromos.length > 0 && (
@@ -422,19 +489,14 @@ export default function Cerca() {
                     aria-label={title}
                     viewTransition
                   >
-                    {img ? (
-                      <img
-                        src={img}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span style={{ background: brandTone(chain) }}>
-                        {initials(chain)}
-                      </span>
-                    )}
+                    <PromoMediaImg
+                      src={img}
+                      fallback={
+                        <span style={{ background: brandTone(chain) }}>
+                          {initials(chain)}
+                        </span>
+                      }
+                    />
                   </Link>
                   <div className="cerca-offer-body">
                     <p className="cerca-place-chain">{chain}</p>
@@ -498,6 +560,9 @@ export default function Cerca() {
                 name: nombre,
                 address: b.address,
                 city: [b.colonia, b.city].filter(Boolean).join(', '),
+                originLat: userOrigin?.lat,
+                originLng: userOrigin?.lng,
+                distanceMeters: b.distanceMeters,
               });
               return (
                 <li key={id} className="cerca-place-card">
@@ -566,7 +631,7 @@ export default function Cerca() {
                           rel={mapsUrl ? 'noreferrer' : undefined}
                           onClick={(e) => {
                             e.preventDefault();
-                            openExactPlace(b, nombre);
+                            openExactPlace(b, nombre, userOrigin);
                           }}
                         >
                           {t('seeOnMap')} ↗

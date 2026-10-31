@@ -46,7 +46,10 @@ export default function Register() {
       saveToken(data.token);
       await clearCatalogCache();
       const pendingTo = await consumePendingFavorite();
-      const dest = pendingTo || authState.from || '/cuenta';
+      const dest =
+        pendingTo ||
+        authState.from ||
+        (authState.reason === 'chain' ? '/cadena' : '/cuenta');
       navigate(dest, { replace: true });
     } catch (err: unknown) {
       const msg =

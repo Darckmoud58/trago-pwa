@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="TraGo icon caguama y hamburguesa">
+  <defs>
+    <clipPath id="rounded">
+      <rect width="512" height="512" rx="96" ry="96"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect width="512" height="512" fill="#3B0B13"/>
+    <g transform="translate(256 256) rotate(45) translate(-256 -256)">
+      <!-- Corcholata botada -->
+      <g transform="translate(272 70) rotate(-32)">
+        <ellipse cx="0" cy="2" rx="30" ry="11" fill="#F7E5B5"/>
+        <path fill="#D81A1C" d="M-28 0 L-32 -12 L-24 -8 L-20 -15 L-14 -8 L-8 -16 L0 -8 L8 -16 L14 -8 L20 -15 L24 -8 L32 -12 L28 0 Z"/>
+        <ellipse cx="0" cy="-1" rx="23" ry="7" fill="#E8C98A"/>
+      </g>
+      <!-- Caguama mas delgada -->
+      <path fill="#D81A1C" d="M238 112 C238 104 242 98 256 98 C270 98 274 104 274 112 L274 165 C274 174 278 183 284 192 C294 210 300 230 300 262 L300 382 C300 408 282 426 256 426 C230 426 212 408 212 382 L212 262 C212 230 218 210 228 192 C234 183 238 174 238 165 Z"/>
+      <ellipse cx="256" cy="104" rx="14" ry="6" fill="#3B0B13"/>
+      <!-- Hamburguesa abajo, sin ajonjoli, pan liso -->
+      <g transform="translate(256 378)">
+        <path fill="#F7E5B5" d="M-36 0 C-36 -24 -24 -34 0 -34 C24 -34 36 -24 36 0 Z"/>
+        <path fill="#E8C98A" d="M-38 2 Q-28 10 -18 4 Q-8 12 2 4 Q12 12 22 4 Q30 10 38 2 L38 8 Q28 14 18 8 Q8 16 -2 8 Q-12 16 -22 8 Q-30 14 -38 8 Z"/>
+        <rect x="-34" y="10" width="68" height="14" rx="5" fill="#3B0B13"/>
+        <path fill="#F7E5B5" d="M-36 28 L36 28 C36 40 24 48 0 48 C-24 48 -36 40 -36 28 Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

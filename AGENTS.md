@@ -13,6 +13,7 @@
 | Doc | Para qué |
 |-----|----------|
 | [docs/PITCH-TRAGO.md](docs/PITCH-TRAGO.md) | Tesis comercial, GTM, ingresos, riesgos |
+| [docs/ANUNCIOS-PILOTO.md](docs/ANUNCIOS-PILOTO.md) | Pauta propia: suscripción manual + slots Patrocinado |
 | [README.md](README.md) | Stack, rutas, OSM/cerca, scrapers oficiales, favoritos |
 | [docs/VERCEL-DEPLOY.md](docs/VERCEL-DEPLOY.md) | Import Vercel (2 proyectos) + crons Actions + smoke PWA |
 | [GUIA_MONGODB_TRAGO.txt](GUIA_MONGODB_TRAGO.txt) | Colecciones y seed |

@@ -12,6 +12,9 @@ import cronRoutes from './routes/cron.routes.js';
 import favoritosRoutes from './routes/favoritos.routes.js';
 import reportesRoutes from './routes/reportes.routes.js';
 import cadenaRoutes from './routes/cadena.routes.js';
+import anunciosPublicRouter, {
+  anunciosCadenaRouter,
+} from './routes/anuncios.routes.js';
 import metricasRoutes from './routes/metricas.routes.js';
 import pushRoutes from './routes/push.routes.js';
 
@@ -106,6 +109,8 @@ export function createApp() {
   app.use('/api/favoritos', favoritosRoutes);
   app.use('/api/reportes', reportesRoutes);
   app.use('/api/cadena', cadenaRoutes);
+  app.use('/api/cadena/anuncios', anunciosCadenaRouter);
+  app.use('/api/anuncios', anunciosPublicRouter);
   app.use('/api/metricas', metricasRoutes);
   app.use('/api/push', pushRoutes);
   app.use('/api/cron', cronRoutes);

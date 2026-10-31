@@ -1,0 +1,108 @@
+.sponsored-slot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem 0.9rem;
+  align-items: center;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px dashed color-mix(in srgb, var(--rojo, #d81a1c) 35%, var(--line, #ccc));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--chrome, #3b0b13) 8%, transparent),
+      transparent 55%
+    ),
+    var(--surface, #fff);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--chrome, #3b0b13) 8%, transparent);
+}
+
+.sponsored-slot[data-slot='home_rail'] {
+  grid-template-columns: 1fr;
+  min-height: 7.5rem;
+}
+
+.sponsored-label {
+  grid-column: 1 / -1;
+  justify-self: start;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fg, #3b0b13) 55%, transparent);
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--fg, #3b0b13) 8%, transparent);
+}
+
+.sponsored-media {
+  display: block;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #2a0810;
+}
+
+.sponsored-slot[data-slot='home_rail'] .sponsored-media {
+  width: 100%;
+  height: 7rem;
+}
+
+.sponsored-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sponsored-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sponsored-title {
+  font-family: var(--display, Georgia, serif);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--fg, #3b0b13);
+}
+
+.sponsored-hint {
+  font-size: 0.8rem;
+  line-height: 1.3;
+  color: var(--fg-soft, rgba(59, 11, 19, 0.72));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sponsored-chain {
+  font-size: 0.72rem;
+  color: color-mix(in srgb, var(--fg, #3b0b13) 55%, transparent);
+}
+
+html[data-theme='night'] .sponsored-slot {
+  background: linear-gradient(160deg, #451018 0%, #2e0a12 100%);
+  border-color: color-mix(in srgb, #f7e5b5 22%, transparent);
+  color: #f7e5b5;
+}
+
+html[data-theme='night'] .sponsored-title,
+html[data-theme='night'] .sponsored-hint,
+html[data-theme='night'] .sponsored-chain,
+html[data-theme='night'] .sponsored-label {
+  color: #f7e5b5;
+}
+
+html[data-theme='night'] .sponsored-hint,
+html[data-theme='night'] .sponsored-chain,
+html[data-theme='night'] .sponsored-label {
+  color: color-mix(in srgb, #f7e5b5 72%, transparent);
+}

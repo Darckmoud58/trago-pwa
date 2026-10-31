@@ -1,15 +1,23 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import Empresa from '../models/Empresa.js';
 import Ubicacion from '../models/Ubicacion.js';
 import Promocion from '../models/Promocion.js';
 import PromoUbicacion from '../models/PromoUbicacion.js';
 import Usuario from '../models/Usuario.js';
 import Rol from '../models/Rol.js';
+import Nivel from '../models/Nivel.js';
 import { uniqueSlug } from '../lib/slugify.js';
 import { crowdStatus } from '../lib/validity.js';
 import { bandFromAge, resolveUserAge } from '../lib/ageGate.js';
+import {
+  ageFromBirthDateStrict,
+  registerEmpresaSchema,
+  zodErrorMessage,
+} from '../lib/authValidate.js';
 import { signAccessToken } from '../lib/jwt.js';
 import { sanitizeHttpUrl } from '../lib/safeUrl.js';
+import { enrichCadenaMeAds } from './anuncios.controller.js';
 
 function clipStr(raw, max = 500) {
   return String(raw ?? '').trim().slice(0, max);
@@ -52,6 +60,9 @@ export async function getCadenaMe(req, res) {
         message: 'Aún no tienes cadena. Regístrala en POST /api/cadena/registro.',
         promociones: [],
         sucursales: [],
+        suscripcion: null,
+        puedePauta: false,
+        anuncios: [],
       });
     }
 
@@ -72,6 +83,8 @@ export async function getCadenaMe(req, res) {
       linkCountByPromo[k] = (linkCountByPromo[k] || 0) + 1;
     }
 
+    const ads = await enrichCadenaMeAds(empresa);
+
     return res.json({
       empresa: mapEmpresa(empresa),
       promociones: promos.map((p) => ({
@@ -89,9 +102,158 @@ export async function getCadenaMe(req, res) {
         name: u.nombre || u.calle,
         address: [u.calle, u.num_ext, u.colonia].filter(Boolean).join(' '),
       })),
+      suscripcion: ads.suscripcion,
+      puedePauta: ads.puedePauta,
+      anuncios: ads.anuncios,
     });
   } catch (e) {
     console.error('getCadenaMe:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+function splitName(fullName) {
+  const parts = String(fullName || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) {
+    return { nombre: 'Responsable', ape_paterno: '', ape_materno: '' };
+  }
+  if (parts.length === 1) {
+    return { nombre: parts[0], ape_paterno: '', ape_materno: '' };
+  }
+  if (parts.length === 2) {
+    return { nombre: parts[0], ape_paterno: parts[1], ape_materno: '' };
+  }
+  return {
+    nombre: parts[0],
+    ape_paterno: parts[1],
+    ape_materno: parts.slice(2).join(' '),
+  };
+}
+
+/**
+ * POST /api/cadena/registro-empresa (público)
+ * Un solo paso: crea usuario responsable + empresa + rol cadena.
+ */
+export async function registerEmpresaCompleto(req, res) {
+  try {
+    const parsed = registerEmpresaSchema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res.status(400).json({ message: zodErrorMessage(parsed.error) });
+    }
+    const data = parsed.data;
+    const mail = String(data.correo || data.email)
+      .toLowerCase()
+      .trim();
+    const empresaNombre = clipStr(data.empresaNombre, 120);
+    if (!empresaNombre) {
+      return res.status(400).json({ message: 'nombre de la empresa es requerido' });
+    }
+
+    let years;
+    try {
+      years = ageFromBirthDateStrict(data.birthDate);
+    } catch (e) {
+      return res.status(400).json({ message: e.message });
+    }
+
+    const exists = await Usuario.findOne({ correo: mail }).select('_id').lean();
+    if (exists) {
+      return res.status(409).json({
+        message:
+          'Ese correo ya tiene cuenta. Entra como empresa y, si falta, registra la cadena en el panel.',
+      });
+    }
+
+    const names = data.nombre
+      ? {
+          nombre: clipStr(data.nombre, 80) || 'Responsable',
+          ape_paterno: '',
+          ape_materno: '',
+        }
+      : splitName(data.name);
+
+    const [roleEmpresa, nivelDoc] = await Promise.all([
+      Rol.findOne({
+        codigo: { $in: ['empresa', 'chain'] },
+        estatus: 'activo',
+      }),
+      Nivel.findOne({ estado: 'activo' }).sort({ pts_min: 1 }),
+    ]);
+    if (!roleEmpresa) {
+      return res.status(503).json({
+        message: 'Rol de empresa no configurado. Contacta a TraGo.',
+      });
+    }
+
+    const hash = await bcrypt.hash(data.password, 12);
+    const fechaNac = new Date(`${data.birthDate}T12:00:00.000Z`);
+    const user = await Usuario.create({
+      ...names,
+      correo: mail,
+      password: hash,
+      edad: years,
+      fecha_nacimiento: fechaNac,
+      puntos: 0,
+      estatus: 'activo',
+      tokenVersion: 0,
+      id_rol: roleEmpresa._id,
+      id_nivel: nivelDoc?._id || null,
+    });
+
+    const autoVerify =
+      process.env.TRAGO_AUTO_VERIFY_CHAIN === 'true' ||
+      process.env.TRAGO_AUTO_VERIFY_CHAIN === '1';
+    const slug = await uniqueSlug(Empresa, empresaNombre);
+
+    let empresa;
+    try {
+      empresa = await Empresa.create({
+        nombre: empresaNombre,
+        descripcion: clipStr(data.empresaDescripcion, 2000),
+        sitio_web: sanitizeHttpUrl(data.sitio_web),
+        slug,
+        id_dueno: user._id,
+        verificada: autoVerify,
+        plan: 'freemium',
+        plan_pauta: 'none',
+        estatus: 'activo',
+      });
+    } catch (e) {
+      await Usuario.deleteOne({ _id: user._id });
+      if (e?.code === 11000) {
+        return res.status(409).json({ message: 'Esa empresa ya está registrada' });
+      }
+      throw e;
+    }
+
+    const token = signAccessToken({
+      id: user._id,
+      role: roleEmpresa.codigo,
+      band: bandFromAge(years) || 'minor',
+      tv: 0,
+    });
+
+    return res.status(201).json({
+      token,
+      empresa: mapEmpresa(empresa.toObject()),
+      user: {
+        id: user._id,
+        email: user.correo,
+        name: [user.nombre, user.ape_paterno].filter(Boolean).join(' '),
+        rol: { codigo: roleEmpresa.codigo, nombre: roleEmpresa.nombre },
+      },
+      message: autoVerify
+        ? 'Empresa registrada. Ya puedes usar el panel.'
+        : 'Empresa registrada. Un admin verificará el catálogo público; el panel ya está listo.',
+    });
+  } catch (e) {
+    if (e?.code === 11000) {
+      return res.status(409).json({ message: 'Correo o empresa ya registrados' });
+    }
+    console.error('registerEmpresaCompleto:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
   }
 }

@@ -58,6 +58,50 @@ export const loginSchema = z
     }
   });
 
+/** Alta unificada: responsable + cadena (misma entidad comercial). */
+export const registerEmpresaSchema = z
+  .object({
+    /** Nombre comercial de la cadena / marca. */
+    empresaNombre: z
+      .string()
+      .trim()
+      .min(2, 'Nombre de la empresa demasiado corto')
+      .max(120),
+    empresaDescripcion: z.string().trim().max(2000).optional(),
+    sitio_web: z.string().trim().max(2048).optional(),
+    /** Contacto / responsable (persona). */
+    name: z.string().trim().min(2, 'Nombre del responsable corto').max(80).optional(),
+    nombre: z.string().trim().min(1).max(80).optional(),
+    email: z.string().trim().email('Correo inválido').max(120).optional(),
+    correo: z.string().trim().email('Correo inválido').max(120).optional(),
+    password: z
+      .string()
+      .min(8, 'Mínimo 8 caracteres')
+      .max(72, 'Máximo 72 caracteres'),
+    birthDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'birthDate debe ser YYYY-MM-DD'),
+    acceptTerms: z.boolean().optional(),
+    acceptPrivacy: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (!data.correo && !data.email) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'correo/email requerido',
+        path: ['email'],
+      });
+    }
+    if (!data.name && !data.nombre) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'nombre del responsable requerido',
+        path: ['name'],
+      });
+    }
+  });
+
 export function zodErrorMessage(err) {
   return err.issues?.[0]?.message || 'Datos inválidos';
 }

@@ -91,6 +91,11 @@ export default function Login() {
         </Link>
       </p>
       <p className="muted">
+        <Link to="/entrar-empresa" viewTransition>
+          {t('bizLoginNav')}
+        </Link>
+      </p>
+      <p className="muted">
         <Link to="/idioma" viewTransition>
           {t('languageLink')}
         </Link>

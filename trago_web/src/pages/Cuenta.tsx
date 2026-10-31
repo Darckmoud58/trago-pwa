@@ -122,6 +122,10 @@ export default function Cuenta() {
               <span>{t('titleChain')}</span>
               <em>›</em>
             </Link>
+            <Link className="settings-row" to="/entrar-empresa" viewTransition>
+              <span>{t('bizLoginNav')}</span>
+              <em>›</em>
+            </Link>
             <Link className="settings-row" to="/promos" viewTransition>
               <span>{t('settingsPromos')}</span>
               <em>›</em>
