@@ -2,10 +2,19 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
+import OfflineState from '../components/OfflineState';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
+import {
+  CACHE_KEYS,
+  cacheDelete,
+  cacheGet,
+  cacheSet,
+  canUseRestrictedOfflineCache,
+  isRestrictedCachedPromo,
+} from '../lib/offlineCache';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { trackPromoOpen, trackSucursalVista } from '../lib/metrics';
 import { googleMapsExactUrl, googleMapsSearchUrl } from '../lib/googleMaps';
@@ -42,13 +51,78 @@ export default function PromoDetalle() {
   const [loading, setLoading] = useState(true);
   const [locBusy, setLocBusy] = useState(false);
   const [locNote, setLocNote] = useState('');
+  const [fromCache, setFromCache] = useState(false);
 
   useEffect(() => {
     if (!promoId) return;
     setLoading(true);
     setError('');
+    setFromCache(false);
 
-    const onFail = () => {
+    const applyPayload = (
+      p: Promo,
+      ubis: Branch[],
+      vinculo: string | null,
+      offline: boolean
+    ) => {
+      setPromo(p);
+      setUbicaciones(ubis);
+      setVinculoMsg(vinculo);
+      setFromCache(offline);
+      if (!offline && p?._id) {
+        void trackPromoOpen(p._id, p.chainId ? String(p.chainId) : undefined);
+        for (const u of ubis) {
+          if (u._id) {
+            void trackSucursalVista(
+              p._id,
+              u._id,
+              p.chainId ? String(p.chainId) : undefined
+            );
+          }
+        }
+      }
+    };
+
+    const detailKey = CACHE_KEYS.promoDetail(promoId);
+
+    const onFail = async (err: unknown) => {
+      const status = (err as { response?: { status?: number } })?.response
+        ?.status;
+      // 401/403/404 = rechazo de acceso o inexistente: nunca “arreglar” con caché.
+      if (status === 401 || status === 403 || status === 404) {
+        await cacheDelete(detailKey);
+        setPromo(null);
+        setUbicaciones([]);
+        setError(
+          status === 404 ? t('promoMissing') : t('promoAuthRequired')
+        );
+        return;
+      }
+
+      const cached = await cacheGet<{
+        promo: Promo;
+        ubicaciones: Branch[];
+        vinculoMsg: string | null;
+      }>(detailKey);
+      const cachedPromo = cached?.data?.promo;
+      if (
+        cachedPromo &&
+        (!isRestrictedCachedPromo(cachedPromo) ||
+          canUseRestrictedOfflineCache())
+      ) {
+        applyPayload(
+          cachedPromo,
+          cached.data?.ubicaciones ?? [],
+          cached.data?.vinculoMsg ?? null,
+          true
+        );
+        setError('');
+        return;
+      }
+      if (cachedPromo && isRestrictedCachedPromo(cachedPromo)) {
+        await cacheDelete(detailKey);
+      }
+      setPromo(null);
       setError(t('promoMissing'));
     };
 
@@ -57,25 +131,23 @@ export default function PromoDetalle() {
         lat != null && lng != null ? { params: { lat, lng } } : undefined;
       return api
         .get(`/api/promociones/${promoId}`, params)
-        .then((res) => {
+        .then(async (res) => {
           const p = res.data.promo as Promo;
           const ubis = (res.data.sucursalesParticipantes ??
             res.data.ubicaciones ??
             []) as Branch[];
-          setPromo(p);
-          setUbicaciones(ubis);
-          setVinculoMsg(res.data.vinculoSucursales?.mensaje || null);
-          if (p?._id) {
-            void trackPromoOpen(p._id, p.chainId ? String(p.chainId) : undefined);
-            for (const u of ubis) {
-              if (u._id) {
-                void trackSucursalVista(
-                  p._id,
-                  u._id,
-                  p.chainId ? String(p.chainId) : undefined
-                );
-              }
-            }
+          const vinculo = res.data.vinculoSucursales?.mensaje || null;
+          applyPayload(p, ubis, vinculo, false);
+          // Solo cachear restringidas si hay sesión adulta vigente.
+          if (
+            !isRestrictedCachedPromo(p) ||
+            canUseRestrictedOfflineCache()
+          ) {
+            await cacheSet(detailKey, {
+              promo: p,
+              ubicaciones: ubis,
+              vinculoMsg: vinculo,
+            });
           }
         });
     };
@@ -86,16 +158,20 @@ export default function PromoDetalle() {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           void load(pos.coords.latitude, pos.coords.longitude)
-            .catch(onFail)
+            .catch((err) => onFail(err))
             .finally(finish);
         },
         () => {
-          void load().catch(onFail).finally(finish);
+          void load()
+            .catch((err) => onFail(err))
+            .finally(finish);
         },
         { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
       );
     } else {
-      void load().catch(onFail).finally(finish);
+      void load()
+        .catch((err) => onFail(err))
+        .finally(finish);
     }
   }, [promoId, t]);
 
@@ -113,12 +189,19 @@ export default function PromoDetalle() {
   }
 
   if (error || !promo) {
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
     return (
       <section className="promo-detail">
-        <p className="error">{error || t('promoNotFound')}</p>
-        <Link className="btn ghost" to="/promos" viewTransition>
-          {t('backToPromos')}
-        </Link>
+        {offline ? (
+          <OfflineState />
+        ) : (
+          <>
+            <p className="error">{error || t('promoNotFound')}</p>
+            <Link className="btn ghost" to="/promos" viewTransition>
+              {t('backToPromos')}
+            </Link>
+          </>
+        )}
       </section>
     );
   }
@@ -208,7 +291,19 @@ export default function PromoDetalle() {
           )}
         </div>
         <h1>{title}</h1>
+        {fromCache ? (
+          <p className="meta muted">{t('offlinePromoDetail')}</p>
+        ) : null}
         <PromoPrice promo={promo} className="promo-price-lg" />
+        {vinculoMsg ? (
+          <p className="detail-evidence" role="status">
+            {vinculoMsg}
+          </p>
+        ) : (
+          <p className="detail-evidence" role="status">
+            {t('evidencePublished')}
+          </p>
+        )}
         {desc && <p className="lead">{desc}</p>}
       </header>
 
@@ -337,9 +432,8 @@ export default function PromoDetalle() {
 
       <article className="detail-section" data-reveal data-reveal-delay="2">
         <h2>{t('whereApplies')}</h2>
-        {vinculoMsg && <p className="meta">{vinculoMsg}</p>}
         {ubicaciones.length === 0 ? (
-          <p className="muted">{t('noBranchesLinked')}</p>
+          <p className="muted">{t('askBranchBeforeGo')}</p>
         ) : (
           <ul className="detail-branch-list">
             {ubicaciones.map((u, i) => {

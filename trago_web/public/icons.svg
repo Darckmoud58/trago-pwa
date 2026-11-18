@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" fill="none">
   <symbol id="trago-mark" viewBox="0 0 32 32">
-    <rect width="32" height="32" rx="6" fill="#3B0B13"/>
+    <rect width="32" height="32" rx="6" fill="#820808"/>
     <text
       x="16"
       y="21"
@@ -9,7 +9,7 @@
       font-weight="700"
       font-size="9"
       letter-spacing="-0.04em"
-      fill="#F7E5B5"
+      fill="#FFF6E6"
     >TraGo</text>
   </symbol>
 </svg>

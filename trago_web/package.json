@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:onboarding": "tsc --ignoreConfig src/lib/onboarding.ts --target es2022 --module es2022 --skipLibCheck --outDir node_modules/.tmp/onboarding-test && node --test tests/onboarding.test.mjs",
+    "test:cache-security": "node --test tests/offlineCache.security.test.mjs",
+    "test:unit": "npm run test:onboarding && npm run test:cache-security"
   },
   "dependencies": {
     "axios": "^1.20.0",

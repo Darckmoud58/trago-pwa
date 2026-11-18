@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <defs>
+    <linearGradient id="g" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b0b13"/>
+      <stop offset="100%" stop-color="#8b1a1f"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#g)"/>
+  <rect x="60" y="60" width="840" height="420" rx="28" fill="none" stroke="#f7e5b5" stroke-opacity="0.25" stroke-width="2"/>
+  <text x="96" y="260" fill="#f7e5b5" font-family="Georgia, serif" font-size="54" font-weight="700">Fin de semana</text>
+  <text x="96" y="320" fill="#f7e5b5" font-family="system-ui,sans-serif" font-size="28" opacity="0.8">Explorar · creativo demo</text>
+</svg>

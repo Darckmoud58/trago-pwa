@@ -1,5 +1,6 @@
 import OfficialRefresh from '../models/OfficialRefresh.js';
 import Promocion from '../models/Promocion.js';
+import { refreshOfficialBirthdayBenefits } from './birthdayOfficialCollector.js';
 import {
   backfillMissingProductImages,
   collectNearbyPromos,
@@ -59,6 +60,17 @@ export async function refreshOfficialSources() {
       return [];
     }
     const sources = await collectNearbyPromos(companies);
+    try {
+      const bday = await refreshOfficialBirthdayBenefits();
+      console.log(
+        `[officialPromoJob] cumple oficiales · upserted=${bday.upserted} skipped=${bday.skipped}`
+      );
+      if (bday.errors?.length) {
+        console.warn('[officialPromoJob] cumple errores:', bday.errors.join(' | '));
+      }
+    } catch (e) {
+      console.error('[officialPromoJob] birthday benefits:', e.message);
+    }
     // Empresas sin scraper (p.ej. FG con URL de producto) también rellenan foto.
     try {
       const missingEmpresas = await Promocion.distinct('id_empresa', {

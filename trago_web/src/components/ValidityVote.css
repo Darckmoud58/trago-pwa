@@ -22,7 +22,7 @@
 
 html[data-theme='night'] .validity-counts,
 html[data-theme='night'] .validity-geo {
-  color: rgba(247, 229, 181, 0.75);
+  color: rgba(255, 246, 230, 0.75);
 }
 
 .validity-actions {

@@ -66,6 +66,13 @@ export function clearToken() {
     /* storage bloqueado */
   }
   setAuth(null);
+  window.dispatchEvent(new Event('trago-session'));
+  // Evita que un 404/403 de alcohol se “arregle” con IndexedDB tras logout.
+  void import('./lib/catalogCache')
+    .then((m) => m.clearCatalogCache())
+    .catch(() => {
+      /* ignore */
+    });
 }
 
 const saved = readToken();
@@ -82,7 +89,6 @@ api.interceptors.response.use(
       url.includes('/api/auth/login') || url.includes('/api/auth/register');
     if (error?.response?.status === 401 && sentAuth && !isLogin && readToken()) {
       clearToken();
-      window.dispatchEvent(new Event('trago-session'));
     }
     return Promise.reject(error);
   }

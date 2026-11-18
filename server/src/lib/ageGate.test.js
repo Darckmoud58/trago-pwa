@@ -61,6 +61,23 @@ describe('isRestrictedPromo', () => {
       }),
       false
     );
+    assert.equal(
+      isRestrictedPromo({ nombre: 'Sangría Lolea N5 Rosé', alcohol: false }),
+      true
+    );
+    assert.equal(
+      isRestrictedPromo({ nombre: 'Regalo Torres 20', descripcion: 'brandy', alcohol: false }),
+      true
+    );
+  });
+
+  it('sin sesión auth no ve restringidas', () => {
+    assert.equal(canSeeRestricted({ source: 'unknown', band: 'unknown' }), false);
+    assert.equal(canSeeRestricted({ source: 'cookie', band: 'adult', age: 18 }), false);
+    assert.equal(
+      canSeeRestricted({ source: 'auth', userId: 'u1', band: 'adult', age: 22 }),
+      true
+    );
   });
 });
 

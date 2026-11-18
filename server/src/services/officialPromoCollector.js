@@ -4,6 +4,10 @@ import Empresa from '../models/Empresa.js';
 import { linkOfficialPromoIfSourceNamesBranch } from './promoBranchLinks.js';
 import { looksLikeAlcohol } from '../lib/ageGate.js';
 import { parsePromoPrice, resolvePromoPrice } from '../lib/promoPrice.js';
+import {
+  classifyCatalogEntry,
+  sanitizePromoTitle,
+} from '../lib/catalogQuality.js';
 
 // UA de navegador: FG/Demandware y otros CDN responden 403 al bot corto.
 const UA =
@@ -1061,7 +1065,7 @@ function parsePage(body, url, company) {
     const category = clean(m[3]);
     const maybeLink = clean(m[4] || '');
     const terms = clean(m[5]);
-    if (title.length >= 4) {
+    if (title.length >= 4 && !/^name$/i.test(title)) {
       const deep =
         /^https?:\/\//i.test(maybeLink)
           ? maybeLink
@@ -1073,7 +1077,9 @@ function parsePage(body, url, company) {
         description: `${category}${terms ? ` · ${terms}` : ''}`.slice(0, 500),
         sourceUrl: deep || url,
         image: sanitizePromoImage(m[1], url),
-        evidence: `${title} ${category} ${terms}`,
+        evidence: `${title} ${category} ${terms} promoción oferta`,
+        // El grid /promociones YA es el beneficio; no exigir 2x1 en el título.
+        fromOfficialPromoGrid: true,
         _matchIndex: m.index,
       });
     }
@@ -1520,76 +1526,103 @@ export async function collectNearbyPromos(companies) {
 
       const now = new Date();
       let linkedFromSource = 0;
-      const operations = [...uniqueHits.values()].map((hit) => {
-        const key = crypto
-          .createHash('sha1')
-          .update(`${companyId}:${slugify(hit.title)}`)
-          .digest('hex')
-          .slice(0, 16);
-        const fromHit =
-          hit.start || hit.end
-            ? { start: hit.start || null, end: hit.end || null }
-            : dates(hit.evidence);
-        const { start, end } = fromHit;
-        const flags = classify(hit.evidence);
-        const priced = resolvePromoPrice({
-          precio: hit.price ?? hit.precio,
-          precioLista: hit.listPrice ?? hit.precio_lista,
-          precioTexto: hit.priceText ?? hit.precio_texto,
-          title: hit.title,
-          description: hit.description,
-        });
-        // Si el scraper no trae cifra, intenta del título (2X$48, Lunch King $99…).
-        const fromTitle =
-          priced.precio != null
-            ? priced
-            : parsePromoPrice(`${hit.title || ''} ${hit.description || ''}`);
-        const nextImage = pickPromoImage(
-          hit.title,
-          hit.image || '',
-          hit.sourceUrl || ''
-        );
-        const $set = {
-          slug: `oficial-${key}`,
-          id_empresa: company._id,
-          nombre: hit.title,
-          descripcion:
-            hit.description || `Promoción publicada por ${company.nombre}.`,
-          politicas: `Fuente oficial consultada automáticamente. ${
-            start && end
-              ? 'Vigencia extraída del texto publicado.'
-              : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'
-          }`,
-          origen: 'oficial',
-          url_fuente: deepenOfficialSourceUrl(hit.sourceUrl || ''),
-          inicia_en: start,
-          termina_en: end,
-          alcohol: flags.alcohol,
-          audiencia: flags.alcohol ? 'adulto' : 'todos',
-          nocturno: flags.nocturno,
-          estatus: end && end < now ? 'caduco' : 'activo',
-          destacada: false,
-          precio: fromTitle.precio,
-          precio_lista: fromTitle.precioLista,
-          precio_texto: fromTitle.precioTexto || '',
-        };
-        // Solo escribe imagen si el scrape trae una; no borra fotos buenas ni pone logo de cadena.
-        if (nextImage) $set.imagen = nextImage;
-        return {
-          updateOne: {
-            filter: { slug: `oficial-${key}` },
-            update: { $set },
-            upsert: true,
-          },
-        };
-      });
+      const operations = [...uniqueHits.values()]
+        .map((hit) => {
+          const cleanTitle = sanitizePromoTitle(hit.title) || hit.title;
+          const quality = classifyCatalogEntry({
+            title: cleanTitle,
+            description: hit.description,
+            price: hit.price ?? hit.precio,
+            priceText: hit.priceText ?? hit.precio_texto,
+            birthday: Boolean(hit.birthday || hit.cumpleanos),
+            fromOfficialPromoGrid: Boolean(hit.fromOfficialPromoGrid),
+          });
+          if (!quality.publish) return null;
+
+          const key = crypto
+            .createHash('sha1')
+            .update(`${companyId}:${slugify(cleanTitle)}`)
+            .digest('hex')
+            .slice(0, 16);
+          const fromHit =
+            hit.start || hit.end
+              ? { start: hit.start || null, end: hit.end || null }
+              : dates(hit.evidence);
+          const { start, end } = fromHit;
+          const flags = classify(hit.evidence);
+          const priced = resolvePromoPrice({
+            precio: hit.price ?? hit.precio,
+            precioLista: hit.listPrice ?? hit.precio_lista,
+            precioTexto: hit.priceText ?? hit.precio_texto,
+            title: cleanTitle,
+            description: hit.description,
+          });
+          const fromTitle =
+            priced.modo && priced.modo !== 'consultar'
+              ? priced
+              : priced.precio != null
+                ? priced
+                : parsePromoPrice(
+                    `${cleanTitle || ''} ${hit.description || ''}`
+                  );
+          const nextImage = pickPromoImage(
+            cleanTitle,
+            hit.image || '',
+            hit.sourceUrl || ''
+          );
+          const consultedNote =
+            'Fecha de consulta automática; no es lo mismo que vigencia confirmada en piso.';
+          const $set = {
+            slug: `oficial-${key}`,
+            id_empresa: company._id,
+            nombre: cleanTitle,
+            descripcion:
+              hit.description || `Promoción publicada por ${company.nombre}.`,
+            politicas: `Fuente oficial consultada automáticamente. ${
+              start && end
+                ? 'Vigencia extraída del texto publicado.'
+                : 'La página no indicó fechas legibles; confirma vigencia y condiciones con la empresa.'
+            } ${consultedNote}`,
+            origen: 'oficial',
+            url_fuente: deepenOfficialSourceUrl(hit.sourceUrl || ''),
+            inicia_en: start,
+            termina_en: end,
+            alcohol: flags.alcohol,
+            audiencia: flags.alcohol ? 'adulto' : 'todos',
+            nocturno: flags.nocturno,
+            cumpleanos: quality.kind === 'lealtad' ? Boolean(hit.birthday) : false,
+            estatus: end && end < now ? 'caduco' : 'activo',
+            destacada: false,
+            precio:
+              fromTitle.modo === 'consultar' || fromTitle.modo === 'cargo'
+                ? null
+                : fromTitle.precio,
+            precio_lista:
+              fromTitle.modo === 'consultar' ? null : fromTitle.precioLista,
+            precio_texto:
+              fromTitle.modo === 'consultar'
+                ? 'Consultar precio'
+                : fromTitle.precioTexto || '',
+          };
+          if (nextImage) $set.imagen = nextImage;
+          return {
+            updateOne: {
+              filter: { slug: `oficial-${key}` },
+              update: { $set },
+              upsert: true,
+            },
+          };
+        })
+        .filter(Boolean);
       if (operations.length) {
         await Promocion.bulkWrite(operations, { ordered: false });
         const keepSlugs = operations.map((op) => op.updateOne.filter.slug);
+        // No caducar beneficios de cumple (viven en birthdayOfficialCollector).
         await Promocion.updateMany(
           {
             id_empresa: company._id,
             origen: 'oficial',
+            cumpleanos: { $ne: true },
             slug: { $nin: keepSlugs },
             estatus: 'activo',
           },
@@ -1611,10 +1644,16 @@ export async function collectNearbyPromos(companies) {
           );
           if (result.especificado) linkedFromSource += result.linked;
         }
-      } else if (!errors.length) {
-        // Fuente respondió pero sin ofertas legibles: caducar basura previa
+      } else if (!errors.length && uniqueHits.size === 0) {
+        // Solo caducar si la fuente realmente no trajo cards.
+        // Si hubo hits pero quality rechazó todas, NO borrar el catálogo previo.
         await Promocion.updateMany(
-          { id_empresa: company._id, origen: 'oficial', estatus: 'activo' },
+          {
+            id_empresa: company._id,
+            origen: 'oficial',
+            cumpleanos: { $ne: true },
+            estatus: 'activo',
+          },
           { $set: { estatus: 'caduco' } }
         );
       }

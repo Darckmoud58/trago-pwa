@@ -169,18 +169,23 @@ export function vinculoMeta(linkedCount, fuenteEspecificada) {
   if (linkedCount > 0 && fuenteEspecificada) {
     return {
       especificado: true,
-      mensaje: 'Sucursales indicadas por la fuente o por la cadena.',
+      estado: 'participacion_confirmada',
+      mensaje:
+        'Participación confirmada en sucursales indicadas por la marca o la cadena.',
     };
   }
   if (linkedCount > 0) {
     return {
       especificado: true,
-      mensaje: 'Sucursales asignadas por la cadena (participantes).',
+      estado: 'asignada_cadena',
+      mensaje:
+        'La cadena marcó sucursales participantes. Confirma vigencia al llegar.',
     };
   }
   return {
     especificado: false,
+    estado: 'vigencia_sin_confirmar',
     mensaje:
-      'La fuente oficial no especifica en cuál sucursal aplica. No inventamos participación.',
+      'La marca publicó la oferta, pero no indica en qué sucursal aplica. Consulta con la sucursal antes de acudir.',
   };
 }

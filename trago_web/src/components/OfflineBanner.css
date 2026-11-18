@@ -1,29 +1,65 @@
 .offline-banner {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem 0.75rem;
-  align-items: baseline;
-  padding: 0.55rem 1rem;
-  background: rgba(59, 11, 19, 0.92);
-  color: #f7e5b5;
+  gap: 0.55rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+  background:
+    radial-gradient(80% 120% at 100% 0%, rgba(216, 26, 28, 0.28), transparent 55%),
+    rgba(20, 4, 8, 0.94);
+  color: #fff6e6;
   font-size: 0.82rem;
-  border-bottom: 1px solid rgba(247, 229, 181, 0.15);
+  border-bottom: 1px solid rgba(255, 246, 230, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 40;
+}
+
+.offline-banner-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 14rem;
 }
 
 .offline-banner strong {
-  font-size: 0.78rem;
-  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+.offline-banner-copy span {
+  color: color-mix(in srgb, #fff6e6 82%, transparent);
+  line-height: 1.35;
+}
+
+.offline-banner-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+}
+
 .offline-banner a {
-  color: #f7e5b5 !important;
-  text-decoration: underline;
-  text-underline-offset: 0.12em;
+  color: #fff6e6 !important;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #fff6e6 28%, transparent);
+}
+
+.offline-banner a:hover {
+  border-color: color-mix(in srgb, #d81a1c 55%, transparent);
+  background: color-mix(in srgb, #d81a1c 22%, transparent);
 }
 
 @media (min-width: 900px) {
   .offline-banner {
-    margin-left: 5.25rem;
+    padding-left: 1.15rem;
   }
 }

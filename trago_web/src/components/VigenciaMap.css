@@ -9,7 +9,7 @@
   min-height: 220px;
   border-radius: 0.85rem;
   overflow: hidden;
-  border: 1px solid rgba(59, 11, 19, 0.12);
+  border: 1px solid rgba(130, 8, 8, 0.12);
   background: #e8efe8;
   z-index: 0;
 }
@@ -20,7 +20,7 @@
   gap: 0.55rem 0.9rem;
   margin-bottom: 0.55rem;
   font-size: 0.78rem;
-  color: #3b0b13;
+  color: #820808;
 }
 
 .vigencia-map-legend span {
@@ -93,26 +93,26 @@
   font-size: 0.75rem;
   padding: 0.3rem 0.6rem;
   border-radius: 999px;
-  border: 1px solid rgba(59, 11, 19, 0.15);
+  border: 1px solid rgba(130, 8, 8, 0.15);
   background: #fff;
-  color: #3b0b13;
+  color: #820808;
   cursor: pointer;
 }
 
 .cadena-status-chips button.is-active {
-  background: #3b0b13;
+  background: #820808;
   color: #fff8f6;
-  border-color: #3b0b13;
+  border-color: #820808;
 }
 
 html[data-theme='night'] .cadena-status-chips button {
   background: #2a0810;
-  border-color: rgba(247, 229, 181, 0.22);
-  color: #f7e5b5;
+  border-color: rgba(255, 246, 230, 0.22);
+  color: #fff6e6;
 }
 
 html[data-theme='night'] .cadena-status-chips button.is-active {
   background: #d81a1c;
   border-color: #d81a1c;
-  color: #f7e5b5;
+  color: #fff6e6;
 }

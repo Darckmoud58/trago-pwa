@@ -1,19 +1,25 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useI18n } from '../lib/i18n';
 import './BottomNav.css';
 
 type Props = {
   hasSession: boolean;
+  birthdayToday?: boolean;
 };
 
-export default function BottomNav({ hasSession }: Props) {
-  const { pathname } = useLocation();
+export default function BottomNav({ hasSession, birthdayToday = false }: Props) {
+  const { pathname, state } = useLocation();
   const { t } = useI18n();
+  const loginReason =
+    state && typeof state === 'object' && 'reason' in state
+      ? String((state as { reason?: string }).reason || '')
+      : '';
 
   const items = [
     {
       to: '/',
-      label: t('navHome'),
+      label: birthdayToday ? t('quickBday') : t('navHome'),
+      accent: birthdayToday,
       icon: (
         <svg viewBox="0 0 24 24" aria-hidden width="22" height="22">
           <path
@@ -73,23 +79,45 @@ export default function BottomNav({ hasSession }: Props) {
     },
   ] as const;
 
+  const onAuthGate =
+    pathname.startsWith('/entrar') || pathname.startsWith('/registro');
+
+  function isItemActive(itemTo: string): boolean {
+    // Favoritos y Cuenta sin sesión van a /entrar: un solo destino activo.
+    if (onAuthGate && !hasSession) {
+      if (itemTo === '/favoritos') return loginReason === 'favorite';
+      if (itemTo === '/cuenta') return loginReason !== 'favorite';
+      return false;
+    }
+    if (itemTo === '/') return pathname === '/';
+    if (itemTo === '/cuenta') {
+      return (
+        pathname.startsWith('/cuenta') ||
+        pathname.startsWith('/idioma') ||
+        pathname.startsWith('/cadena')
+      );
+    }
+    if (itemTo === '/favoritos') return pathname.startsWith('/favoritos');
+    if (itemTo === '/promos') return pathname.startsWith('/promos');
+    if (itemTo === '/cerca') return pathname.startsWith('/cerca');
+    return pathname === itemTo || pathname.startsWith(`${itemTo}/`);
+  }
+
   return (
-    <nav className="bottom-nav" aria-label={t('navAria')}>
+    <nav
+      className={`bottom-nav${birthdayToday ? ' is-bday' : ''}`}
+      aria-label={t('navAria')}
+    >
       <div className="bottom-nav-inner">
         {items.map((item) => {
           const needsAuth =
             item.to === '/cuenta' || item.to === '/favoritos';
           const to = needsAuth && !hasSession ? '/entrar' : item.to;
-          const forceActive =
-            item.to === '/cuenta' &&
-            (pathname.startsWith('/cuenta') ||
-              pathname.startsWith('/entrar') ||
-              pathname.startsWith('/registro') ||
-              pathname.startsWith('/idioma') ||
-              pathname.startsWith('/cadena'));
+          const active = isItemActive(item.to);
+          const isAccent = 'accent' in item && item.accent;
 
           return (
-            <NavLink
+            <Link
               key={item.to}
               to={to}
               state={
@@ -100,15 +128,13 @@ export default function BottomNav({ hasSession }: Props) {
                     }
                   : undefined
               }
-              end={item.to === '/'}
               viewTransition
-              className={({ isActive }) =>
-                `bottom-nav-item${isActive || forceActive ? ' is-active' : ''}`
-              }
+              className={`bottom-nav-item${active ? ' is-active' : ''}${isAccent ? ' is-bday-accent' : ''}`}
+              aria-current={active ? 'page' : undefined}
             >
               <span className="bottom-nav-ico">{item.icon}</span>
               <span className="bottom-nav-label">{item.label}</span>
-            </NavLink>
+            </Link>
           );
         })}
       </div>

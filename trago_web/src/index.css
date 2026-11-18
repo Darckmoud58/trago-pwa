@@ -3,21 +3,21 @@
 @import './styles/scroll.css';
 
 /*
-  Paleta TraGo — uso correcto
-  Beige #F7E5B5 → base / superficies (lo que más se ve)
-  Tinto #3B0B13 → texto, header, footer
+  Paleta TraGo — escritorio limpio (feedback diseño)
+  Fondo #F8F9FA → base clara
+  Tinto #820808 → texto / chrome
   Rojo  #D81A1C → solo CTA y favorito activo
 */
 :root {
   --rojo: #d81a1c;
-  --tinto: #3b0b13;
-  --beige: #f7e5b5;
+  --tinto: #820808;
+  --beige: #f8f9fa;
 
-  --beige-soft: #fbf3de;
-  --beige-deep: #efe0b0;
-  --tinto-soft: rgba(59, 11, 19, 0.72);
-  --tinto-line: rgba(59, 11, 19, 0.14);
-  --danger: #b01416;
+  --beige-soft: #ffffff;
+  --beige-deep: #eef0f2;
+  --tinto-soft: rgba(130, 8, 8, 0.72);
+  --tinto-line: rgba(130, 8, 8, 0.12);
+  --danger: #a00808;
 
   /* Tokens semánticos (día) */
   --bg: var(--beige);
@@ -25,13 +25,13 @@
   --fg: var(--tinto);
   --fg-soft: var(--tinto-soft);
   --line: var(--tinto-line);
-  --surface: var(--beige-soft);
-  --surface-elevated: #fff8e8;
-  --chrome: #3b0b13;
-  --chrome-fg: #f7e5b5;
-  --shadow: 0 10px 28px color-mix(in srgb, var(--chrome) 14%, transparent);
-  --radius-lg: 1.15rem;
-  --radius-md: 0.95rem;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --chrome: #820808;
+  --chrome-fg: #ffffff;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --radius-lg: 1rem;
+  --radius-md: 0.85rem;
 
   --sans: 'Figtree', system-ui, sans-serif;
   --display: 'Syne', system-ui, sans-serif;
@@ -50,25 +50,36 @@ html[data-theme='night'] {
   --beige: #12060a;
   --beige-soft: #1c0a10;
   --beige-deep: #0a0305;
-  --tinto: #f7e5b5;
-  --tinto-soft: rgba(247, 229, 181, 0.72);
-  --tinto-line: rgba(247, 229, 181, 0.16);
+  --tinto: #fff6e6;
+  --tinto-soft: rgba(255, 246, 230, 0.72);
+  --tinto-line: rgba(255, 246, 230, 0.16);
   --danger: #ff6b6b;
 
   --bg: #050203;
   --bg-soft: #1a080c;
-  --fg: #f7e5b5;
-  --fg-soft: rgba(247, 229, 181, 0.75);
-  --line: rgba(247, 229, 181, 0.16);
+  --fg: #fff6e6;
+  --fg-soft: rgba(255, 246, 230, 0.75);
+  --line: rgba(255, 246, 230, 0.16);
   --surface: #2e0a12;
   --surface-elevated: #451018;
   --chrome: #000000;
-  --chrome-fg: #f7e5b5;
-  --shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  --chrome-fg: #fff6e6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.28);
 
   color: var(--fg);
   background: var(--bg);
   color-scheme: dark;
+}
+
+html[data-density='compacta'] .promo-grid,
+html[data-density='compacta'] .home-app,
+html[data-density='compacta'] .cerca-page {
+  --ui-stack-gap: 0.7rem;
+}
+
+html[data-density='compacta'] .promo-card,
+html[data-density='compacta'] .cerca-place-list > li {
+  padding-block: 0.55rem;
 }
 
 * {
@@ -88,10 +99,7 @@ body {
   min-height: 100svh;
   min-height: 100dvh;
   background-color: var(--bg);
-  background-image:
-    radial-gradient(900px 500px at 100% -10%, rgba(216, 26, 28, 0.06), transparent 55%),
-    radial-gradient(700px 400px at -5% 90%, rgba(59, 11, 19, 0.05), transparent 50%),
-    linear-gradient(180deg, var(--beige-soft) 0%, var(--beige) 45%, var(--beige-deep) 100%);
+  background-image: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
   transition: background-color 0.45s ease, color 0.45s ease;
@@ -100,7 +108,7 @@ body {
 html[data-theme='night'] body {
   background-image:
     radial-gradient(800px 480px at 90% -5%, rgba(216, 26, 28, 0.18), transparent 55%),
-    radial-gradient(600px 380px at 0% 100%, rgba(59, 11, 19, 0.55), transparent 50%),
+    radial-gradient(600px 380px at 0% 100%, rgba(130, 8, 8, 0.45), transparent 50%),
     linear-gradient(180deg, #12060a 0%, #050203 50%, #000000 100%);
 }
 
@@ -218,13 +226,17 @@ p {
 
 .btn.primary {
   background: #d81a1c;
-  color: #f7e5b5;
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  border: 1px solid color-mix(in srgb, #ffffff 28%, #d81a1c);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12), 0 0 0 1px rgba(216, 26, 28, 0.25);
 }
 
 .btn.primary:hover {
   background: #b01416;
-  color: #f7e5b5;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(16, 24, 40, 0.14), 0 0 0 1px rgba(176, 20, 22, 0.3);
 }
 
 .btn.ghost {
@@ -256,19 +268,19 @@ p {
   border-radius: 1rem;
   overflow: hidden;
   margin-bottom: 2rem;
-  box-shadow: 0 18px 40px rgba(59, 11, 19, 0.18);
+  box-shadow: 0 18px 40px rgba(130, 8, 8, 0.18);
 }
 
 .hero-bg {
   position: absolute;
   inset: 0;
-  background-color: #3b0b13;
+  background-color: #820808;
   background-image:
     linear-gradient(
       to top,
-      rgba(59, 11, 19, 0.92) 10%,
-      rgba(59, 11, 19, 0.55) 50%,
-      rgba(59, 11, 19, 0.35)
+      rgba(130, 8, 8, 0.92) 10%,
+      rgba(130, 8, 8, 0.55) 50%,
+      rgba(130, 8, 8, 0.35)
     ),
     url('https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1600&h=1000&fit=crop');
   background-position: center;
@@ -284,27 +296,27 @@ p {
   justify-content: flex-end;
   min-height: min(72svh, 580px);
   padding: 2rem 1.5rem;
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 .hero-copy h1,
 .hero-copy .lead,
 .hero-copy .brand-hero {
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 .hero-copy .lead {
-  color: rgba(247, 229, 181, 0.88);
+  color: rgba(255, 246, 230, 0.88);
 }
 
 .hero-copy .btn.ghost {
-  border-color: rgba(247, 229, 181, 0.45);
-  color: #f7e5b5;
+  border-color: rgba(255, 246, 230, 0.45);
+  color: #fff6e6;
 }
 
 .hero-copy .btn.ghost:hover {
-  background: rgba(247, 229, 181, 0.12);
-  border-color: #f7e5b5;
+  background: rgba(255, 246, 230, 0.12);
+  border-color: #fff6e6;
 }
 
 .brand-hero {
@@ -346,16 +358,23 @@ p {
   }
 }
 
+@media (min-width: 1100px) {
+  .promo-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .promo-price {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.4rem;
-  margin: 0.2rem 0 0.15rem;
+  gap: 0.45rem;
+  margin: 0.15rem 0 0.1rem;
   font-family: var(--display, var(--sans));
-  font-size: 1.05rem;
+  font-size: clamp(1.35rem, 2.4vw, 1.75rem);
   font-weight: 700;
+  line-height: 1.05;
   color: var(--rojo, #d81a1c);
-  letter-spacing: 0.01em;
+  letter-spacing: -0.02em;
 }
 
 .promo-price strong {
@@ -363,25 +382,25 @@ p {
 }
 
 .promo-price s {
-  font-size: 0.82rem;
+  font-size: 0.72em;
   font-weight: 500;
   color: var(--fg-soft);
   text-decoration-thickness: 1px;
 }
 
 .promo-price-lg {
-  font-size: 1.35rem;
+  font-size: clamp(1.55rem, 2.8vw, 2rem);
   margin: 0.35rem 0 0.45rem;
 }
 
 .cerca-collage-caption .promo-price {
   margin: 0.1rem 0;
   font-size: 0.95rem;
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 .cerca-collage-caption .promo-price s {
-  color: color-mix(in srgb, #f7e5b5 70%, transparent);
+  color: color-mix(in srgb, #fff6e6 70%, transparent);
 }
 
 .promo-card {
@@ -540,8 +559,8 @@ p {
 
 html[data-theme='night'] .fav-btn-overlay:not(.is-on) {
   background: color-mix(in srgb, #2e0a12 78%, transparent);
-  border-color: rgba(247, 229, 181, 0.22);
-  color: #f7e5b5;
+  border-color: rgba(255, 246, 230, 0.22);
+  color: #fff6e6;
 }
 
 .fav-card {
@@ -696,7 +715,7 @@ html[data-theme='night'] .fav-btn-overlay:not(.is-on) {
 /* ——— Modo noche: superficies hardcodeadas en páginas ——— */
 html[data-theme='night'] .app-header {
   background: #000;
-  border-bottom-color: rgba(247, 229, 181, 0.12);
+  border-bottom-color: rgba(255, 246, 230, 0.12);
 }
 
 html[data-theme='night'] .bottom-nav {
@@ -706,7 +725,7 @@ html[data-theme='night'] .bottom-nav {
 
 html[data-theme='night'] .bottom-nav-inner {
   background: color-mix(in srgb, #000 92%, transparent);
-  border-color: rgba(247, 229, 181, 0.2);
+  border-color: rgba(255, 246, 230, 0.2);
 }
 
 html[data-theme='night'] .app-shell {
@@ -728,17 +747,17 @@ html[data-theme='night'] .idioma-page {
 html[data-theme='night'] .quick-chip.primary,
 html[data-theme='night'] .filter-chip.is-on {
   background: #000 !important;
-  color: #f7e5b5 !important;
-  border-color: rgba(247, 229, 181, 0.35) !important;
+  color: #fff6e6 !important;
+  border-color: rgba(255, 246, 230, 0.35) !important;
 }
 
 html[data-theme='night'] .cuenta-avatar {
   background-color: #1a060a !important;
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 html[data-theme='night'] .settings-row {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
   border-bottom-color: var(--line) !important;
 }
 
@@ -751,7 +770,7 @@ html[data-theme='night'] .lead {
 }
 
 html[data-theme='night'] .text-link {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
   opacity: 0.85;
 }
 
@@ -764,27 +783,27 @@ html[data-theme='night'] h1,
 html[data-theme='night'] h2,
 html[data-theme='night'] h3,
 html[data-theme='night'] h4 {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 html[data-theme='night'] .tag {
-  background: rgba(247, 229, 181, 0.12);
-  color: #f7e5b5;
+  background: rgba(255, 246, 230, 0.12);
+  color: #fff6e6;
 }
 
 html[data-theme='night'] .install-sheet-card {
   background: #000;
-  border-color: rgba(247, 229, 181, 0.28);
+  border-color: rgba(255, 246, 230, 0.28);
 }
 
 /* Legal: contraste fuerte (el CSS de página ya usa tokens; refuerzo global) */
 html[data-theme='night'] .legal,
 html[data-theme='night'] .legal-section,
 html[data-theme='night'] .legal-hero {
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 html[data-theme='night'] .legal p,
 html[data-theme='night'] .legal li {
-  color: rgba(247, 229, 181, 0.88) !important;
+  color: rgba(255, 246, 230, 0.88) !important;
 }

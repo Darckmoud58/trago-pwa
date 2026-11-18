@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { isNightInMexico } from '../lib/night';
+import { isNightInMexico, msUntilNextNightFlip } from '../lib/night';
 
-const THEME_COLOR_DAY = '#3B0B13';
+const THEME_COLOR_DAY = '#820808';
 const THEME_COLOR_NIGHT = '#000000';
+/** Respaldo corto solo con app visible (iOS congela intervalos largos). */
+const VISIBLE_POLL_MS = 20_000;
 
 function applyNight(night: boolean) {
   const root = document.documentElement;
@@ -29,22 +31,57 @@ export function useNightTheme() {
   );
 
   useEffect(() => {
+    let flipTimer = 0;
+    let pollTimer = 0;
+
     function sync() {
       const next = isNightInMexico();
-      setNight(next);
+      setNight((prev) => (prev === next ? prev : next));
       applyNight(next);
     }
 
+    function scheduleFlip() {
+      window.clearTimeout(flipTimer);
+      const wait = msUntilNextNightFlip();
+      flipTimer = window.setTimeout(() => {
+        sync();
+        scheduleFlip();
+      }, wait);
+    }
+
+    function clearPoll() {
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = 0;
+      }
+    }
+
+    function startPollIfVisible() {
+      clearPoll();
+      if (document.visibilityState !== 'visible') return;
+      pollTimer = window.setInterval(sync, VISIBLE_POLL_MS);
+    }
+
+    function onWake() {
+      sync();
+      scheduleFlip();
+      startPollIfVisible();
+    }
+
     sync();
-    const id = window.setInterval(sync, 60_000);
-    const onVis = () => {
-      if (document.visibilityState === 'visible') sync();
-    };
-    document.addEventListener('visibilitychange', onVis);
+    scheduleFlip();
+    startPollIfVisible();
+
+    document.addEventListener('visibilitychange', onWake);
+    window.addEventListener('focus', onWake);
+    window.addEventListener('pageshow', onWake);
 
     return () => {
-      window.clearInterval(id);
-      document.removeEventListener('visibilitychange', onVis);
+      window.clearTimeout(flipTimer);
+      clearPoll();
+      document.removeEventListener('visibilitychange', onWake);
+      window.removeEventListener('focus', onWake);
+      window.removeEventListener('pageshow', onWake);
     };
   }, []);
 

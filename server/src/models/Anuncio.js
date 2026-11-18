@@ -5,7 +5,13 @@ import mongoose from 'mongoose';
  * Nunca entra al catálogo de /api/promociones.
  * Colección: anuncios
  */
-const SLOTS = ['home_rail', 'explorar_mid', 'cerca_top'];
+const SLOTS = [
+  'home_rail',
+  'explorar_mid',
+  'cerca_top',
+  'side_left',
+  'side_right',
+];
 
 const schema = new mongoose.Schema(
   {
@@ -18,6 +24,8 @@ const schema = new mongoose.Schema(
     titulo: { type: String, required: true, trim: true, maxlength: 120 },
     copy: { type: String, default: '', maxlength: 280 },
     imagen_url: { type: String, default: '' },
+    /** Creativo video (mp4/webm). Si hay video, la PWA lo prioriza sobre imagen. */
+    video_url: { type: String, default: '' },
     url_destino: { type: String, default: '' },
     inicia: { type: Date, default: null },
     termina: { type: Date, default: null },

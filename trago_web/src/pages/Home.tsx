@@ -1,37 +1,68 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import SponsoredSlot from '../components/SponsoredSlot';
 import { isBirthdayFreebie, useAuthUser } from '../hooks/useAuthUser';
+import { useUserPrefs } from '../hooks/useUserPrefs';
 import {
   CACHE_KEYS,
   cacheGet,
   cacheSet,
   filterActivePromos,
+  filterGuestSafePromos,
 } from '../lib/offlineCache';
+import { greetingKey } from '../lib/greeting';
 import { useI18n } from '../lib/i18n';
+import {
+  birthdayUnlockKey,
+  readSessionFlag,
+  writeSessionFlag,
+} from '../lib/birthdayDay';
+import {
+  isGeolocationError,
+  readGpsCached,
+  setLastKnownGps,
+} from '../lib/lastKnownGps';
 import { resolveMediaUrl } from '../lib/mediaUrl';
-import { trackGps } from '../lib/metrics';
+import { track, trackGps } from '../lib/metrics';
+import {
+  isOnboardingOpen,
+  replayOnboarding,
+  SPLASH_CLOSED,
+} from '../lib/onboarding';
+import { formatCacheAge } from '../lib/userPrefs';
 import type { Promo } from '../types';
+import OfflineState from '../components/OfflineState';
 import './Home.css';
 
 const NEAR_RADIUS_M = 2000;
-const BDAY_RADIUS_M = 5000;
+const NEAR_EXPAND_M = 8000;
+const BDAY_RADIUS_M = 8000;
+const GPS_TIMEOUT_MS = 10_000;
+const CERCA_TIMEOUT_MS = 15_000;
 
-function readGps(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('no-geo'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 12_000,
-      maximumAge: 60_000,
-    });
-  });
+type NearFailKind = 'denied' | 'timeout' | 'api' | null;
+
+type LoadNearOpts = {
+  /** Ignora Traguito abierto (p. ej. botón Activar ubicación). */
+  force?: boolean;
+  lat?: number;
+  lng?: number;
+  maxMeters?: number;
+};
+
+type BdayPhase = 'welcome' | 'seeking' | 'reveal';
+
+function readBdayUnlocked(userId: string | null | undefined) {
+  if (!userId) return false;
+  return readSessionFlag(birthdayUnlockKey(userId));
+}
+
+function writeBdayUnlocked(userId: string | null | undefined) {
+  if (!userId) return;
+  writeSessionFlag(birthdayUnlockKey(userId));
 }
 
 function nearestBranchMeta(p: Promo): { label: string; meters?: number } | null {
@@ -44,6 +75,10 @@ function nearestBranchMeta(p: Promo): { label: string; meters?: number } | null 
     meters:
       typeof near.distanceMeters === 'number' ? near.distanceMeters : undefined,
   };
+}
+
+function promoMeters(p: Promo) {
+  return nearestBranchMeta(p)?.meters ?? 1e9;
 }
 
 function formatDistance(
@@ -132,220 +167,462 @@ function ExploreIcon({ name }: { name: ExploreIconName }) {
 
 export default function Home() {
   const { t } = useI18n();
-  const { token, birthdayToday, firstName } = useAuthUser();
+  const { token, user, birthdayToday, firstName } = useAuthUser();
+  const { prefs } = useUserPrefs();
+  const userId = user?.id || user?._id || null;
+  const [online, setOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
 
   const [nearPromos, setNearPromos] = useState<Promo[]>([]);
   const [catalogPromos, setCatalogPromos] = useState<Promo[]>([]);
   const [nearLoading, setNearLoading] = useState(true);
   const [nearGpsError, setNearGpsError] = useState(false);
+  const [nearFailKind, setNearFailKind] = useState<NearFailKind>(null);
   const [fromCache, setFromCache] = useState(false);
+  const [cacheSavedAt, setCacheSavedAt] = useState<number | null>(null);
+  const reloadNearRef = useRef<(opts?: LoadNearOpts) => void>(() => {});
 
+  const [bdayPhase, setBdayPhase] = useState<BdayPhase>('welcome');
   const [bdayPromos, setBdayPromos] = useState<Promo[]>([]);
-  const [bdayLoading, setBdayLoading] = useState(false);
   const [bdayGpsError, setBdayGpsError] = useState(false);
   const [bdayEmpty, setBdayEmpty] = useState(false);
+  const bdayLoadGen = useRef(0);
 
-  const bdayFree = useMemo(
-    () => bdayPromos.filter((p) => isBirthdayFreebie(p)),
+  const bdaySorted = useMemo(
+    () => [...bdayPromos].sort((a, b) => promoMeters(a) - promoMeters(b)),
     [bdayPromos]
+  );
+  const bdayNearest = bdaySorted[0] ?? null;
+  const bdayRest = bdaySorted.slice(1);
+  const bdayFree = useMemo(
+    () => bdayRest.filter((p) => isBirthdayFreebie(p)),
+    [bdayRest]
   );
   const bdayDeals = useMemo(
-    () => bdayPromos.filter((p) => !isBirthdayFreebie(p)),
-    [bdayPromos]
+    () => bdayRest.filter((p) => !isBirthdayFreebie(p)),
+    [bdayRest]
   );
 
-  const exploreLinks = [
-    {
-      id: 'cerca',
-      icon: 'pin' as const,
-      label: t('quickNear'),
-      hint: t('exploreHintNear'),
-      to: '/cerca',
-      accent: true,
-    },
-    {
-      id: 'todas',
-      icon: 'grid' as const,
-      label: t('catAll'),
-      hint: t('exploreHintAll'),
-      to: '/promos',
-    },
-    {
-      id: 'comida',
-      icon: 'food' as const,
-      label: t('catFood'),
-      hint: t('exploreHintFood'),
-      to: '/promos?f=comida',
-    },
-    {
-      id: 'cafe',
-      icon: 'cafe' as const,
-      label: t('catCafe'),
-      hint: t('exploreHintCafe'),
-      to: '/promos?f=cafe',
-    },
-    token
-      ? {
-          id: 'fav',
-          icon: 'heart' as const,
-          label: t('quickFavorites'),
-          hint: t('exploreHintFav'),
-          to: '/favoritos',
-        }
-      : {
-          id: 'login',
-          icon: 'user' as const,
-          label: t('quickLogin'),
-          hint: '',
-          to: '/entrar',
-          state: { from: '/', reason: 'account' as const },
-        },
-  ];
+  const exploreLinks = useMemo(() => {
+    const favSet = new Set(prefs.categoriasFav);
+    const base = [
+      {
+        id: 'cerca',
+        icon: 'pin' as const,
+        label: t('quickNear'),
+        hint: t('exploreHintNear'),
+        to: '/cerca',
+        accent: true,
+        weight: 100,
+      },
+      {
+        id: 'todas',
+        icon: 'grid' as const,
+        label: t('catAll'),
+        hint: t('exploreHintAll'),
+        to: '/promos',
+        weight: 40,
+      },
+      {
+        id: 'comida',
+        icon: 'food' as const,
+        label: t('catFood'),
+        hint: t('exploreHintFood'),
+        to: '/promos?f=comida',
+        weight: favSet.has('comida') ? 90 : 30,
+      },
+      {
+        id: 'cafe',
+        icon: 'cafe' as const,
+        label: t('catCafe'),
+        hint: t('exploreHintCafe'),
+        to: '/promos?f=cafe',
+        weight: favSet.has('cafe') ? 88 : 28,
+      },
+      ...(favSet.has('antro') || favSet.has('destilados')
+        ? [
+            {
+              id: 'destilados',
+              icon: 'grid' as const,
+              label: t('prefsCatDestilados'),
+              hint: t('exploreHintAll'),
+              to: '/promos?f=destilados',
+              weight: 85,
+            },
+          ]
+        : []),
+      ...(favSet.has('cumple')
+        ? [
+            {
+              id: 'cumple',
+              icon: 'heart' as const,
+              label: t('prefsCatCumple'),
+              hint: t('exploreHintFav'),
+              to: '/promos?f=cumple',
+              weight: 86,
+            },
+          ]
+        : []),
+      token
+        ? {
+            id: 'fav',
+            icon: 'heart' as const,
+            label: t('quickFavorites'),
+            hint: t('exploreHintFav'),
+            to: '/favoritos',
+            weight: 70,
+          }
+        : {
+            id: 'login',
+            icon: 'user' as const,
+            label: t('quickLogin'),
+            hint: '',
+            to: '/entrar',
+            state: { from: '/', reason: 'account' as const },
+            weight: 10,
+          },
+    ];
+    return [...base].sort((a, b) => b.weight - a.weight);
+  }, [prefs.categoriasFav, t, token]);
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   /** Home = certeza local: GPS × ofertas oficiales cerca. */
   useEffect(() => {
     let cancelled = false;
+    let runId = 0;
 
-    async function loadNear() {
+    async function applyCachedNear() {
+      const nearCached = await cacheGet<{
+        promos?: Promo[];
+      }>(CACHE_KEYS.lastNear);
+      const promoCached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
+      if (cancelled) return false;
+      const fromNear = filterGuestSafePromos(
+        (nearCached?.data?.promos ?? []) as Promo[]
+      )
+        .filter((p) => !isLandingTitle(p))
+        .sort((a, b) => promoMeters(a) - promoMeters(b));
+      if (fromNear.length) {
+        setNearPromos(fromNear.slice(0, 10));
+        setFromCache(true);
+        setCacheSavedAt(nearCached?.savedAt ?? null);
+        return true;
+      }
+      if (promoCached?.data?.length) {
+        const active = filterGuestSafePromos(promoCached.data);
+        setCatalogPromos(active.slice(0, 8));
+        setFromCache(true);
+        setCacheSavedAt(promoCached.savedAt);
+        return true;
+      }
+      return false;
+    }
+
+    async function loadNear(opts: LoadNearOpts = {}) {
+      const myRun = ++runId;
+      const startedAt = Date.now();
+      // Traguito abierto: esperar SPLASH_CLOSED (salvo force del CTA).
+      if (!opts.force && isOnboardingOpen()) {
+        setNearLoading(true);
+        return;
+      }
       setNearLoading(true);
       setNearGpsError(false);
+      setNearFailKind(null);
       setFromCache(false);
-      try {
-        const pos = await readGps();
-        if (cancelled) return;
-        void trackGps(true, pos.coords.latitude, pos.coords.longitude);
-        const { data } = await api.get('/api/promociones/cerca', {
-          params: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            maxMeters: NEAR_RADIUS_M,
-          },
-          timeout: 25_000,
-        });
-        if (cancelled) return;
-        const list = filterActivePromos((data.promos ?? []) as Promo[])
-          .filter((p) => !p.requiresAuth && !isLandingTitle(p))
-          .sort((a, b) => {
-            const da = nearestBranchMeta(a)?.meters ?? 1e9;
-            const db = nearestBranchMeta(b)?.meters ?? 1e9;
-            return da - db;
-          });
-        setNearPromos(list.slice(0, 10));
-        await cacheSet(CACHE_KEYS.promos, list.slice(0, 20));
-        if (list.length === 0) {
-          try {
-            const res = await api.get('/api/promociones');
-            if (cancelled) return;
-            const all = filterActivePromos((res.data.promos ?? []) as Promo[]);
-            const destacadas = all.filter((p) => p.featured || p.destacada);
-            setCatalogPromos((destacadas.length ? destacadas : all).slice(0, 8));
-          } catch {
-            /* vacío cerca y sin catálogo */
-          }
-        }
-      } catch {
-        void trackGps(false);
-        if (cancelled) return;
-        setNearGpsError(true);
+      setCacheSavedAt(null);
+
+      if (!navigator.onLine) {
+        await applyCachedNear();
+        if (!cancelled && myRun === runId) setNearLoading(false);
+        return;
+      }
+
+      async function loadCatalogFallback(markGpsError: boolean) {
         setNearPromos([]);
-        // Fallback honesto: catálogo destacado (sin fingir GPS).
+        setNearGpsError(markGpsError);
         try {
-          const res = await api.get('/api/promociones');
-          if (cancelled) return;
-          const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
+          const res = await api.get('/api/promociones', {
+            timeout: CERCA_TIMEOUT_MS,
+          });
+          if (cancelled || myRun !== runId) return;
+          const list = filterGuestSafePromos(
+            (res.data.promos ?? []) as Promo[]
+          );
           const destacadas = list.filter((p) => p.featured || p.destacada);
           setCatalogPromos((destacadas.length ? destacadas : list).slice(0, 8));
           await cacheSet(CACHE_KEYS.promos, list);
+          setCacheSavedAt(Date.now());
         } catch {
-          const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
-          if (cancelled) return;
-          if (cached?.data?.length) {
-            const active = filterActivePromos(cached.data);
-            setCatalogPromos(active.slice(0, 8));
-            setFromCache(true);
-          }
+          /* sin red ni caché */
+        }
+      }
+
+      async function fetchCerca(lat: number, lng: number, maxMeters: number) {
+        const { data } = await api.get('/api/promociones/cerca', {
+          params: { lat, lng, maxMeters },
+          timeout: CERCA_TIMEOUT_MS,
+        });
+        return filterActivePromos((data.promos ?? []) as Promo[])
+          .filter((p) => !p.requiresAuth && !isLandingTitle(p))
+          .sort((a, b) => promoMeters(a) - promoMeters(b));
+      }
+
+      try {
+        const hasExplicit =
+          Number.isFinite(opts.lat) && Number.isFinite(opts.lng);
+        const pos = hasExplicit
+          ? { lat: opts.lat as number, lng: opts.lng as number, at: Date.now() }
+          : await readGpsCached({
+              maximumAge: 60_000,
+              timeout: GPS_TIMEOUT_MS,
+            });
+        if (cancelled || myRun !== runId) return;
+        if (hasExplicit) setLastKnownGps(pos.lat, pos.lng, pos.at);
+        void trackGps(true, pos.lat, pos.lng);
+
+        const firstRadius = opts.maxMeters ?? NEAR_RADIUS_M;
+        let list = await fetchCerca(pos.lat, pos.lng, firstRadius);
+        // Si el pin real no trae nada a 2 km, ampliar una vez (piloto GDL disperso).
+        if (
+          list.length === 0 &&
+          opts.maxMeters == null &&
+          firstRadius < NEAR_EXPAND_M
+        ) {
+          list = await fetchCerca(pos.lat, pos.lng, NEAR_EXPAND_M);
+        }
+        if (cancelled || myRun !== runId) return;
+        setNearPromos(list.slice(0, 10));
+        setNearGpsError(false);
+        setNearFailKind(null);
+        const safeForDisk = filterGuestSafePromos(list).slice(0, 20);
+        await cacheSet(CACHE_KEYS.promos, safeForDisk);
+        await cacheSet(CACHE_KEYS.lastNear, { promos: safeForDisk });
+        setCacheSavedAt(Date.now());
+        void track({
+          tipo: 'cerca_open',
+          lat: pos.lat,
+          lng: pos.lng,
+          meta: {
+            source: 'home',
+            count: list.length,
+            ms: Date.now() - startedAt,
+            radius: list.length ? firstRadius : NEAR_EXPAND_M,
+          },
+        });
+        if (list.length === 0) {
+          await loadCatalogFallback(false);
+        }
+      } catch (err) {
+        void trackGps(false);
+        if (cancelled || myRun !== runId) return;
+        const geo = isGeolocationError(err);
+        const code = (err as { code?: number | string })?.code;
+        const timedOut =
+          code === 3 ||
+          code === 'ECONNABORTED' ||
+          code === 'TIMEOUT' ||
+          /timeout/i.test(String((err as Error)?.message || ''));
+        if (geo && (code === 1 || code === 'gps-denied')) {
+          setNearFailKind('denied');
+        } else if (timedOut) {
+          setNearFailKind('timeout');
+        } else if (geo) {
+          setNearFailKind('denied');
+        } else {
+          setNearFailKind('api');
+        }
+        void track({
+          tipo: 'gps_fail',
+          meta: {
+            source: 'home',
+            kind: geo ? 'geo' : 'api',
+            code: String(code ?? ''),
+            ms: Date.now() - startedAt,
+          },
+        });
+        const hadCache = await applyCachedNear();
+        if (hadCache) {
+          setNearGpsError(false);
+        } else {
+          await loadCatalogFallback(true);
         }
       } finally {
-        if (!cancelled) setNearLoading(false);
+        if (!cancelled && myRun === runId) setNearLoading(false);
       }
     }
 
+    reloadNearRef.current = (opts?: LoadNearOpts) => {
+      void loadNear(opts);
+    };
     void loadNear();
+    const onTourClosed = () => {
+      void loadNear({ force: true });
+    };
+    window.addEventListener(SPLASH_CLOSED, onTourClosed);
     return () => {
       cancelled = true;
+      window.removeEventListener(SPLASH_CLOSED, onTourClosed);
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!birthdayToday) {
-      setBdayPromos([]);
-      setBdayGpsError(false);
-      setBdayEmpty(false);
-      setBdayLoading(false);
-      return;
+  async function enableHomeLocation() {
+    if (nearLoading) return;
+    setNearLoading(true);
+    setNearGpsError(false);
+    setNearFailKind(null);
+    try {
+      const pos = await readGpsCached({
+        maximumAge: 0,
+        cacheMaxAgeMs: 0,
+        timeout: GPS_TIMEOUT_MS,
+      });
+      void trackGps(true, pos.lat, pos.lng);
+      reloadNearRef.current({
+        force: true,
+        lat: pos.lat,
+        lng: pos.lng,
+      });
+    } catch (err) {
+      void trackGps(false);
+      const code = (err as { code?: number })?.code;
+      setNearFailKind(code === 3 ? 'timeout' : 'denied');
+      setNearGpsError(true);
+      setNearLoading(false);
     }
+  }
 
-    async function loadBirthdayNear() {
-      setBdayLoading(true);
-      setBdayGpsError(false);
-      setBdayEmpty(false);
-      setBdayPromos([]);
+  const loadBirthdayGifts = useCallback(async () => {
+    const gen = ++bdayLoadGen.current;
+    setBdayPhase('seeking');
+    setBdayGpsError(false);
+    setBdayEmpty(false);
+    setBdayPromos([]);
+    try {
+      const pos = await readGpsCached();
+      if (gen !== bdayLoadGen.current) return;
+      let list: Promo[] = [];
       try {
-        const pos = await readGps();
-        if (cancelled) return;
         const { data } = await api.get('/api/promociones/cerca', {
           params: {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
+            lat: pos.lat,
+            lng: pos.lng,
             maxMeters: BDAY_RADIUS_M,
             birthday: '1',
           },
           timeout: 20_000,
         });
-        if (cancelled) return;
-        const list = filterActivePromos(
+        if (gen !== bdayLoadGen.current) return;
+        list = filterActivePromos(
+          ((data.promos ?? []) as Promo[]).filter(
+            (p) => p.cumpleanos || p.isBirthday
+          )
+        ).sort((a, b) => promoMeters(a) - promoMeters(b));
+      } catch (nearErr) {
+        // Cerca falló (timeout OSM, etc.): no es “activa GPS”.
+        if (isGeolocationError(nearErr)) throw nearErr;
+      }
+
+      if (!list.length) {
+        const { data } = await api.get('/api/promociones', {
+          params: { birthday: '1' },
+          timeout: 15_000,
+        });
+        if (gen !== bdayLoadGen.current) return;
+        list = filterActivePromos(
           ((data.promos ?? []) as Promo[]).filter(
             (p) => p.cumpleanos || p.isBirthday
           )
         );
-        setBdayPromos(list.slice(0, 12));
-        setBdayEmpty(list.length === 0);
-      } catch (err) {
-        if (cancelled) return;
-        if ((err as { response?: unknown })?.response) {
-          setBdayEmpty(true);
-        } else {
-          setBdayGpsError(true);
-        }
-      } finally {
-        if (!cancelled) setBdayLoading(false);
       }
+
+      setBdayPromos(list.slice(0, 12));
+      setBdayEmpty(list.length === 0);
+      setBdayGpsError(false);
+      writeBdayUnlocked(userId);
+      setBdayPhase('reveal');
+    } catch (err) {
+      if (gen !== bdayLoadGen.current) return;
+      if (isGeolocationError(err)) {
+        setBdayGpsError(true);
+        setBdayEmpty(false);
+        setBdayPromos([]);
+        setBdayPhase('reveal');
+        return;
+      }
+      // Red / API: no mentir con “activa ubicación”
+      setBdayGpsError(false);
+      setBdayEmpty(true);
+      setBdayPromos([]);
+      writeBdayUnlocked(userId);
+      setBdayPhase('reveal');
     }
+  }, [userId]);
 
-    void loadBirthdayNear();
-    return () => {
-      cancelled = true;
-    };
-  }, [birthdayToday]);
+  useEffect(() => {
+    if (!birthdayToday) {
+      setBdayPhase('welcome');
+      setBdayPromos([]);
+      setBdayGpsError(false);
+      setBdayEmpty(false);
+      return;
+    }
+    if (readBdayUnlocked(userId)) {
+      void loadBirthdayGifts();
+    } else {
+      setBdayPhase('welcome');
+    }
+  }, [birthdayToday, userId, loadBirthdayGifts]);
 
-  function scrollToBirthday() {
-    document
-      .getElementById('hoy-cumple')
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  function openBirthdayDay() {
+    void loadBirthdayGifts();
+    requestAnimationFrame(() => {
+      document
+        .getElementById('hoy-cumple')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
 
-  function renderPromoCard(p: Promo, opts?: { featured?: boolean }) {
+  useEffect(() => {
+    if (!birthdayToday) return;
+    const onOpen = () => {
+      void loadBirthdayGifts();
+      requestAnimationFrame(() => {
+        document
+          .getElementById('hoy-cumple')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    };
+    window.addEventListener('trago-bday-open-gifts', onOpen);
+    return () => window.removeEventListener('trago-bday-open-gifts', onOpen);
+  }, [birthdayToday, loadBirthdayGifts]);
+
+  function renderPromoCard(
+    p: Promo,
+    opts?: { featured?: boolean; nearest?: boolean }
+  ) {
     const img = resolveMediaUrl(p.imagen || p.imageUrl);
     const title = p.nombre || p.title || t('promoFallback');
     const near = nearestBranchMeta(p);
     const dist = formatDistance(near?.meters, t('bdayMeters'), t('homeNearKm'));
     const featured = Boolean(opts?.featured);
+    const nearest = Boolean(opts?.nearest);
     return (
       <Link
         key={p._id}
         to={`/promos/${p.slug || p._id}`}
-        className={`home-deal${featured ? ' is-featured' : ''}${img ? '' : ' is-plain'}`}
+        className={`home-deal${featured || nearest ? ' is-featured' : ''}${nearest ? ' is-bday-nearest' : ''}${img ? '' : ' is-plain'}`}
         viewTransition
       >
         <div className="home-deal-media" aria-hidden>
@@ -364,27 +641,55 @@ export default function Home() {
             <p className="feed-chain">{p.chainName || t('chainFallback')}</p>
             {dist ? <span className="home-dist-pill">{dist}</span> : null}
           </div>
-          {featured ? (
+          {nearest ? (
+            <p className="home-deal-eyebrow">{t('bdayNearest')}</p>
+          ) : featured ? (
             <p className="home-deal-eyebrow">{t('homeFeaturedNear')}</p>
           ) : null}
-          <h3>{title}</h3>
           <PromoPrice promo={p} />
+          <h3>{title}</h3>
           {near?.label ? <p className="meta">{near.label}</p> : null}
+          {nearest ? (
+            <span className="home-bday-reveal-cta">{t('bdayRevealCta')}</span>
+          ) : null}
         </div>
       </Link>
     );
   }
 
-  const showNearFeed = !nearGpsError && (nearLoading || nearPromos.length > 0);
+  const forYou = nearPromos.slice(0, 3);
+  const showNearFeed = !birthdayToday && nearPromos.length > 3;
   const showCatalogFallback =
-    nearGpsError || (!nearLoading && nearPromos.length === 0);
-  const featuredNear = nearPromos[0] ?? null;
-  const railNear = nearPromos.slice(1);
+    !nearLoading &&
+    nearPromos.length === 0 &&
+    (nearGpsError || catalogPromos.length > 0);
+  const railNear = nearPromos.slice(3);
+  const showBdayConfetti = birthdayToday && bdayPhase === 'reveal' && !bdayGpsError;
+  const bdayHeroCta =
+    bdayPhase === 'welcome'
+      ? t('bdayOpenDay')
+      : bdayPhase === 'seeking'
+        ? t('bdaySeeking')
+        : t('bdaySeeGifts');
+  const greet = t(greetingKey() as 'helloMorning');
+  const greetLine = firstName ? `${greet}, ${firstName}` : greet;
+  const cacheAgeLabel = formatCacheAge(cacheSavedAt, (k, vars) =>
+    t(k as 'cacheAgeJustNow', vars)
+  );
+  const densityClass =
+    prefs.densidad === 'compacta' ? ' is-dense' : ' is-comfy';
+  const offlineEmpty =
+    !online &&
+    !nearLoading &&
+    nearPromos.length === 0 &&
+    catalogPromos.length === 0;
 
   return (
-    <div className="home-app">
+    <div
+      className={`home-app${birthdayToday ? ' is-bday-day' : ''}${densityClass}${!online ? ' is-offline' : ''}`}
+    >
       <section
-        className={`home-hero home-hero-stage${birthdayToday ? ' is-bday' : ''}`}
+        className={`home-hero home-hero-stage${birthdayToday ? ' is-bday' : ''}${bdayPhase === 'reveal' ? ' is-bday-revealed' : ''}`}
       >
         <div className="home-hero-visual" aria-hidden>
           <span className="home-hero-beam" />
@@ -392,7 +697,7 @@ export default function Home() {
           <span className="home-hero-orb" />
           <span className="home-hero-grain" />
           <span className="home-hero-grid" />
-          {birthdayToday ? (
+          {showBdayConfetti ? (
             <span className="home-bday-confetti" aria-hidden>
               {Array.from({ length: 18 }).map((_, i) => (
                 <i key={i} style={{ '--i': i } as CSSProperties} />
@@ -411,20 +716,24 @@ export default function Home() {
                 )}
               </h1>
               <p className="home-headline">{t('bdayWelcome')}</p>
-              <p className="home-subhead">{t('bdayBody')}</p>
+              <p className="home-subhead">
+                {bdayPhase === 'welcome' ? t('bdayBody') : t('bdayRitualSub')}
+              </p>
               <div className="home-hero-cta">
                 <button
                   type="button"
                   className="btn primary home-cta-main"
-                  onClick={scrollToBirthday}
+                  onClick={openBirthdayDay}
+                  disabled={bdayPhase === 'seeking'}
+                  aria-busy={bdayPhase === 'seeking'}
                 >
-                  {t('bdaySeeGifts')}
+                  {bdayHeroCta}
                 </button>
               </div>
             </>
           ) : (
             <>
-              <p className="home-hero-kicker">{t('hello')}</p>
+              <p className="home-hero-kicker home-hero-greet">{greetLine}</p>
               <h1 className="brand-mark home-brand">
                 Tr
                 <span className="home-brand-pin" aria-hidden title="ubicación">
@@ -433,13 +742,16 @@ export default function Home() {
                       fill="currentColor"
                       d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 20 12 20s12-11.6 12-20C24 5.4 18.6 0 12 0zm0 16.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"
                     />
-                    <circle cx="12" cy="12" r="3.2" fill="#3B0B13" />
+                    <circle cx="12" cy="12" r="3.2" fill="#820808" />
                   </svg>
                 </span>
                 go
               </h1>
-              <p className="home-headline">{t('homeCertainty')}</p>
-              <p className="home-subhead">{t('homeCertaintySub')}</p>
+              <p className="home-headline">
+                {firstName
+                  ? t('homeForYouNamed', { name: firstName })
+                  : t('homeCertainty')}
+              </p>
               <div className="home-hero-cta">
                 <Link
                   className="btn primary home-cta-main"
@@ -454,33 +766,139 @@ export default function Home() {
         </div>
       </section>
 
+      {!birthdayToday && (
+        <section
+          className="home-block home-for-you"
+          data-reveal
+          aria-labelledby="home-for-you-title"
+        >
+          <div className="block-head">
+            <div>
+              <p className="ui-kicker">{t('gpsLabel')}</p>
+              <h2 id="home-for-you-title">{t('homeForYou')}</h2>
+              <p className="home-section-lead">{t('homeForYouLead')}</p>
+            </div>
+            {fromCache || !online ? (
+              <span className="home-cache-badge" title={cacheAgeLabel || undefined}>
+                {t('offlineCache')}
+                {cacheAgeLabel ? ` · ${cacheAgeLabel}` : ''}
+              </span>
+            ) : null}
+          </div>
+          {nearLoading && forYou.length === 0 ? (
+            <div className="home-skel" aria-busy>
+              <p className="muted">{t('homeGpsLoading')}</p>
+              <div className="home-skel-featured ui-skeleton" />
+            </div>
+          ) : null}
+          {nearGpsError && forYou.length === 0 && online ? (
+            <div className="home-gps-actions">
+              <p className="home-gps-note">
+                {nearFailKind === 'timeout'
+                  ? t('homeGpsTimeout')
+                  : nearFailKind === 'api'
+                    ? t('homeNearApiError')
+                    : t('homeGpsDenied')}
+              </p>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={nearLoading}
+                onClick={() => void enableHomeLocation()}
+              >
+                {nearLoading ? t('locSplashBusy') : t('locSplashEnable')}
+              </button>
+            </div>
+          ) : null}
+          {offlineEmpty ? <OfflineState cacheAge={cacheAgeLabel} /> : null}
+          {forYou.length > 0 ? (
+            <div className="home-for-you-grid stagger">
+              {forYou.map((p, i) =>
+                renderPromoCard(p, { featured: i === 0 })
+              )}
+            </div>
+          ) : null}
+          {!nearLoading &&
+          !nearGpsError &&
+          forYou.length === 0 &&
+          !offlineEmpty &&
+          online ? (
+            <div className="home-gps-actions">
+              <p className="home-gps-note">{t('homeNearEmpty')}</p>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={nearLoading}
+                onClick={() => void enableHomeLocation()}
+              >
+                {t('locSplashEnable')}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      )}
+
       {birthdayToday && (
         <section
           id="hoy-cumple"
-          className="home-bday home-bday-celebrate"
+          className={`home-bday home-bday-celebrate home-bday-ritual is-${bdayPhase}`}
           data-reveal
           aria-labelledby="home-bday-title"
         >
           <p className="ui-kicker">{t('catBdayToday')}</p>
-          <h2 id="home-bday-title">{t('bdaySeeGifts')}</h2>
-          <p className="meta">{t('bdayWelcome')}</p>
+          <h2 id="home-bday-title">
+            {bdayPhase === 'welcome'
+              ? t('bdayOpenDay')
+              : bdayPhase === 'seeking'
+                ? t('bdaySeeking')
+                : t('bdaySeeGifts')}
+          </h2>
+          <p className="meta">
+            {bdayPhase === 'welcome'
+              ? t('bdayRitualHint')
+              : bdayPhase === 'seeking'
+                ? t('bdayLoading')
+                : t('bdayWelcome')}
+          </p>
 
-          {bdayLoading && (
-            <p className="muted" role="status">
-              {t('bdayLoading')}
-            </p>
-          )}
-
-          {bdayGpsError && !bdayLoading && (
+          {bdayPhase === 'welcome' && (
             <div className="home-bday-note">
-              <p>{t('bdayGpsError')}</p>
-              <Link className="btn primary" to="/cerca" viewTransition>
-                {t('openNear')}
-              </Link>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={openBirthdayDay}
+              >
+                {t('bdayOpenDay')}
+              </button>
             </div>
           )}
 
-          {bdayEmpty && !bdayLoading && !bdayGpsError && (
+          {bdayPhase === 'seeking' && (
+            <div className="home-bday-seeking" role="status" aria-live="polite">
+              <span className="home-bday-pulse" aria-hidden />
+              <p className="muted">{t('bdayLoading')}</p>
+            </div>
+          )}
+
+          {bdayPhase === 'reveal' && bdayGpsError && (
+            <div className="home-bday-note">
+              <p>{t('bdayGpsError')}</p>
+              <div className="home-bday-actions">
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => void loadBirthdayGifts()}
+                >
+                  {t('bdayRetryGps')}
+                </button>
+                <Link className="btn ghost" to="/cerca" viewTransition>
+                  {t('openNear')}
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {bdayPhase === 'reveal' && bdayEmpty && !bdayGpsError && (
             <div className="home-bday-note">
               <p>{t('bdayEmptyNear')}</p>
               <div className="home-bday-actions">
@@ -498,7 +916,25 @@ export default function Home() {
             </div>
           )}
 
-          {bdayFree.length > 0 && (
+          {bdayPhase === 'reveal' && !bdayGpsError && !bdayEmpty && (
+            <p className="home-bday-loyalty-note">{t('bdayLoyaltyNote')}</p>
+          )}
+
+          {bdayPhase === 'reveal' && bdayNearest && (
+            <div className="home-bday-nearest stagger">
+              {renderPromoCard(bdayNearest, { nearest: true })}
+            </div>
+          )}
+
+          {bdayPhase === 'reveal' &&
+            !bdayNearest &&
+            bdayPromos.length > 0 && (
+              <div className="home-deal-rail scroll-rail stagger">
+                {bdayPromos.map((p) => renderPromoCard(p))}
+              </div>
+            )}
+
+          {bdayPhase === 'reveal' && bdayFree.length > 0 && (
             <div className="home-bday-group">
               <h3>{t('bdayFreeTitle')}</h3>
               <div className="home-deal-rail scroll-rail stagger">
@@ -507,7 +943,7 @@ export default function Home() {
             </div>
           )}
 
-          {bdayDeals.length > 0 && (
+          {bdayPhase === 'reveal' && bdayDeals.length > 0 && (
             <div className="home-bday-group">
               <h3>{t('bdayDealTitle')}</h3>
               <div className="home-deal-rail scroll-rail stagger">
@@ -517,6 +953,8 @@ export default function Home() {
           )}
         </section>
       )}
+
+      <SponsoredSlot slot="home_rail" className="home-sponsored" />
 
       <section
         className="home-explore"
@@ -530,32 +968,30 @@ export default function Home() {
             <h2>{t('homeExploreTitle')}</h2>
             <p className="home-explore-lead">{t('homeExploreLead')}</p>
           </div>
-          <div className="home-explore-rail scroll-rail" role="list">
+          <ul className="home-explore-rail scroll-rail">
             {exploreLinks.map((item) => (
-              <Link
-                key={item.id}
-                className={`home-explore-card home-explore-card--${item.icon}${'accent' in item && item.accent ? ' is-accent' : ''}`}
-                to={item.to}
-                state={'state' in item ? item.state : undefined}
-                role="listitem"
-                viewTransition
-              >
-                <span className="home-explore-ico" aria-hidden>
-                  <ExploreIcon name={item.icon} />
-                </span>
-                <span className="home-explore-card-text">
-                  <span className="home-explore-card-label">{item.label}</span>
-                  {item.hint ? (
-                    <span className="home-explore-card-hint">{item.hint}</span>
-                  ) : null}
-                </span>
-              </Link>
+              <li key={item.id}>
+                <Link
+                  className={`home-explore-card home-explore-card--${item.icon}${'accent' in item && item.accent ? ' is-accent' : ''}`}
+                  to={item.to}
+                  state={'state' in item ? item.state : undefined}
+                  viewTransition
+                >
+                  <span className="home-explore-ico" aria-hidden>
+                    <ExploreIcon name={item.icon} />
+                  </span>
+                  <span className="home-explore-card-text">
+                    <span className="home-explore-card-label">{item.label}</span>
+                    {item.hint ? (
+                      <span className="home-explore-card-hint">{item.hint}</span>
+                    ) : null}
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
-
-      <SponsoredSlot slot="home_rail" className="home-sponsored" />
 
       {showNearFeed && (
         <section
@@ -573,21 +1009,6 @@ export default function Home() {
               {t('openNear')}
             </Link>
           </div>
-          {nearLoading && nearPromos.length === 0 && (
-            <div className="home-skel" aria-busy>
-              <p className="muted">{t('homeGpsLoading')}</p>
-              <div className="home-skel-featured ui-skeleton" />
-              <div className="home-skel-row">
-                <div className="ui-skeleton" />
-                <div className="ui-skeleton" />
-              </div>
-            </div>
-          )}
-          {featuredNear && (
-            <div className="home-featured-slot stagger">
-              {renderPromoCard(featuredNear, { featured: true })}
-            </div>
-          )}
           {railNear.length > 0 && (
             <div className="home-deal-rail scroll-rail stagger">
               {railNear.map((p) => renderPromoCard(p))}
@@ -613,12 +1034,7 @@ export default function Home() {
               {t('seeAll')}
             </Link>
           </div>
-          {nearGpsError && (
-            <p className="home-gps-note">{t('homeGpsDenied')}</p>
-          )}
-          {!nearGpsError && !nearLoading && nearPromos.length === 0 && (
-            <p className="home-gps-note">{t('homeNearEmpty')}</p>
-          )}
+          {/* CTAs de GPS ya están en «Para ti ahora»; aquí solo el rail de catálogo. */}
           {fromCache && <p className="cache-hint">{t('cacheHint')}</p>}
           {catalogPromos.length > 0 ? (
             <div className="home-deal-rail scroll-rail stagger">
@@ -634,6 +1050,12 @@ export default function Home() {
           )}
         </section>
       )}
+
+      <div className="tour-help-link" aria-label={t('tourHelpAria')}>
+        <button type="button" onClick={replayOnboarding}>
+          {t('tourReplay')} ↗
+        </button>
+      </div>
     </div>
   );
 }

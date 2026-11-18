@@ -2,8 +2,27 @@
  * Caché local de últimas lecturas de API (IndexedDB).
  * No inventa datos: solo guarda lo que ya vino del servidor.
  * Al leer promociones, se filtran las caducadas.
+ * Contenido 18+ / requiresAuth no debe sobrevivir un logout ni un 404 de acceso.
  */
 import type { Promo } from '../types';
+import { getAgeBand } from './ageBand';
+import { readToken } from '../api';
+import {
+  canUseRestrictedOfflineCache as canUseRestrictedOfflineCachePolicy,
+  filterActivePromos as filterActivePromosPolicy,
+  filterGuestSafePromos as filterGuestSafePromosPolicy,
+  isOfficialPromo as isOfficialPromoPolicy,
+  isPromoActive as isPromoActivePolicy,
+  isRestrictedCachedPromo as isRestrictedCachedPromoPolicy,
+} from './offlineCachePolicy';
+
+export {
+  filterActivePromosPolicy as filterActivePromos,
+  filterGuestSafePromosPolicy as filterGuestSafePromos,
+  isOfficialPromoPolicy as isOfficialPromo,
+  isPromoActivePolicy as isPromoActive,
+  isRestrictedCachedPromoPolicy as isRestrictedCachedPromo,
+};
 
 const DB_NAME = 'trago-offline';
 const DB_VERSION = 2;
@@ -50,6 +69,14 @@ function lsSet<T>(entry: CacheEntry<T>) {
   localStorage.setItem(LS_PREFIX + entry.key, JSON.stringify(entry));
 }
 
+function lsRemove(key: string) {
+  try {
+    localStorage.removeItem(LS_PREFIX + key);
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function cacheSet<T>(key: string, data: T): Promise<void> {
   const entry: CacheEntry<T> = { key, data, savedAt: Date.now() };
   try {
@@ -79,27 +106,92 @@ export async function cacheGet<T>(key: string): Promise<CacheEntry<T> | null> {
   }
 }
 
-export function isPromoActive(p: Promo, now = Date.now()): boolean {
-  const end = p.termina_en || p.endsAt;
-  if (!end) return true;
-  const t = new Date(end).getTime();
-  if (Number.isNaN(t)) return true;
-  return t >= now;
+export async function cacheDelete(key: string): Promise<void> {
+  lsRemove(key);
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    /* idb no disponible: localStorage ya limpio */
+  }
 }
 
-/** Solo ofertas tomadas de sitios oficiales (origen: oficial). */
-export function isOfficialPromo(p: Promo): boolean {
-  const origin = p.origin || p.origen;
-  return origin === 'oficial' || origin === 'official';
+async function listCacheKeys(): Promise<string[]> {
+  const keys = new Set<string>();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(LS_PREFIX)) keys.add(k.slice(LS_PREFIX.length));
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    const db = await openDb();
+    const idbKeys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => resolve(req.result ?? []);
+      req.onerror = () => reject(req.error);
+    });
+    for (const k of idbKeys) keys.add(String(k));
+  } catch {
+    /* ignore */
+  }
+  return [...keys];
 }
 
-export function filterActivePromos(promos: Promo[]): Promo[] {
-  return promos.filter((p) => isOfficialPromo(p) && isPromoActive(p));
+/** ¿La sesión actual puede reutilizar offline una promo restringida? */
+export function canUseRestrictedOfflineCache(): boolean {
+  return canUseRestrictedOfflineCachePolicy(readToken(), getAgeBand());
+}
+
+/**
+ * Tras logout o rechazo 401/403/404: quita detalles restringidos y limpia
+ * listas cacheadas. No toca el store `favoritos`.
+ */
+export async function purgeRestrictedCatalogCache(): Promise<void> {
+  const keys = await listCacheKeys();
+  for (const key of keys) {
+    if (key.startsWith('promo_detalle_')) {
+      const entry = await cacheGet<{ promo?: Promo }>(key);
+      if (
+        !entry?.data?.promo ||
+        isRestrictedCachedPromoPolicy(entry.data.promo)
+      ) {
+        await cacheDelete(key);
+      }
+      continue;
+    }
+  }
+
+  const promosEntry = await cacheGet<Promo[]>(CACHE_KEYS.promos);
+  if (promosEntry?.data?.length) {
+    const safe = filterGuestSafePromosPolicy(promosEntry.data);
+    if (safe.length !== promosEntry.data.length) {
+      await cacheSet(CACHE_KEYS.promos, safe);
+    }
+  }
+
+  const nearEntry = await cacheGet<{ promos?: Promo[] }>(CACHE_KEYS.lastNear);
+  if (nearEntry?.data?.promos?.length) {
+    const safe = filterGuestSafePromosPolicy(nearEntry.data.promos);
+    if (safe.length !== nearEntry.data.promos.length) {
+      await cacheSet(CACHE_KEYS.lastNear, { ...nearEntry.data, promos: safe });
+    }
+  }
 }
 
 export const CACHE_KEYS = {
   // bump key para invalidar caché con demos del seed
   promos: 'promociones_oficiales_v1',
   negocios: 'negocios',
-  lastNear: 'sucursales_cerca',
+  /** Sucursales + promos de la última búsqueda Cerca (no inventa). */
+  lastNear: 'cerca_sucursales_y_promos_v2',
+  promoDetail: (id: string) => `promo_detalle_${id}`,
 } as const;

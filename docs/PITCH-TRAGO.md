@@ -107,17 +107,20 @@ El dinero no está en el usuario gratuito. Está en **quien necesita que esa suc
 4. **API** para meter TraGo en su app, letrero digital o CRM (plan Premium).
 5. **Marcas de alcohol:** pauta nativa sobre la promo de botella, no un banner genérico.
 
-### Modelo de ingresos (Freemium que sí cierra)
+### Modelo de ingresos (suscripción + anuncios propios)
+
+> **Decisión:** no Freemium con anuncios del vecino — eso **pierde clientes** de oferta.  
+> Paga la **cadena/sucursales** (suscripción) y **sube sus propios anuncios**. Detalle: [`PROPUESTA-FREEMIUM-EQUIPO.md`](./PROPUESTA-FREEMIUM-EQUIPO.md).
 
 | Plan | Quién | Qué incluye | Precio de lista sugerido* |
 |------|--------|-------------|---------------------------|
-| **Freemium** | Cadena chica / cantina | Perfil + 2 promos activas + anuncios de terceros | $0 |
-| **Pro** | Cadena con 3+ sucursales | Sin anuncios propios, **destacada cerca de ti**, reportes de vigencia | $2,900 – $6,900 MXN / mes por zona (CDMX, MTY, GDL) |
+| **Suscripción Cadena** | Cadena / grupo de sucursales | Panel, promos↔locales, vigencia, métrica norte, **pauta propia** | $2,900 – $6,900 MXN / mes por zona (GDL, CDMX, MTY) |
 | **Premium** | Grupo / marca | API, sucursales ilimitadas, white-label light, export | $12,000 – $25,000 MXN / mes |
-| **Campaña de marca** | Destilado / cerveza | Promo patrocinada 7–15 días, slot nocturno | $15,000 – $80,000 por vuelo |
-| **Pauta Freemium** | Anunciantes locales | Banner en perfiles free | CPM / CPC local |
+| **Campaña de marca** | Destilado / cerveza | Vuelo 7–15 días, slot nocturno | $15,000 – $80,000 por vuelo |
+| **Add-on slots / video** | Misma cadena | Más inventario o creativo video | Cotizar pack |
 
-\*Lista para vender la idea, no un SAP. Se ajusta con piloto.
+\*Lista para vender la idea, no un SAP. Se ajusta con piloto.  
+Usuario final: **gratis** (certeza GPS × promo × sucursal). Sin inventar ads de terceros para “llenar” Free.
 
 ### Unidad económica (piloto CDMX, conservador)
 
@@ -125,13 +128,13 @@ Supuesto de 12 meses, ciudad ancla:
 
 | Palanca | Año 1 (orden de magnitud) |
 |---------|----------------------------|
-| 40 cadenas Pro × $4,000/mes promedio | ~$1.9 M MXN |
+| 40 cadenas suscritas × $4,000/mes promedio | ~$1.9 M MXN |
 | 8 Premium × $15,000/mes | ~$1.4 M MXN |
 | 6 vuelos de marca / trimestre | ~$1.2 – $2.0 M MXN |
-| Pauta Freemium | $0.3 M MXN |
-| **Ingreso bruto indicativo** | **$4.8 – $5.6 M MXN** |
+| Add-ons de pauta / video | $0.2 – $0.4 M MXN |
+| **Ingreso bruto indicativo** | **$4.7 – $5.7 M MXN** |
 | Costo (2–3 personas + infra + ads de adquisición) | $2.5 – $3.2 M MXN |
-| **Margen de contribución** | Positivo si el piloto cierra 25+ Pro en 6 meses |
+| **Margen de contribución** | Positivo si el piloto cierra 25+ suscripciones en 6 meses |
 
 No hace falta ser “el Uber de las promos”. Hace falta **ser el sistema de verdad** de 40 cadenas que ya gastan en volante, pauta y trade.
 
@@ -140,7 +143,7 @@ No hace falta ser “el Uber de las promos”. Hace falta **ser el sistema de ve
 - Software, no inventario.
 - PWA: cero comisión de tienda al inicio.
 - El contenido lo ponen las cadenas; los usuarios lo curan. CAC de oferta bajo si el primer grupo (licorerías + antros) ve visitas medibles.
-- Upsell natural: Freemium → Pro en cuanto la sucursal vecina les quite el clic.
+- Upsell natural: más sucursales / zona / slots — **no** chantaje de “paga o te muestro al competidor”.
 
 ---
 
@@ -179,7 +182,7 @@ Métrica norte: **sesiones con GPS × promo abierta × sucursal vista**. No “l
 - Promos vigentes, filtro por tipo.
 - Detalle: sucursales + voto de vigencia.
 - Capa **Nocturno** (botellas, cover, 2x1).
-- Perfiles de cadena (Freemium / Pro / Premium + API de ejemplo).
+- Perfiles de cadena (Suscripción / Premium + API de ejemplo; pauta propia).
 - PWA instalable.
 
 ### 90 días (para cobrar)

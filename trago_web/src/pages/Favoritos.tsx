@@ -7,6 +7,7 @@ import {
   syncFavorites,
   type FavoritePlace,
 } from '../lib/favorites';
+import OfflineState from '../components/OfflineState';
 import { useI18n } from '../lib/i18n';
 import './Favoritos.css';
 
@@ -99,19 +100,27 @@ export default function Favoritos() {
       </header>
 
       {items.length === 0 ? (
-        <div className="empty-state favs-empty">
-          <p>{t('favEmpty')}</p>
-          <p className="muted">
-            {t('favEmptyHint')}{' '}
-            <Link to="/cerca" viewTransition>
-              {t('navNear')}
+        !online ? (
+          <OfflineState
+            title={t('myFavorites')}
+            body={t('offlineStateBody')}
+            showFavorites={false}
+          />
+        ) : (
+          <div className="empty-state favs-empty">
+            <p>{t('favEmpty')}</p>
+            <p className="muted">
+              {t('favEmptyHint')}{' '}
+              <Link to="/cerca" viewTransition>
+                {t('navNear')}
+              </Link>
+              .
+            </p>
+            <Link className="btn primary" to="/cerca" viewTransition>
+              {t('favSearchNear')}
             </Link>
-            .
-          </p>
-          <Link className="btn primary" to="/cerca" viewTransition>
-            {t('favSearchNear')}
-          </Link>
-        </div>
+          </div>
+        )
       ) : (
         <ul className="favs-list stagger" data-reveal>
           {items.map((f) => {

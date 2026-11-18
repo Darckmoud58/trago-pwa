@@ -16,6 +16,7 @@ VAPID_PRIVATE_KEY=${privateKey}
 # Opcional en trago_web/.env si no usas GET /api/push/subscribe
 # VITE_VAPID_PUBLIC_KEY=${publicKey}
 
-# Cron externo / Scheduled Function: POST /api/push/birthday
+# Cron: POST /api/push/birthday · POST /api/push/new-promos
+# Tras scrapers: POST /api/cron/refresh-official también dispara new-promos
 # CRON_SECRET=$(openssl rand -hex 24)
 `);

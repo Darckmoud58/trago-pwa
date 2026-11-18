@@ -62,7 +62,56 @@ function publicUser(user, extras = {}) {
     id_nivel: user.id_nivel || null,
     rol: extras.rol || null,
     nivel: extras.nivel || null,
+    preferencias: normalizePreferencias(user.preferencias),
   };
+}
+
+const PREF_CATS = new Set([
+  'comida',
+  'cafe',
+  'antro',
+  'destilados',
+  'cumple',
+]);
+
+function normalizePreferencias(raw) {
+  const o = raw && typeof raw === 'object' ? raw : {};
+  const cats = Array.isArray(o.categoriasFav)
+    ? [
+        ...new Set(
+          o.categoriasFav
+            .map((c) => String(c).toLowerCase().trim())
+            .filter((c) => PREF_CATS.has(c))
+        ),
+      ]
+    : [];
+  const densidad =
+    o.densidad === 'compacta' || o.densidad === 'comoda'
+      ? o.densidad
+      : 'comoda';
+  const zona = String(o.zona || 'gdl')
+    .trim()
+    .toLowerCase()
+    .slice(0, 32) || 'gdl';
+  return { categoriasFav: cats, densidad, zona };
+}
+
+/** PATCH /api/auth/preferencias */
+export async function updatePreferencias(req, res) {
+  try {
+    const user = await Usuario.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    const next = normalizePreferencias({
+      ...(user.preferencias?.toObject?.() || user.preferencias || {}),
+      ...req.body,
+    });
+    user.preferencias = next;
+    await user.save();
+    return res.json({ preferencias: next });
+  } catch (e) {
+    console.error('updatePreferencias:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
 }
 
 async function refreshStoredAge(user) {

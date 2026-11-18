@@ -48,7 +48,11 @@ export function normalizeBand(band) {
 
 /** Promo restringida: alcohol, audiencia adulto, nocturno, o el texto es una bebida. */
 const ALCOHOL_TEXT =
-  /cerveza|vino|licor|mezcal|tequila|whisk(?:e)?y|alcohol|chela|buchanan|johnnie|\bron\b|pac[ií]fico|michelob|tecate|heineken|budweiser|bud\s*light|stella|carta\s+blanca|bohemia|dos\s+equis|caguama|vodka|ginebra|\bgin\b|brandy|co[nñ]ac|champagne|\bsidra\b|pulque|bacardi|smirnoff|cuervo|don\s+julio|herradura|jack\s+daniel|six\s*pack|6\s*pack/;
+  /cerveza|vino|licor|mezcal|tequila|whisk(?:e)?y|alcohol|chela|buchanan|johnnie|\bron\b|pac[ií]fico|michelob|tecate|heineken|budweiser|bud\s*light|stella|carta\s+blanca|bohemia|dos\s+equis|caguama|vodka|ginebra|\bgin\b|brandy|co[nñ]ac|champagne|\bsidra\b|sangr[ií]a|vermut|vermouth|jerez|digestivo|destilado|lolea|torres\s*20|bacardi|smirnoff|cuervo|don\s+julio|herradura|jack\s+daniel|six\s*pack|6\s*pack|pulque/;
+
+/** Sidral Mundet y similares no son alcohol a pesar de “sidra” en la marca. */
+const SOFT_DRINK_BRAND =
+  /sidral|mundet|refresco|boing|jumex|del\s+valle|coca[\s-]?cola|pepsi|sprite|fanta/;
 
 const NON_ALCOHOL = /sin\s+alcohol|alcohol\s*free|0\.0\s*%|0,0\s*%/;
 
@@ -61,6 +65,7 @@ function fold(text) {
 
 export function looksLikeAlcohol(text) {
   const folded = fold(text).replace(NON_ALCOHOL, ' ');
+  if (SOFT_DRINK_BRAND.test(folded)) return false;
   return ALCOHOL_TEXT.test(folded);
 }
 

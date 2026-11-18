@@ -6,7 +6,7 @@ describe('vinculoMeta', () => {
   it('sin vínculos no inventa', () => {
     const m = vinculoMeta(0, false);
     assert.equal(m.especificado, false);
-    assert.match(m.mensaje, /no especifica/i);
+    assert.match(m.mensaje, /consulta con la sucursal/i);
   });
 
   it('con vínculos de cadena', () => {

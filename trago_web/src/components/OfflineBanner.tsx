@@ -6,11 +6,14 @@ export default function OfflineBanner() {
   const { t } = useI18n();
   return (
     <div className="offline-banner" role="status" aria-live="polite">
-      <strong>{t('offlineBannerTitle')}</strong>
-      <span>
-        {t('offlineBannerBody')}{' '}
+      <div className="offline-banner-copy">
+        <strong>{t('offlineBannerTitle')}</strong>
+        <span>{t('offlineBannerBodyRich')}</span>
+      </div>
+      <div className="offline-banner-links">
         <Link to="/favoritos">{t('goFavorites')}</Link>
-      </span>
+        <Link to="/cerca">{t('goNearShort')}</Link>
+      </div>
     </div>
   );
 }

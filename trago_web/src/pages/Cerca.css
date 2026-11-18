@@ -18,8 +18,8 @@
   gap: 0.85rem;
   padding: 1.25rem 1.2rem 1.3rem;
   border-radius: 1.25rem;
-  border: 1px solid color-mix(in srgb, #f7e5b5 14%, var(--line));
-  color: #f7e5b5;
+  border: 1px solid color-mix(in srgb, #fff6e6 14%, var(--line));
+  color: #fff6e6;
   background:
     radial-gradient(
       120% 90% at 100% 0%,
@@ -32,11 +32,11 @@
 
 .cerca-hero .cerca-kicker,
 .cerca-hero .cerca-soft {
-  color: color-mix(in srgb, #f7e5b5 78%, transparent);
+  color: color-mix(in srgb, #fff6e6 78%, transparent);
 }
 
 .cerca-hero h1 {
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 .cerca-kicker {
@@ -65,8 +65,8 @@
 .cerca-refresh {
   flex-shrink: 0;
   white-space: nowrap;
-  border-color: color-mix(in srgb, #f7e5b5 35%, transparent) !important;
-  color: #f7e5b5 !important;
+  border-color: color-mix(in srgb, #fff6e6 35%, transparent) !important;
+  color: #fff6e6 !important;
   background: color-mix(in srgb, #000 28%, transparent) !important;
 }
 
@@ -88,6 +88,20 @@
   margin: 0;
   font-size: 0.82rem;
   color: var(--fg-soft);
+}
+
+.cerca-gps-help {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--fg-soft);
+}
+
+.cerca-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
 }
 
 .cerca-error-block {
@@ -131,17 +145,18 @@
 .cerca-offer-card {
   scroll-snap-align: start;
   display: grid;
-  grid-template-rows: 132px auto;
-  border-radius: 1.1rem;
+  grid-template-rows: auto auto;
+  border-radius: var(--radius-lg, 1rem);
   overflow: hidden;
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--chrome) 14%, transparent);
+  box-shadow: var(--shadow);
 }
 
 .cerca-offer-media {
   display: block;
-  height: 132px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   background: #2a0810;
   overflow: hidden;
 }
@@ -150,6 +165,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -161,7 +177,7 @@
   font-family: var(--display);
   font-weight: 700;
   font-size: 1.6rem;
-  color: #f7e5b5;
+  color: #fff6e6;
   letter-spacing: 0.04em;
 }
 
@@ -172,10 +188,16 @@
   gap: 0.35rem;
 }
 
+.cerca-offer-body .promo-price {
+  font-size: clamp(1.35rem, 2.5vw, 1.7rem);
+  margin: 0.05rem 0;
+}
+
 .cerca-offer-body h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.25;
+  font-weight: 600;
 }
 
 .cerca-offer-body h3 a {
@@ -234,19 +256,19 @@
   font-family: var(--display);
   font-weight: 700;
   font-size: 0.95rem;
-  color: #f7e5b5;
+  color: #fff6e6;
   letter-spacing: 0.03em;
-  box-shadow: inset 0 0 0 1px rgba(247, 229, 181, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 246, 230, 0.18);
   overflow: hidden;
   flex-shrink: 0;
-  background: #3b0b13;
+  background: #820808;
 }
 
 .cerca-place-mark.has-logo {
   background: #fff;
   box-shadow:
-    inset 0 0 0 1px rgba(59, 11, 19, 0.1),
-    0 1px 2px rgba(59, 11, 19, 0.06);
+    inset 0 0 0 1px rgba(130, 8, 8, 0.1),
+    0 1px 2px rgba(130, 8, 8, 0.06);
 }
 
 .cerca-place-mark img {
@@ -329,7 +351,7 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: #f7e5b5;
+  color: #fff6e6;
   background: color-mix(in srgb, var(--rojo) 78%, #1a7a3c);
 }
 
@@ -403,7 +425,7 @@
 .cerca-collage-fallback {
   display: grid;
   place-items: center;
-  color: #f7e5b5;
+  color: #fff6e6;
   font-family: var(--display);
   font-size: 1.4rem;
   font-weight: 700;
@@ -423,7 +445,7 @@
     transparent 0%,
     rgba(20, 4, 8, 0.78) 70%
   );
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 .cerca-collage-caption strong {
@@ -439,7 +461,7 @@
   font-style: normal;
   font-size: 0.72rem;
   font-weight: 700;
-  color: color-mix(in srgb, #f7e5b5 82%, var(--rojo));
+  color: color-mix(in srgb, #fff6e6 82%, var(--rojo));
 }
 
 .cerca-collage-tile.is-plain .cerca-collage-caption {
@@ -516,8 +538,8 @@
   align-items: center;
   padding: 1.15rem 1.1rem 1.2rem;
   border-radius: 1.2rem;
-  color: #f7e5b5;
-  border: 1px solid color-mix(in srgb, #f7e5b5 14%, transparent);
+  color: #fff6e6;
+  border: 1px solid color-mix(in srgb, #fff6e6 14%, transparent);
   background:
     radial-gradient(90% 80% at 0% 0%, rgba(216, 26, 28, 0.4), transparent 55%),
     linear-gradient(155deg, #4a1018 0%, #2a0810 52%, #140408 100%);
@@ -537,7 +559,7 @@
   position: absolute;
   inset: 0.35rem;
   border-radius: 50%;
-  border: 1.5px solid color-mix(in srgb, #f7e5b5 35%, transparent);
+  border: 1.5px solid color-mix(in srgb, #fff6e6 35%, transparent);
   animation: cerca-radar 2.2s ease-out infinite;
 }
 
@@ -550,7 +572,7 @@
 .cerca-loading-pin {
   position: relative;
   z-index: 1;
-  color: #f7e5b5;
+  color: #fff6e6;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
   animation: cerca-pin-bob 1.8s ease-in-out infinite;
 }
@@ -564,7 +586,7 @@
   font-size: 0.68rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: color-mix(in srgb, #f7e5b5 70%, transparent);
+  color: color-mix(in srgb, #fff6e6 70%, transparent);
 }
 
 .cerca-loading-title {
@@ -579,7 +601,7 @@
   margin: 0.35rem 0 0;
   font-size: 0.84rem;
   line-height: 1.35;
-  color: color-mix(in srgb, #f7e5b5 74%, transparent);
+  color: color-mix(in srgb, #fff6e6 74%, transparent);
 }
 
 .cerca-loading-rail {
@@ -651,7 +673,7 @@
   background: linear-gradient(
     105deg,
     color-mix(in srgb, var(--chrome) 8%, var(--surface)) 0%,
-    color-mix(in srgb, #f7e5b5 55%, var(--surface)) 42%,
+    color-mix(in srgb, #fff6e6 55%, var(--surface)) 42%,
     color-mix(in srgb, var(--rojo) 12%, var(--surface)) 58%,
     color-mix(in srgb, var(--chrome) 8%, var(--surface)) 100%
   );
@@ -725,20 +747,20 @@ html[data-theme='night'] .cerca-hero {
       transparent 55%
     ),
     linear-gradient(165deg, #4a1018 0%, #2a0810 55%, #1a060a 100%);
-  border-color: rgba(247, 229, 181, 0.18);
+  border-color: rgba(255, 246, 230, 0.18);
 }
 
 html[data-theme='night'] .cerca-place-card,
 html[data-theme='night'] .cerca-offer-card {
   background: linear-gradient(160deg, #451018 0%, #2e0a12 100%);
-  border-color: rgba(247, 229, 181, 0.14);
+  border-color: rgba(255, 246, 230, 0.14);
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
 }
 
 html[data-theme='night'] .dist-pill {
-  color: #f7e5b5;
+  color: #fff6e6;
   background: rgba(216, 26, 28, 0.22);
-  border-color: rgba(247, 229, 181, 0.22);
+  border-color: rgba(255, 246, 230, 0.22);
 }
 
 @media (min-width: 720px) {
@@ -748,7 +770,20 @@ html[data-theme='night'] .dist-pill {
   }
 
   .cerca-offer-rail {
-    grid-auto-columns: minmax(260px, 42%);
+    grid-auto-flow: unset;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-columns: unset;
+    overflow: visible;
+  }
+}
+
+@media (min-width: 1100px) {
+  .cerca-place-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cerca-offer-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -769,7 +804,7 @@ html[data-theme='night'] .dist-pill {
 html[data-theme='night'] .cerca-skel-offer,
 html[data-theme='night'] .cerca-skel-place {
   background: linear-gradient(160deg, #451018 0%, #2e0a12 100%);
-  border-color: rgba(247, 229, 181, 0.14);
+  border-color: rgba(255, 246, 230, 0.14);
 }
 
 html[data-theme='night'] .cerca-skel-bone {
@@ -777,7 +812,7 @@ html[data-theme='night'] .cerca-skel-bone {
     105deg,
     #2a0810 0%,
     #5c1822 45%,
-    #3b0b13 100%
+    #820808 100%
   );
   background-size: 220% 100%;
 }

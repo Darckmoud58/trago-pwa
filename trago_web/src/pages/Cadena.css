@@ -6,15 +6,15 @@
 
 .cadena-page h1 {
   margin: 0.35rem 0 0.5rem;
-  color: #3b0b13;
+  color: #820808;
 }
 
 .cadena-card {
   margin-top: 1.25rem;
   padding: 1.1rem 1.15rem;
-  border: 1px solid rgba(59, 11, 19, 0.12);
+  border: 1px solid rgba(130, 8, 8, 0.12);
   border-radius: 0.85rem;
-  background: rgba(247, 229, 181, 0.35);
+  background: rgba(255, 246, 230, 0.35);
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -23,7 +23,7 @@
 .cadena-card h2 {
   margin: 0;
   font-size: 1.15rem;
-  color: #3b0b13;
+  color: #820808;
 }
 
 .cadena-card label {
@@ -31,7 +31,7 @@
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.85rem;
-  color: rgba(59, 11, 19, 0.8);
+  color: rgba(130, 8, 8, 0.8);
 }
 
 .cadena-card input,
@@ -39,10 +39,10 @@
 .cadena-card select {
   padding: 0.65rem 0.75rem;
   border-radius: 0.55rem;
-  border: 1px solid rgba(59, 11, 19, 0.18);
+  border: 1px solid rgba(130, 8, 8, 0.18);
   background: #fff;
   font: inherit;
-  color: #3b0b13;
+  color: #820808;
 }
 
 .cadena-ad-form {
@@ -75,7 +75,7 @@
 .cadena-branches legend {
   font-size: 0.85rem;
   margin-bottom: 0.35rem;
-  color: rgba(59, 11, 19, 0.8);
+  color: rgba(130, 8, 8, 0.8);
 }
 
 .cadena-list {
@@ -98,7 +98,7 @@
   padding: 0.65rem 0.85rem;
   border-radius: 0.55rem;
   background: rgba(216, 26, 28, 0.08);
-  color: #3b0b13;
+  color: #820808;
   font-size: 0.9rem;
 }
 
@@ -129,7 +129,7 @@
   margin: 0.15rem 0 0;
   font-size: 1.55rem;
   font-weight: 700;
-  color: #3b0b13;
+  color: #820808;
 }
 
 /* Modo noche */
@@ -137,21 +137,21 @@ html[data-theme='night'] .cadena-page h1,
 html[data-theme='night'] .cadena-card h2,
 html[data-theme='night'] .cadena-info,
 html[data-theme='night'] .cadena-metric-value {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 html[data-theme='night'] .cadena-card {
   background: linear-gradient(160deg, #451018 0%, #2a0810 100%);
-  border-color: rgba(247, 229, 181, 0.16);
+  border-color: rgba(255, 246, 230, 0.16);
 }
 
 html[data-theme='night'] .cadena-card label {
-  color: rgba(247, 229, 181, 0.8);
+  color: rgba(255, 246, 230, 0.8);
 }
 
 html[data-theme='night'] .cadena-card input,
 html[data-theme='night'] .cadena-card textarea {
   background: #1a060a;
-  border-color: rgba(247, 229, 181, 0.22);
-  color: #f7e5b5;
+  border-color: rgba(255, 246, 230, 0.22);
+  color: #fff6e6;
 }

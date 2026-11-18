@@ -7,7 +7,7 @@ import {
   mapSuscripcion,
   puedePauta,
 } from '../lib/pauta.js';
-import { sanitizeHttpUrl } from '../lib/safeUrl.js';
+import { sanitizeHttpUrl, sanitizeMediaUrl } from '../lib/safeUrl.js';
 
 function clipStr(raw, max = 500) {
   return String(raw ?? '').trim().slice(0, max);
@@ -22,6 +22,7 @@ function mapAnuncio(a, empresaById = {}) {
     titulo: a.titulo,
     copy: a.copy || '',
     imagen_url: a.imagen_url || '',
+    video_url: a.video_url || '',
     url_destino: a.url_destino || '',
     inicia: a.inicia,
     termina: a.termina,
@@ -130,7 +131,8 @@ export async function createAnuncio(req, res) {
       id_empresa: empresa._id,
       titulo,
       copy: clipStr(req.body.copy || req.body.descripcion, 280),
-      imagen_url: sanitizeHttpUrl(req.body.imagen_url || req.body.imagen),
+      imagen_url: sanitizeMediaUrl(req.body.imagen_url || req.body.imagen),
+      video_url: sanitizeMediaUrl(req.body.video_url || req.body.video),
       url_destino: sanitizeHttpUrl(req.body.url_destino || req.body.url),
       inicia: req.body.inicia ? new Date(req.body.inicia) : null,
       termina: req.body.termina ? new Date(req.body.termina) : null,
@@ -181,9 +183,12 @@ export async function updateAnuncio(req, res) {
       doc.copy = clipStr(req.body.copy || req.body.descripcion, 280);
     }
     if (req.body.imagen_url != null || req.body.imagen != null) {
-      doc.imagen_url = sanitizeHttpUrl(
+      doc.imagen_url = sanitizeMediaUrl(
         req.body.imagen_url || req.body.imagen
       );
+    }
+    if (req.body.video_url != null || req.body.video != null) {
+      doc.video_url = sanitizeMediaUrl(req.body.video_url || req.body.video);
     }
     if (req.body.url_destino != null || req.body.url != null) {
       doc.url_destino = sanitizeHttpUrl(req.body.url_destino || req.body.url);
@@ -420,7 +425,7 @@ export async function serveAnuncios(req, res) {
       _id: { $in: empresaIds },
       estatus: 'activo',
     })
-      .select('nombre plan_pauta')
+      .select('nombre plan_pauta slug')
       .lean();
     const empresaById = Object.fromEntries(
       empresas.map((e) => [String(e._id), e])
@@ -446,6 +451,7 @@ export async function serveAnuncios(req, res) {
       const emp = empresaById[String(row.id_empresa)];
       if (!emp) continue;
       if (!puedePauta(emp, subByEmpresa[String(emp._id)])) continue;
+      // Creativos demo (seed anuncios-beta) visibles para la presentación del piloto.
       allowed.push(mapAnuncio(row, empresaById));
     }
 

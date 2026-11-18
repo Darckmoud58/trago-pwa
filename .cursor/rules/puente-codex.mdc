@@ -1,0 +1,13 @@
+---
+description: Puente de trabajo entre Jarvis (Cursor) y Codex (ChatGPT)
+alwaysApply: true
+---
+
+# Jarvis ↔ Codex
+
+Jarvis y Codex (ChatGPT) trabajan juntos. El buzón está en `~/.codex/jarvis-bridge/buzon.jsonl`.
+
+- Para hablar con ChatGPT usa el MCP `codex`, herramienta `preguntar_a_codex`.
+- Antes de un trabajo compartido, lee el buzón con `leer_buzon`.
+- Deja contexto para Codex con `dejar_nota_para_codex`.
+- Codex responde en español y conoce la tesis de TraGo: promo oficial × sucursal × GPS × voto. No inventar ofertas.

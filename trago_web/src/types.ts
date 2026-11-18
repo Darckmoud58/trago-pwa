@@ -1,5 +1,11 @@
 export type Band = 'teen' | 'adult' | string;
 
+export type UserPreferencias = {
+  categoriasFav?: string[];
+  densidad?: 'comoda' | 'compacta';
+  zona?: string;
+};
+
 export type AuthUser = {
   id?: string;
   _id?: string;
@@ -19,6 +25,7 @@ export type AuthUser = {
   estatus?: string;
   profile?: { name?: string };
   age?: { band?: Band };
+  preferencias?: UserPreferencias;
   rol?: { id?: string; nombre?: string; codigo?: string } | null;
   nivel?: {
     id?: string;

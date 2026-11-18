@@ -46,7 +46,7 @@ cd trago_web && npm install && npm run dev
 
 1. Merge/estabilizar la cadena de PRs a `main` y demo a 1 cadena real.
 2. Carga masiva de sucursales (CSV/Excel) para onboarding piloto.
-3. Planes Freemium/Pro (destacada cerca + reportes) sin inventar billing completo.
+3. Suscripción cadena/sucursales + anuncios propios (destacada cerca + reportes); **sin** Freemium con pauta de terceros.
 4. Cupones/canjes (modelos ya existen; falta API+UI).
 5. Observabilidad del embudo norte para venta Pro.
 

@@ -14,6 +14,49 @@ const STORAGE_KEY = 'trago_locale';
 
 const messages = {
   es: {
+    tourWelcomeTitle: '¡Hola, soy Traguito!',
+    tourWelcomeBody:
+      'Te acompaño a descubrir promociones y revisar sus condiciones antes de salir. Vamos paso a paso.',
+    tourWelcomeLabel: 'Tu próxima promo',
+    tourOffersTitle: 'El beneficio está en los detalles',
+    tourOffersBody:
+      'Revisa precio, vigencia y requisitos. Algunas ofertas necesitan una app, membresía o compra mínima.',
+    tourOffersLabel: 'Mira las condiciones',
+    tourSessionTitle: 'Al abrir una promo, inicia sesión',
+    tourSessionBody:
+      'Si te redirigen al detalle o cierras sesión, sin cuenta activa no reaparecen las promociones restringidas que viste antes en TraGo (por ejemplo alcohol 18+). Así protegemos el acceso por edad.',
+    tourSessionLabel: 'Cuenta y detalle',
+    tourSessionLegal:
+      'Si quieres leer más, revisa Términos y condiciones y el Aviso de privacidad.',
+    tourTermsCta: 'Términos y condiciones',
+    tourPrivacyCta: 'Aviso de privacidad',
+    tourNearTitle: '¿Por qué tu ubicación?',
+    tourNearBody:
+      'Me ayuda a buscar establecimientos cercanos y calcular la distancia. Tú decides: también puedes explorar sin activarla.',
+    tourNearLabel: 'A tu alrededor',
+    tourBranchTitle: 'Cerca no siempre significa que aplica',
+    tourBranchBody:
+      'Una sucursal cercana puede no participar. Revisa cuándo está confirmado y cuándo debes consultar antes de ir.',
+    tourBranchLabel: 'Antes de salir',
+    tourSkip: 'Omitir',
+    tourGuide: 'TRAGUITO TE GUÍA',
+    tourNext: 'Siguiente',
+    tourBack: 'Atrás',
+    tourFindNear: 'Ir a Cerca',
+    tourEnableStayHome: 'Activar ubicación y seguir en Inicio',
+    tourCatalog: 'Explorar catálogo sin ubicación',
+    tourProgress: 'Paso {step} de {total}',
+    tourExample: 'EJEMPLO ILUSTRATIVO · NO ES UNA OFERTA',
+    tourExamplePrice: 'Desde $99',
+    tourExampleTerms: 'Revisa horario y sucursales participantes',
+    tourLocationNote:
+      'Puedes activar la ubicación y quedarte en Inicio. Ir a Cerca es opcional.',
+    tourConfirmed: 'Participación confirmada',
+    tourUnconfirmed: 'Participación por confirmar',
+    tourReplayNote: 'Puedes volver a verme en «Cómo funciona TraGo».',
+    tourReplay: 'Cómo funciona TraGo',
+    tourHelpAria: 'Ayuda de TraGo',
+    adDemoLabel: 'Demostración',
     navHome: 'Inicio',
     navExplore: 'Explorar',
     navNear: 'Cerca',
@@ -38,6 +81,36 @@ const messages = {
     online: 'En línea',
     offline: 'Sin conexión',
     offlineCache: 'Sin conexión · caché local',
+    offlineStateTitle: 'Sigues con certeza guardada',
+    offlineStateBody:
+      'Sin red no inventamos ofertas. Abrimos lo último que sí leímos o tus favoritos.',
+    cacheAgeJustNow: 'Actualizado hace un momento',
+    cacheAgeMinutes: 'Actualizado hace {n} min',
+    cacheAgeHours: 'Actualizado hace {n} h',
+    cacheAgeDays: 'Actualizado hace {n} d',
+    helloMorning: 'Buenos días',
+    helloAfternoon: 'Buenas tardes',
+    helloEvening: 'Buenas noches',
+    helloNight: 'Buena madrugada',
+    homeForYou: 'Para ti ahora',
+    homeForYouLead: 'Lo más cercano con vigencia — no un feed genérico.',
+    homeForYouNamed: '{name}, esto está vivo cerca',
+    homeGuestLead: 'Certeza local sin cuenta · entra para personalizar',
+    prefsTitle: 'Tu TraGo',
+    prefsLead: 'Cómo quieres ver la certeza cerca de ti.',
+    prefsCats: 'Categorías favoritas',
+    prefsDensity: 'Densidad',
+    prefsDensityComfy: 'Cómoda',
+    prefsDensityCompact: 'Compacta',
+    prefsZone: 'Zona',
+    prefsSaved: 'Preferencias guardadas',
+    prefsCatComida: 'Comida',
+    prefsCatCafe: 'Café',
+    prefsCatAntro: 'Antro',
+    prefsCatDestilados: 'Destilados',
+    prefsCatCumple: 'Cumpleaños',
+    offlineBannerBodyRich:
+      'Viendo la última certeza guardada. Favoritos y Cerca siguen disponibles.',
     loading: 'Cargando…',
     searching: 'Buscando cerca…',
     cercaLoadingTitle: 'Localizando promos vivas',
@@ -58,10 +131,10 @@ const messages = {
     settingsNotifEnable: 'Activar avisos',
     settingsNotifBusy: 'Activando…',
     settingsNotifOk:
-      'Listo. Te avisamos el día de tu cumple aunque TraGo esté cerrado.',
+      'Listo. Te avisamos de promos nuevas, ofertas fuertes y tu cumple aunque TraGo esté cerrado.',
     settingsNotifFail: 'No se pudo activar el push. Prueba en Chrome/Edge con HTTPS o localhost.',
     notifBody:
-      'Te avisamos de promos vigentes y de tu cumpleaños aunque TraGo esté cerrado.',
+      'Te avisamos cuando entren promos oficiales nuevas u ofertas fuertes, y el día de tu cumple — aunque TraGo esté cerrado.',
     notifOn: 'Los avisos están activos en este dispositivo.',
     notifDisable: 'Desactivar',
     notifTest: 'Enviar prueba',
@@ -75,6 +148,11 @@ const messages = {
     settingsTerms: 'Términos',
     logout: 'Cerrar sesión',
     sessionInvalid: 'Sesión inválida. Vuelve a entrar.',
+    sessionOfflineKeep:
+      'Sin conexión o el servidor no respondió. Tu sesión sigue guardada; reintenta cuando vuelva la red.',
+    retryAction: 'Reintentar',
+    promoAuthRequired:
+      'Esta oferta requiere cuenta adulta. Inicia sesión para verla.',
     teenNote: '',
     ageGateTitle: 'Confirma tu fecha de nacimiento',
     ageGateBody: '',
@@ -112,6 +190,10 @@ const messages = {
     homeGpsLoading: 'Buscando ofertas cerca de ti…',
     homeGpsDenied:
       'No usamos tu GPS. Actívalo para ver vigencia a metros — o mira el catálogo.',
+    homeGpsTimeout:
+      'La ubicación tardó demasiado. Reintenta «Activar ubicación» o revisa el permiso del navegador.',
+    homeNearApiError:
+      'No pudimos consultar ofertas cerca. Reintenta en unos segundos.',
     homeNearEmpty: 'Ahora no hay ofertas oficiales cerca con GPS.',
     homeNearKm: 'a {km} km',
     quickNear: 'Cerca de mí',
@@ -151,7 +233,7 @@ const messages = {
     bdayGpsError:
       'Activa tu ubicación para ver regalos y descuentos de cumple cerca. No inventamos un punto.',
     bdayEmptyNear:
-      'Hoy no encontramos promos de cumple cerca con GPS. Revisa el catálogo de cumple o abre Cerca.',
+      'Aún no hay beneficios de cumple publicados en fuentes oficiales. Vuelve más tarde o revisa el catálogo.',
     bdayNeedLogin:
       'El día de tu cumple se desbloquea con tu cuenta (fecha de nacimiento).',
     bdayLockedFilter:
@@ -159,6 +241,24 @@ const messages = {
     bdayMeters: 'a {m} m',
     bdayOpenCatalog: 'Ver promos de cumple',
     bdaySeeGifts: 'Ver mis regalos',
+    bdayOpenDay: 'Abrir mi día',
+    bdaySeeking: 'Buscando regalos de cumple publicados…',
+    bdayNearest: 'Tu regalo más cercano',
+    bdayRevealCta: 'Ver condiciones',
+    bdayRitualHint:
+      'Toca Abrir mi día: TraGo junta beneficios de cumple publicados por las cadenas (lealtad/app). En el local suelen pedir su cuenta e ID.',
+    bdayRitualSub:
+      'No inventamos ofertas: leemos lo que las marcas publican por tu cumple y, si hay sucursal cerca, te damos metros.',
+    bdayRetryGps: 'Reintentar ubicación',
+    bdayLoyaltyNote:
+      'Suele requerir cuenta/app de la cadena + fecha registrada e identificación en tienda.',
+    bdaySplashKicker: 'Hoy TraGo es tuyo',
+    bdaySplashTitle: 'Feliz cumpleaños{name}',
+    bdaySplashBody:
+      'Preparamos un día distinto: beneficios oficiales de cumple, metros reales y una app que te celebra. Abre tus regalos.',
+    bdaySplashCta: 'Entrar a mi día',
+    bdayGuideFab: 'Tus regalos{name}',
+    bdayGuideYou: '',
     featured: 'Destacadas',
     seeAll: 'Ver todas',
     cacheHint: 'Mostrando lo último que vimos guardado',
@@ -242,6 +342,7 @@ const messages = {
     chainParticipationOk: 'Participación actualizada',
     chainParticipationError: 'No se pudo actualizar la participación',
     adLabel: 'Patrocinado',
+    adOpen: 'Ver más',
     adLegalNote: 'Publicidad. No es una promo oficial de TraGo.',
     chainAdsTitle: 'Anuncios (pauta)',
     chainAdsLead:
@@ -254,12 +355,15 @@ const messages = {
     chainAdsActive: 'Pauta activa',
     chainAdTitle: 'Título del anuncio',
     chainAdCopy: 'Texto corto',
-    chainAdImage: 'URL de imagen (https)',
+    chainAdImage: 'URL de imagen / poster (https)',
+    chainAdVideo: 'URL de video mp4 (opcional, beta)',
     chainAdUrl: 'URL de destino (opcional)',
     chainAdSlot: 'Slot',
     chainAdSlotHome: 'Home',
     chainAdSlotExplore: 'Explorar',
     chainAdSlotNear: 'Cerca',
+    chainAdSlotSideLeft: 'Lateral izquierdo',
+    chainAdSlotSideRight: 'Lateral derecho',
     chainAdSave: 'Guardar borrador',
     chainAdActivate: 'Activar',
     chainAdPause: 'Pausar',
@@ -316,6 +420,9 @@ const messages = {
     centerGdl: 'Centro Histórico GDL',
     lastSearchSaved: 'Última búsqueda guardada',
     offlineLastSearch: 'Sin conexión · mostrando lugares guardados',
+    offlineLastSearchWithPromos:
+      'Sin conexión · sucursales y ofertas de tu última búsqueda',
+    offlinePromoDetail: 'Sin conexión · mostrando la última oferta guardada',
     nearError:
       'No pudimos buscar lugares. Revisa tu conexión o abre Favoritos.',
     noGeo: 'Tu dispositivo no soporta geolocalización',
@@ -386,6 +493,7 @@ const messages = {
     clearFilters: 'Limpiar filtros',
     offlineBannerTitle: 'Sin conexión',
     offlineBannerBody: 'Puedes abrir favoritos y lo último guardado.',
+    goNearShort: 'Cerca',
     goFavorites: 'Ir a favoritos',
     installTitleIos: 'Añadir a pantalla de inicio',
     installTitle: 'Instalar TraGo',
@@ -481,7 +589,17 @@ const messages = {
     whereApplies: 'Dónde aplica',
     noBranches: 'Sin sucursales ligadas aún.',
     noBranchesLinked:
-      'Sin sucursales participantes confirmadas. La fuente no especificó en cuál aplica; no inventamos el local.',
+      'Sin sucursales participantes confirmadas. La fuente no especificó en cuál aplica; consulta con la sucursal antes de acudir.',
+    askBranchBeforeGo:
+      'Consulta con la sucursal antes de acudir: la marca no indicó en qué local aplica.',
+    evidencePublished:
+      'Publicada por la marca. La vigencia en piso y la sucursal hay que confirmarlas.',
+    cercaGpsHelp:
+      'Necesitamos tu ubicación para mostrar locales cercanos. No sustituimos tu GPS por otra zona.',
+    useManualZone:
+      'Usar zona {zone} (demo explícita · no es tu GPS)',
+    manualZoneNote: 'Demo · {zone} · 2 km',
+    goCatalog: 'Ver catálogo',
     branchDistance: 'A {m} m de ti',
     seeNearMe: 'Ver cerca de mí',
     seeLocation: 'Ver ubicación',
@@ -493,6 +611,49 @@ const messages = {
     bdayTag: 'Cumple',
   },
   en: {
+    tourWelcomeTitle: "Hi, I'm Traguito!",
+    tourWelcomeBody:
+      "I'll help you discover promotions and check their conditions before heading out. Let's take a quick look.",
+    tourWelcomeLabel: 'Your next offer',
+    tourOffersTitle: 'The details make the deal',
+    tourOffersBody:
+      'Check the price, dates and requirements. Some offers need an app, membership or minimum purchase.',
+    tourOffersLabel: 'Check the conditions',
+    tourSessionTitle: 'Sign in when you open a deal',
+    tourSessionBody:
+      'If you are sent to the detail page or you sign out, restricted promos you saw earlier in TraGo (such as 18+ alcohol) will not reappear without an active account. That keeps age-gated access honest.',
+    tourSessionLabel: 'Account & detail',
+    tourSessionLegal:
+      'Want the full story? Read the Terms and Conditions and the Privacy notice.',
+    tourTermsCta: 'Terms and Conditions',
+    tourPrivacyCta: 'Privacy notice',
+    tourNearTitle: 'Why your location?',
+    tourNearBody:
+      'It helps me find nearby businesses and calculate distance. You choose: you can also explore without enabling it.',
+    tourNearLabel: 'Around you',
+    tourBranchTitle: 'Nearby does not always mean participating',
+    tourBranchBody:
+      'A nearby branch may not participate. Check what is confirmed and when you should contact the branch before going.',
+    tourBranchLabel: 'Before heading out',
+    tourSkip: 'Skip',
+    tourGuide: 'YOUR GUIDE, TRAGUITO',
+    tourNext: 'Next',
+    tourBack: 'Back',
+    tourFindNear: 'Go to Near',
+    tourEnableStayHome: 'Enable location and stay on Home',
+    tourCatalog: 'Explore without location',
+    tourProgress: 'Step {step} of {total}',
+    tourExample: 'ILLUSTRATIVE EXAMPLE · NOT AN OFFER',
+    tourExamplePrice: 'From $99',
+    tourExampleTerms: 'Check times and participating branches',
+    tourLocationNote:
+      'You can enable location and stay on Home. Going to Near is optional.',
+    tourConfirmed: 'Participation confirmed',
+    tourUnconfirmed: 'Participation unconfirmed',
+    tourReplayNote: 'See me again in “How TraGo works”.',
+    tourReplay: 'How TraGo works',
+    tourHelpAria: 'TraGo help',
+    adDemoLabel: 'Demo',
     navHome: 'Home',
     navExplore: 'Explore',
     navNear: 'Near',
@@ -517,6 +678,36 @@ const messages = {
     online: 'Online',
     offline: 'Offline',
     offlineCache: 'Offline · local cache',
+    offlineStateTitle: 'You still have saved certainty',
+    offlineStateBody:
+      'Offline we never invent deals. We open the last read data or your favorites.',
+    cacheAgeJustNow: 'Updated just now',
+    cacheAgeMinutes: 'Updated {n} min ago',
+    cacheAgeHours: 'Updated {n} h ago',
+    cacheAgeDays: 'Updated {n} d ago',
+    helloMorning: 'Good morning',
+    helloAfternoon: 'Good afternoon',
+    helloEvening: 'Good evening',
+    helloNight: 'Late night',
+    homeForYou: 'For you now',
+    homeForYouLead: 'Closest deals still live — not a generic feed.',
+    homeForYouNamed: '{name}, this is live near you',
+    homeGuestLead: 'Local certainty without an account · sign in to personalize',
+    prefsTitle: 'Your TraGo',
+    prefsLead: 'How you want to see certainty near you.',
+    prefsCats: 'Favorite categories',
+    prefsDensity: 'Density',
+    prefsDensityComfy: 'Comfortable',
+    prefsDensityCompact: 'Compact',
+    prefsZone: 'Zone',
+    prefsSaved: 'Preferences saved',
+    prefsCatComida: 'Food',
+    prefsCatCafe: 'Coffee',
+    prefsCatAntro: 'Nightlife',
+    prefsCatDestilados: 'Spirits',
+    prefsCatCumple: 'Birthday',
+    offlineBannerBodyRich:
+      'Showing last saved certainty. Favorites and Near stay available.',
     loading: 'Loading…',
     searching: 'Searching nearby…',
     cercaLoadingTitle: 'Finding live promos',
@@ -537,11 +728,11 @@ const messages = {
     settingsNotifEnable: 'Enable alerts',
     settingsNotifBusy: 'Enabling…',
     settingsNotifOk:
-      'Done. We’ll notify you on your birthday even if TraGo is closed.',
+      'Done. We’ll alert you about new promos, strong deals, and your birthday even if TraGo is closed.',
     settingsNotifFail:
       'Couldn’t enable push. Try Chrome/Edge with HTTPS or localhost.',
     notifBody:
-      'We’ll alert you about live deals and your birthday even if TraGo is closed.',
+      'We’ll alert you when new official promos or strong deals land, and on your birthday — even if TraGo is closed.',
     notifOn: 'Alerts are on for this device.',
     notifDisable: 'Turn off',
     notifTest: 'Send a test',
@@ -555,6 +746,10 @@ const messages = {
     settingsTerms: 'Terms',
     logout: 'Sign out',
     sessionInvalid: 'Invalid session. Sign in again.',
+    sessionOfflineKeep:
+      'You are offline or the server did not respond. Your session is still saved; try again when you are back online.',
+    retryAction: 'Try again',
+    promoAuthRequired: 'This deal needs an adult account. Sign in to view it.',
     teenNote: '',
     ageGateTitle: 'Confirm your date of birth',
     ageGateBody: '',
@@ -592,6 +787,9 @@ const messages = {
     homeGpsLoading: 'Looking for deals near you…',
     homeGpsDenied:
       'We didn’t use your GPS. Turn it on for distance — or browse the catalog.',
+    homeGpsTimeout:
+      'Location took too long. Tap “Enable location” again or check browser permission.',
+    homeNearApiError: 'We could not fetch nearby deals. Try again in a moment.',
     homeNearEmpty: 'No official deals nearby with GPS right now.',
     homeNearKm: '{km} km away',
     quickNear: 'Near me',
@@ -631,7 +829,7 @@ const messages = {
     bdayGpsError:
       'Turn on location to see birthday freebies nearby. We won’t invent a point.',
     bdayEmptyNear:
-      'No birthday deals nearby with GPS today. Check the birthday catalog or open Near.',
+      'No published birthday benefits from official sources yet. Try again later or open the catalog.',
     bdayNeedLogin:
       'Birthday unlocks with your account (birth date) on your day only.',
     bdayLockedFilter:
@@ -639,6 +837,24 @@ const messages = {
     bdayMeters: '{m} m away',
     bdayOpenCatalog: 'See birthday deals',
     bdaySeeGifts: 'See my gifts',
+    bdayOpenDay: 'Open my day',
+    bdaySeeking: 'Finding published birthday benefits…',
+    bdayNearest: 'Your nearest gift',
+    bdayRevealCta: 'See terms',
+    bdayRitualHint:
+      'Tap Open my day: TraGo gathers birthday benefits published by chains (loyalty/app). Stores usually need their account + ID.',
+    bdayRitualSub:
+      'We don’t invent offers: we read what brands publish for your birthday and show meters when a branch is nearby.',
+    bdayRetryGps: 'Retry location',
+    bdayLoyaltyNote:
+      'Usually requires the chain’s app/account + registered birth date and ID in store.',
+    bdaySplashKicker: 'Today TraGo is yours',
+    bdaySplashTitle: 'Happy birthday{name}',
+    bdaySplashBody:
+      'We made the day feel different: official birthday benefits, real meters, and an app that celebrates you. Open your gifts.',
+    bdaySplashCta: 'Enter my day',
+    bdayGuideFab: 'Your gifts{name}',
+    bdayGuideYou: '',
     featured: 'Featured',
     seeAll: 'See all',
     cacheHint: 'Showing the last results we saved',
@@ -722,6 +938,7 @@ const messages = {
     chainParticipationOk: 'Participation updated',
     chainParticipationError: 'Could not update participation',
     adLabel: 'Sponsored',
+    adOpen: 'See more',
     adLegalNote: 'Advertising. Not an official TraGo promo.',
     chainAdsTitle: 'Ads (paid placements)',
     chainAdsLead:
@@ -734,12 +951,15 @@ const messages = {
     chainAdsActive: 'Placements active',
     chainAdTitle: 'Ad title',
     chainAdCopy: 'Short copy',
-    chainAdImage: 'Image URL (https)',
+    chainAdImage: 'Image / poster URL (https)',
+    chainAdVideo: 'Video mp4 URL (optional, beta)',
     chainAdUrl: 'Destination URL (optional)',
     chainAdSlot: 'Slot',
     chainAdSlotHome: 'Home',
     chainAdSlotExplore: 'Explore',
     chainAdSlotNear: 'Near',
+    chainAdSlotSideLeft: 'Left rail',
+    chainAdSlotSideRight: 'Right rail',
     chainAdSave: 'Save draft',
     chainAdActivate: 'Activate',
     chainAdPause: 'Pause',
@@ -796,6 +1016,9 @@ const messages = {
     centerGdl: 'Downtown GDL',
     lastSearchSaved: 'Last saved search',
     offlineLastSearch: 'Offline · showing saved places',
+    offlineLastSearchWithPromos:
+      'Offline · branches and deals from your last search',
+    offlinePromoDetail: 'Offline · showing the last saved deal',
     nearError: 'We couldn’t find places. Check your connection or open Favorites.',
     noGeo: 'Your device does not support geolocation',
     cacheTag: '',
@@ -865,6 +1088,7 @@ const messages = {
     clearFilters: 'Clear filters',
     offlineBannerTitle: 'Offline',
     offlineBannerBody: 'You can open favorites and last saved data.',
+    goNearShort: 'Near',
     goFavorites: 'Go to favorites',
     installTitleIos: 'Add to Home Screen',
     installTitle: 'Install TraGo',
@@ -958,7 +1182,16 @@ const messages = {
     whereApplies: 'Where it applies',
     noBranches: 'No linked locations yet.',
     noBranchesLinked:
-      'No confirmed participating branches. The source did not say which store applies; we do not invent it.',
+      'No confirmed participating branches. The source did not say which store applies; check with the store before going.',
+    askBranchBeforeGo:
+      'Check with the store before going: the brand did not say which location applies.',
+    evidencePublished:
+      'Published by the brand. Floor validity and the store still need confirmation.',
+    cercaGpsHelp:
+      'We need your location to show nearby places. We never silently replace your GPS.',
+    useManualZone: 'Use {zone} zone (explicit demo · not your GPS)',
+    manualZoneNote: 'Demo · {zone} · 2 km',
+    goCatalog: 'Browse catalog',
     branchDistance: '{m} m from you',
     seeNearMe: 'See near me',
     seeLocation: 'See location',

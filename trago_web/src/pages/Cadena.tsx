@@ -41,6 +41,7 @@ type AnuncioRow = {
   titulo?: string;
   copy?: string;
   imagen_url?: string;
+  video_url?: string;
   url_destino?: string;
   slot?: string;
   estatus?: string;
@@ -99,6 +100,7 @@ export default function Cadena() {
   const [adTitulo, setAdTitulo] = useState('');
   const [adCopy, setAdCopy] = useState('');
   const [adImagen, setAdImagen] = useState('');
+  const [adVideo, setAdVideo] = useState('');
   const [adUrl, setAdUrl] = useState('');
   const [adSlot, setAdSlot] = useState('home_rail');
 
@@ -316,6 +318,7 @@ export default function Cadena() {
         titulo: adTitulo,
         copy: adCopy,
         imagen_url: adImagen,
+        video_url: adVideo,
         url_destino: adUrl,
         slot: adSlot,
         zonas: ['gdl'],
@@ -323,6 +326,7 @@ export default function Cadena() {
       setAdTitulo('');
       setAdCopy('');
       setAdImagen('');
+      setAdVideo('');
       setAdUrl('');
       setAdSlot('home_rail');
       setInfo(t('chainAdSave'));
@@ -619,6 +623,14 @@ export default function Cadena() {
                   />
                 </label>
                 <label>
+                  {t('chainAdVideo')}
+                  <input
+                    value={adVideo}
+                    onChange={(e) => setAdVideo(e.target.value)}
+                    placeholder="https://…mp4"
+                  />
+                </label>
+                <label>
                   {t('chainAdUrl')}
                   <input
                     value={adUrl}
@@ -635,6 +647,8 @@ export default function Cadena() {
                     <option value="home_rail">{t('chainAdSlotHome')}</option>
                     <option value="explorar_mid">{t('chainAdSlotExplore')}</option>
                     <option value="cerca_top">{t('chainAdSlotNear')}</option>
+                    <option value="side_left">{t('chainAdSlotSideLeft')}</option>
+                    <option value="side_right">{t('chainAdSlotSideRight')}</option>
                   </select>
                 </label>
                 <button className="btn primary" type="submit" disabled={busy}>

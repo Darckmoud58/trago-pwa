@@ -7,6 +7,8 @@ const schema = new mongoose.Schema(
     at: { type: Date, default: null },
     sources: { type: Array, default: [] },
     error: { type: String, default: null },
+    /** Último digest Web Push de promos nuevas / ofertas fuertes. */
+    lastNewPromoPushAt: { type: Date, default: null },
   },
   { collection: 'official_refresh', timestamps: true }
 );

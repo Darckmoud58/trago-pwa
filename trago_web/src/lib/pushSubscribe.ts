@@ -1,12 +1,28 @@
 import axios from 'axios';
 import { api } from '../api';
 
+/** VAPID applicationServerKey: 65 bytes (0x04 || X || Y). */
 function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const cleaned = String(base64String || '')
+    .trim()
+    .replace(/^["']|["']$/g, '');
+  const padding = '='.repeat((4 - (cleaned.length % 4)) % 4);
+  const base64 = (cleaned + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = atob(base64);
-  const output = new Uint8Array(raw.length);
+  let output = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i += 1) output[i] = raw.charCodeAt(i);
+  // Claves viejas a veces vienen sin el prefijo uncompressed (64 bytes).
+  if (output.length === 64) {
+    const fixed = new Uint8Array(65);
+    fixed[0] = 0x04;
+    fixed.set(output, 1);
+    output = fixed;
+  }
+  if (output.length !== 65 || output[0] !== 0x04) {
+    throw new Error(
+      'La clave VAPID del servidor no es válida. En el API regenera con npm run vapid y reinicia.'
+    );
+  }
   return output;
 }
 
@@ -128,7 +144,7 @@ export async function enableWebPush(): Promise<PushEnableResult> {
     return {
       ok: true,
       message:
-        'Listo. Te avisamos de promos vigentes y de tu cumpleaños aunque TraGo esté cerrado.',
+        'Listo. Te avisamos de promos nuevas, ofertas fuertes y tu cumple aunque TraGo esté cerrado.',
     };
   } catch (error) {
     return {

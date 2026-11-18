@@ -1,0 +1,237 @@
+.bday-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+  background:
+    radial-gradient(90% 70% at 50% 0%, rgba(255, 246, 230, 0.28), transparent 55%),
+    radial-gradient(80% 60% at 100% 80%, rgba(216, 26, 28, 0.35), transparent 50%),
+    linear-gradient(165deg, #5c1520 0%, #2a0a10 48%, #120306 100%);
+  animation: bday-splash-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bday-splash.is-leaving {
+  animation: bday-splash-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) both;
+  pointer-events: none;
+}
+
+.bday-splash-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.bday-splash-glow {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: min(28rem, 90vw);
+  height: min(28rem, 90vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 230, 0.22), transparent 68%);
+  animation: bday-glow-pulse 3.2s ease-in-out infinite;
+}
+
+.bday-splash-ring {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: min(16rem, 62vw);
+  height: min(16rem, 62vw);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, #fff6e6 35%, transparent);
+  animation: bday-ring 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.bday-splash-confetti {
+  position: absolute;
+  inset: 0;
+}
+
+.bday-splash-confetti i {
+  --i: 0;
+  position: absolute;
+  top: -6%;
+  left: calc(3% + (var(--i) * 4%));
+  width: 0.4rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  background: #fff6e6;
+  opacity: 0.9;
+  animation: bday-confetti-fall 5.2s ease-in infinite;
+  animation-delay: calc(var(--i) * -0.18s);
+}
+
+.bday-splash-confetti i:nth-child(3n) {
+  background: #d81a1c;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.bday-splash-confetti i:nth-child(4n) {
+  background: #ffd76a;
+  width: 0.3rem;
+  height: 0.95rem;
+}
+
+.bday-splash-panel {
+  position: relative;
+  z-index: 1;
+  width: min(24rem, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.65rem;
+  animation: bday-panel-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+.bday-splash-mark {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 1.35rem;
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, #fff6e6 28%, transparent);
+  animation: bday-mark-pop 0.85s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.bday-splash-kicker {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #fff6e6 82%, white);
+}
+
+.bday-splash-title {
+  margin: 0;
+  font-size: clamp(1.65rem, 6vw, 2.15rem);
+  line-height: 1.1;
+  background: linear-gradient(120deg, #fff6e6 0%, #fff6d8 45%, #f0c96a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.bday-splash-body {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: color-mix(in srgb, #fff6e6 78%, #fff);
+}
+
+.bday-splash-cta {
+  margin-top: 0.55rem;
+  min-width: 12rem;
+  animation: bday-cta-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes bday-splash-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bday-splash-out {
+  to {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes bday-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bday-mark-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.7) rotate(-6deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes bday-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.65;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+}
+
+@keyframes bday-ring {
+  0% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+}
+
+@keyframes bday-confetti-fall {
+  0% {
+    transform: translate3d(0, -8%, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate3d(calc((var(--i) - 12) * 5px), 110vh, 0) rotate(400deg);
+    opacity: 0.12;
+  }
+}
+
+@keyframes bday-cta-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #fff6e6 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bday-splash,
+  .bday-splash-panel,
+  .bday-splash-mark,
+  .bday-splash-glow,
+  .bday-splash-ring,
+  .bday-splash-confetti i,
+  .bday-splash-cta {
+    animation: none !important;
+  }
+
+  .bday-splash-confetti {
+    display: none;
+  }
+}

@@ -128,11 +128,21 @@ El catálogo público (`GET /api/promociones`) y el detalle solo muestran promoc
 
 ## Web Push / VAPID (paridad Todo_pwa)
 
-- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Vercel/Netlify).
+- `cd server && npm run vapid` → pega `VAPID_SUBJECT`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` en `.env` (y Vercel/Netlify **API**).
 - `GET /api/push/publicKey` · `GET/POST /api/push/subscribe` — clave + guardar suscripción (JWT).
-- `POST /api/push/birthday` — cron con `x-cron-secret` / Bearer `CRON_SECRET` o admin JWT.
-- Crons Vercel: workflows `trago-refresh-official` y `trago-push-birthday` (ver `docs/VERCEL-DEPLOY.md`).
-- Front: Cuenta → Notificaciones; SW maneja `push` / `notificationclick`.
+- `POST /api/push/test` — aviso de prueba a tus dispositivos (JWT + suscripción previa).
+- `POST /api/push/birthday` — cron cumple (18+).
+- `POST /api/push/new-promos` — digiere promos oficiales nuevas / destacadas (mismo cron auth).
+- Tras `POST /api/cron/refresh-official` el server también dispara el digest de promos nuevas.
+- Crons: workflows `trago-refresh-official` y `trago-push-birthday` (ver `docs/VERCEL-DEPLOY.md`).
+- Front: Cuenta → Notificaciones (hace falta **sesión + permiso**). En iPhone: PWA instalada (Agregar a inicio).
+- SW maneja `push` / `notificationclick`.
+
+### Por qué “no me llega ninguna”
+
+1. En prod faltan `VAPID_*` en el proyecto **API** de Vercel.  
+2. No activaste avisos en **Cuenta** (o iOS sin instalar PWA).  
+3. Antes solo existían cumple y prueba: sin cron de cumple / sin “Enviar prueba”, silencio total. Ahora el refresh oficial también avisa promos nuevas.
 
 ## Gate 18+ (R1)
 

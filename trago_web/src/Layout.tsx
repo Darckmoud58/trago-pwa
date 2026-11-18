@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import AppHeader from './components/AppHeader';
+import BirthdayGuideFab from './components/BirthdayGuideFab';
+import BirthdaySurpriseSplash from './components/BirthdaySurpriseSplash';
 import BottomNav from './components/BottomNav';
 import InstallBanner from './components/InstallBanner';
 import PwaUpdater from './components/PwaUpdater';
@@ -8,15 +10,20 @@ import LocationSplash from './components/LocationSplash';
 import OfflineBanner from './components/OfflineBanner';
 import PageLoadOverlay from './components/PageLoadOverlay';
 import PageTransition from './components/PageTransition';
+import SideAdRails from './components/SideAdRails';
 import { readToken } from './api';
 import { syncFavorites } from './lib/favorites';
+import { useAuthUser } from './hooks/useAuthUser';
 import { useImmersiveScroll } from './hooks/useImmersiveScroll';
 import { useNightTheme } from './hooks/useNightTheme';
+import { useUserPrefs } from './hooks/useUserPrefs';
 import './Layout.css';
 
 export default function Layout() {
   const { pathname } = useLocation();
   const night = useNightTheme();
+  const { birthdayToday } = useAuthUser();
+  const { prefs } = useUserPrefs();
   useImmersiveScroll();
   const [token, setToken] = useState(() => readToken());
   const [online, setOnline] = useState(
@@ -58,18 +65,24 @@ export default function Layout() {
 
   return (
     <div
-      className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}${night ? ' is-night' : ''}`}
+      className={`app-shell${isAuth ? ' is-auth' : ''}${isHome ? ' is-home' : ''}${night ? ' is-night' : ' is-day'}${birthdayToday ? ' is-bday-day' : ''}${prefs.densidad === 'compacta' ? ' is-dense' : ''}${!online ? ' is-offline' : ''}`}
+      data-zone={prefs.zona || 'gdl'}
     >
       <PageLoadOverlay />
+      <BirthdaySurpriseSplash />
       <LocationSplash />
       {!hideHeader && <AppHeader online={online} loggedIn={!!token} />}
       {!online && <OfflineBanner />}
-      <main className="app-main" id="main">
-        <PageTransition>
-          <Outlet />
-        </PageTransition>
-      </main>
-      <BottomNav hasSession={!!token} />
+      <div className={`app-body${isAuth ? ' is-auth' : ''}`}>
+        <SideAdRails />
+        <main className="app-main" id="main">
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
+        </main>
+      </div>
+      <BirthdayGuideFab />
+      <BottomNav hasSession={!!token} birthdayToday={birthdayToday} />
       <PwaUpdater />
       <InstallBanner />
     </div>

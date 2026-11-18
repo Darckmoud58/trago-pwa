@@ -27,8 +27,15 @@ Fuente comercial: `docs/PITCH-TRAGO.md`. Stack y arranque: `README.md`.
 - GPS fallido: informar y permitir demo explícito; nunca sustituir ubicación en silencio.
 - Métrica norte: **GPS × promo abierta × sucursal vista** (no likes).
 
+## Ingresos (oferta)
+
+- Paga la **cadena/sucursales** (suscripción) y sube **sus** anuncios.
+- Usuario final gratis (certeza). No Freemium con pauta del competidor.
+- Detalle: `docs/PROPUESTA-FREEMIUM-EQUIPO.md`, `docs/ANUNCIOS-PILOTO.md`.
+
 ## Anti-patrones
 
 - Convertir TraGo en “lugares bonitos” o scraper genérico.
 - Inventar promos, inventario o sucursal de aplicación.
 - Priorizar engagement vacío sobre pies en la puerta / vigencia por local.
+- Freemium que regala el canal al vecino para forzar upgrade.

@@ -58,13 +58,13 @@ html[data-theme='night'] .pageload {
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: #3b0b13;
+  color: #820808;
   animation: pageload-pulse 1.2s ease-in-out infinite;
 }
 
 .pageload.is-night .pageload-status,
 html[data-theme='night'] .pageload-status {
-  color: #f7e5b5;
+  color: #fff6e6;
 }
 
 @keyframes pageload-pulse {

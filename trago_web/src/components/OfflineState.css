@@ -1,0 +1,53 @@
+.offline-state {
+  padding: 1.15rem 1.1rem 1.25rem;
+  border-radius: var(--radius-lg, 1.15rem);
+  color: #fff6e6;
+  background:
+    radial-gradient(80% 70% at 100% 0%, rgba(216, 26, 28, 0.22), transparent 55%),
+    linear-gradient(155deg, #820808 0%, #1a060a 55%, #0a0305 100%);
+  border: 1px solid color-mix(in srgb, #fff6e6 14%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.offline-state-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #fff6e6 65%, transparent);
+}
+
+.offline-state-title {
+  margin: 0 0 0.35rem;
+  font-family: var(--display, Syne, system-ui, sans-serif);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff6e6;
+}
+
+.offline-state-body {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: color-mix(in srgb, #fff6e6 78%, transparent);
+}
+
+.offline-state-age {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  color: color-mix(in srgb, #fff6e6 55%, transparent);
+}
+
+.offline-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.offline-state-actions .btn.ghost {
+  color: #fff6e6;
+  border-color: color-mix(in srgb, #fff6e6 28%, transparent);
+}

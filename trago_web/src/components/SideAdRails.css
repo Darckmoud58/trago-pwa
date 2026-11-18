@@ -1,0 +1,49 @@
+/* Ocultos en móvil; anclados a los bordes del contenido en desktop */
+.app-ad-col {
+  display: none;
+}
+
+.app-ad-col .side-ad-slot {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .app-ad-col {
+    display: block;
+    position: sticky;
+    top: 1.15rem;
+    align-self: start;
+    width: 100%;
+    max-width: 11rem;
+    z-index: 2;
+  }
+
+  /* Colapsa el hueco si no hay campaña válida servida */
+  .app-ad-col:not(:has(.sponsored-slot)) {
+    display: none;
+  }
+
+  .app-ad-col--left {
+    grid-area: adL;
+    justify-self: stretch;
+  }
+
+  .app-ad-col--right {
+    grid-area: adR;
+    justify-self: stretch;
+  }
+
+  .app-ad-col .side-ad-slot {
+    border-radius: var(--radius-md, 0.85rem);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--surface);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-ad-col {
+    max-width: 13rem;
+  }
+}

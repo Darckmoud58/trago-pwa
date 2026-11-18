@@ -18,10 +18,10 @@
   margin: 0 auto;
   padding: 1rem 1.05rem 1.05rem;
   border-radius: 1.05rem;
-  background: #3b0b13;
-  color: #f7e5b5;
-  border: 1px solid rgba(247, 229, 181, 0.28);
-  box-shadow: 0 14px 36px rgba(59, 11, 19, 0.42);
+  background: #820808;
+  color: #fff6e6;
+  border: 1px solid rgba(255, 246, 230, 0.28);
+  box-shadow: 0 14px 36px rgba(130, 8, 8, 0.42);
 }
 
 .install-sheet-top {
@@ -35,7 +35,7 @@
   width: 2.85rem;
   height: 2.85rem;
   border-radius: 0.65rem;
-  border: 1px solid rgba(247, 229, 181, 0.25);
+  border: 1px solid rgba(255, 246, 230, 0.25);
   object-fit: contain;
   background: #000;
 }
@@ -55,7 +55,7 @@
 .install-copy p {
   margin: 0.3rem 0 0;
   font-size: 0.88rem;
-  color: rgba(247, 229, 181, 0.9);
+  color: rgba(255, 246, 230, 0.9);
   line-height: 1.4;
 }
 
@@ -68,7 +68,7 @@
 .install-ios-note {
   margin: 0;
   font-size: 0.78rem;
-  color: rgba(247, 229, 181, 0.72);
+  color: rgba(255, 246, 230, 0.72);
   line-height: 1.35;
 }
 
@@ -79,7 +79,7 @@
   align-self: flex-start;
   padding: 0.45rem 0.75rem;
   border-radius: 999px;
-  background: rgba(247, 229, 181, 0.14);
+  background: rgba(255, 246, 230, 0.14);
   font-size: 0.86rem;
   font-weight: 600;
 }
@@ -94,9 +94,9 @@
   padding: 0.65rem 0.8rem;
   list-style: none;
   border-radius: 0.75rem;
-  background: rgba(247, 229, 181, 0.1);
+  background: rgba(255, 246, 230, 0.1);
   font-size: 0.86rem;
-  color: #f7e5b5;
+  color: #fff6e6;
   line-height: 1.55;
 }
 
@@ -118,9 +118,9 @@
 }
 
 .install-sheet .btn.primary {
-  background: #f7e5b5;
-  color: #3b0b13;
-  border-color: #f7e5b5;
+  background: #fff6e6;
+  color: #820808;
+  border-color: #fff6e6;
 }
 
 .install-sheet .btn.primary:disabled {
@@ -128,12 +128,12 @@
 }
 
 .install-sheet .btn.ghost {
-  border-color: rgba(247, 229, 181, 0.45);
-  color: #f7e5b5;
+  border-color: rgba(255, 246, 230, 0.45);
+  color: #fff6e6;
 }
 
 .install-sheet .btn.ghost:active {
-  background: rgba(247, 229, 181, 0.1);
+  background: rgba(255, 246, 230, 0.1);
 }
 
 @keyframes install-up {

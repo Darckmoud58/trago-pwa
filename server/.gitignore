@@ -1,3 +1,11 @@
 node_modules/
 .env
+.vapid-for-vercel.env
+.vercel-xdg/
+.vercel-xdg-data/
+.vercel-xdg-cache/
+.vercel-cli/
 .DS_Store
+.vercel
+.env*
+.vapid-paste.json

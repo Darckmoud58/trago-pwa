@@ -10,7 +10,7 @@ export default function AvisoPrivacidad() {
         <p className="lead">
           En cumplimiento de la Ley Federal de Protección de Datos Personales en
           Posesión de los Particulares (LFPDPPP) y su Reglamento. Última
-          actualización: 24 de septiembre de 2026.
+          actualización: 18 de noviembre de 2026.
         </p>
       </header>
 
@@ -48,7 +48,10 @@ export default function AvisoPrivacidad() {
           </li>
           <li>
             <strong>Técnicos:</strong> token de sesión y datos necesarios para
-            el funcionamiento de la PWA.
+            el funcionamiento de la PWA. La caché local de catálogo o detalle
+            puede guardarse en el dispositivo para uso offline permitido; el
+            contenido restringido (p. ej. alcohol 18+) se asocia a tu sesión y
+            se limpia o deja de mostrarse al cerrar sesión o sin autenticación.
           </li>
         </ul>
       </section>
@@ -61,6 +64,11 @@ export default function AvisoPrivacidad() {
             Aplicar filtros de edad (ocultar alcohol/nocturno a menores de 18).
           </li>
           <li>Mostrar promociones y ubicaciones cercanas.</li>
+          <li>
+            Exigir inicio de sesión al abrir o redirigir al detalle de una
+            promoción restringida: sin sesión activa no se muestran ni se
+            recuperan desde caché las ofertas que viste previamente autenticado.
+          </li>
           <li>Operar puntos, cupones y favoritos.</li>
           <li>Mejorar seguridad, rendimiento y experiencia del servicio.</li>
         </ul>

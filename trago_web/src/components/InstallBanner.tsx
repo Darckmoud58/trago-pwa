@@ -7,9 +7,9 @@ import {
   subscribeInstallPrompt,
   type BeforeInstallPromptEvent,
 } from '../lib/installPrompt';
+import { isOnboardingPending, SPLASH_OPENED } from '../lib/onboarding';
 import './InstallBanner.css';
 
-const SPLASH_KEY = 'trago_loc_splash_v2';
 const DISMISS_KEY = 'trago_install_dismissed_v11';
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 2;
 
@@ -33,14 +33,6 @@ function detectKind(): Kind {
   if (safari && /macintosh|mac os x/i.test(ua)) return 'safari-mac';
   if (/chrome|edg|chromium|opr/i.test(ua)) return 'desktop-chrome';
   return 'other';
-}
-
-function splashStillOpen() {
-  try {
-    return localStorage.getItem(SPLASH_KEY) !== '1';
-  } catch {
-    return false;
-  }
 }
 
 function wasDismissedRecently() {
@@ -95,7 +87,10 @@ export default function InstallBanner() {
 
     const native = nativeInstall(kind);
     const mayShow = () =>
-      !isStandalone() && !wasDismissedRecently() && !splashStillOpen() && (!native || getDeferredInstall());
+      !isStandalone() &&
+      !wasDismissedRecently() &&
+      !isOnboardingPending() &&
+      (!native || getDeferredInstall());
 
     const unsub = subscribeInstallPrompt(() => {
       const ev = getDeferredInstall();
@@ -111,6 +106,8 @@ export default function InstallBanner() {
     const onSplashClosed = () => {
       if (mayShow()) setVisible(true);
     };
+    const onSplashOpened = () => setVisible(false);
+    window.addEventListener(SPLASH_OPENED, onSplashOpened);
     window.addEventListener('trago-show-install', onShow);
     window.addEventListener('trago-splash-closed', onSplashClosed);
 
@@ -120,6 +117,7 @@ export default function InstallBanner() {
 
     return () => {
       unsub();
+      window.removeEventListener(SPLASH_OPENED, onSplashOpened);
       window.removeEventListener('trago-show-install', onShow);
       window.removeEventListener('trago-splash-closed', onSplashClosed);
       window.clearTimeout(timer);

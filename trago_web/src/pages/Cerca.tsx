@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
+import OfflineState from '../components/OfflineState';
 import PlaceBrandMark from '../components/PlaceBrandMark';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import SponsoredSlot from '../components/SponsoredSlot';
+import { useUserPrefs } from '../hooks/useUserPrefs';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
+import { readGpsCached } from '../lib/lastKnownGps';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { track, trackGps } from '../lib/metrics';
 import {
@@ -16,6 +19,12 @@ import {
   hasStreetAddress,
 } from '../lib/googleMaps';
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
+import { formatCacheAge } from '../lib/userPrefs';
+import {
+  isOnboardingOpen,
+  SPLASH_CLOSED,
+} from '../lib/onboarding';
+import { resolveZone } from '../lib/zones';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
@@ -43,20 +52,6 @@ function openExactPlace(
       city: [branch.colonia, branch.city].filter(Boolean).join(', '),
     });
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function readGps(): Promise<GeolocationPosition> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('no-geo'));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 12000,
-      maximumAge: 30_000,
-    });
-  });
 }
 
 function initials(name: string) {
@@ -129,12 +124,17 @@ function brandTone(name: string) {
 
 export default function Cerca() {
   const { t } = useI18n();
+  const { prefs } = useUserPrefs();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
+  const [cacheSavedAt, setCacheSavedAt] = useState<number | null>(null);
+  const [online, setOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [openOffersId, setOpenOffersId] = useState<string | null>(null);
   const [userOrigin, setUserOrigin] = useState<{
     lat: number;
@@ -162,6 +162,56 @@ export default function Cerca() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [openOffersId]);
 
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
+  async function applyLastNearCache(opts?: {
+    lat?: number;
+    lng?: number;
+    requireSameArea?: boolean;
+  }) {
+    const cached = await cacheGet<{
+      branches: Branch[];
+      promos?: Promo[];
+      note: string;
+      lat?: number;
+      lng?: number;
+    }>(CACHE_KEYS.lastNear);
+    if (!cached?.data?.branches?.length) return false;
+    if (opts?.requireSameArea && opts.lat != null && opts.lng != null) {
+      const cachedLat = cached.data.lat;
+      const cachedLng = cached.data.lng;
+      const latDelta = ((cachedLat ?? 999) - opts.lat) * 111_000;
+      const lngDelta =
+        ((cachedLng ?? 999) - opts.lng) *
+        111_000 *
+        Math.cos((opts.lat * Math.PI) / 180);
+      if (Math.hypot(latDelta, lngDelta) > 1000) return false;
+    }
+    setBranches(cached.data.branches);
+    setPromos(cached.data.promos ?? []);
+    setNote(
+      (cached.data.promos?.length ?? 0) > 0
+        ? t('offlineLastSearchWithPromos')
+        : t('offlineLastSearch')
+    );
+    setFromCache(true);
+    setCacheSavedAt(cached.savedAt);
+    setError('');
+    if (cached.data.lat != null && cached.data.lng != null) {
+      setUserOrigin({ lat: cached.data.lat, lng: cached.data.lng });
+    }
+    return true;
+  }
+
   async function loadNear(lng: number, lat: number, label: string) {
     setLoading(true);
     setError('');
@@ -170,8 +220,17 @@ export default function Cerca() {
     setPromos([]);
     setOpenOffersId(null);
     setFromCache(false);
+    setCacheSavedAt(null);
     setUserOrigin({ lat, lng });
     void track({ tipo: 'cerca_open', lat, lng, meta: { label } });
+
+    if (!navigator.onLine) {
+      const ok = await applyLastNearCache({ lat, lng, requireSameArea: false });
+      if (!ok) setError(t('nearError'));
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data } = await api.get('/api/sucursales/cerca', {
         params: { lng, lat, maxMeters: NEAR_RADIUS_M },
@@ -179,20 +238,23 @@ export default function Cerca() {
       const list = (data.branches ?? data.ubicaciones ?? []) as Branch[];
       setBranches(list);
       setFromCache(false);
+      setCacheSavedAt(Date.now());
       if (data.partial && data.searchedRadiusMeters) {
         const km = (data.searchedRadiusMeters / 1000).toFixed(1);
         setNote(t('osmReducedRadius').replace('{km}', km));
       } else {
         setNote(label);
       }
+      let nearPromos: Promo[] = [];
       try {
         const promoRes = await api.get('/api/promociones/cerca', {
           params: { lng, lat, maxMeters: NEAR_RADIUS_M },
         });
-        setPromos((promoRes.data.promos ?? []) as Promo[]);
+        nearPromos = (promoRes.data.promos ?? []) as Promo[];
       } catch {
-        setPromos([]);
+        nearPromos = [];
       }
+      setPromos(nearPromos);
       const savedNote =
         data.partial && data.searchedRadiusMeters
           ? t('osmReducedRadius').replace(
@@ -202,35 +264,24 @@ export default function Cerca() {
           : label;
       await cacheSet(CACHE_KEYS.lastNear, {
         branches: list,
+        promos: nearPromos,
         note: savedNote,
         lat,
         lng,
       });
     } catch {
-      const cached = await cacheGet<{
-        branches: Branch[];
-        note: string;
-        lat?: number;
-        lng?: number;
-      }>(CACHE_KEYS.lastNear);
-      const cachedLat = cached?.data?.lat;
-      const cachedLng = cached?.data?.lng;
-      const latDelta = ((cachedLat ?? 999) - lat) * 111_000;
-      const lngDelta =
-        ((cachedLng ?? 999) - lng) * 111_000 * Math.cos((lat * Math.PI) / 180);
-      const sameArea = Math.hypot(latDelta, lngDelta) <= 1000;
-      if (sameArea && cached?.data?.branches?.length) {
-        setBranches(cached.data.branches);
-        setPromos([]);
-        setNote(t('offlineLastSearch'));
-        setFromCache(true);
-        setError('');
-      } else {
+      const ok = await applyLastNearCache({
+        lat,
+        lng,
+        requireSameArea: true,
+      });
+      if (!ok) {
         setError(t('nearError'));
         setBranches([]);
         setPromos([]);
         setNote('');
         setFromCache(false);
+        setCacheSavedAt(null);
       }
     } finally {
       setLoading(false);
@@ -241,20 +292,20 @@ export default function Cerca() {
     setLoading(true);
     setError('');
     try {
-      const pos = await readGps();
-      void trackGps(true, pos.coords.latitude, pos.coords.longitude);
-      await loadNear(
-        pos.coords.longitude,
-        pos.coords.latitude,
-        t('usingLocation')
-      );
+      const pos = await readGpsCached({ maximumAge: 30_000 });
+      void trackGps(true, pos.lat, pos.lng);
+      await loadNear(pos.lng, pos.lat, t('usingLocation'));
     } catch (err) {
       void trackGps(false);
+      const ok = await applyLastNearCache({ requireSameArea: false });
       setLoading(false);
+      if (ok) return;
       setBranches([]);
       setPromos([]);
       setNote('');
       setFromCache(false);
+      setCacheSavedAt(null);
+      setUserOrigin(null);
       setError(
         err instanceof Error && err.message === 'no-geo'
           ? t('noGeo')
@@ -263,11 +314,38 @@ export default function Cerca() {
     }
   }
 
+  /** Demo explícita: no escribe lastKnownGps ni finge GPS real. */
+  async function applyManualZone() {
+    const zone = resolveZone(prefs.zona);
+    const zoneName = t(zone.labelKey);
+    const label = t('manualZoneNote').replace('{zone}', zoneName);
+    void track({
+      tipo: 'cerca_open',
+      lat: zone.lat,
+      lng: zone.lng,
+      meta: { label, source: 'manual_zone', zone: zone.id },
+    });
+    await loadNear(zone.lng, zone.lat, label);
+  }
+
   useEffect(() => {
-    if (bootstrapped.current) return;
-    bootstrapped.current = true;
-    void locateNear();
+    const start = () => {
+      if (bootstrapped.current) return;
+      bootstrapped.current = true;
+      void locateNear();
+    };
+    const onTourClosed = () => {
+      start();
+    };
+    // Pedir GPS al entrar (como antes). Solo esperar si Traguito está abierto.
+    if (!isOnboardingOpen()) start();
+    window.addEventListener(SPLASH_CLOSED, onTourClosed);
+    return () => window.removeEventListener(SPLASH_CLOSED, onTourClosed);
   }, []);
+
+  const cacheAgeLabel = formatCacheAge(cacheSavedAt, (k, vars) =>
+    t(k as 'cacheAgeJustNow', vars)
+  );
 
   if (offersBranch) {
     const placeName = offersBranch.label
@@ -377,12 +455,19 @@ export default function Cerca() {
   }
 
   return (
-    <section className="cerca-page">
+    <section
+      className={`cerca-page${prefs.densidad === 'compacta' ? ' is-dense' : ''}${!online ? ' is-offline' : ''}`}
+    >
       <header className="cerca-hero rise">
         <div className="cerca-hero-copy">
           <p className="cerca-kicker">{t('gpsLabel')}</p>
           <h1>{note || t('usingLocation')}</h1>
-          {fromCache && <p className="cerca-soft">{t('cacheHint')}</p>}
+          {fromCache && (
+            <p className="cerca-soft">
+              {t('cacheHint')}
+              {cacheAgeLabel ? ` · ${cacheAgeLabel}` : ''}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -450,16 +535,38 @@ export default function Cerca() {
         </div>
       )}
 
-      {error && (
+      {error && !fromCache && (
         <div className="cerca-error-block">
-          <p className="error">{error}</p>
-          <button
-            type="button"
-            className="btn primary cerca-retry"
-            onClick={() => void locateNear()}
-          >
-            {t('retryLocation')}
-          </button>
+          {!online ? (
+            <OfflineState cacheAge={cacheAgeLabel} showNear={false} />
+          ) : (
+            <>
+              <p className="cerca-gps-help">{t('cercaGpsHelp')}</p>
+              <p className="error">{error}</p>
+              <div className="cerca-error-actions">
+                <button
+                  type="button"
+                  className="btn primary cerca-retry"
+                  onClick={() => void locateNear()}
+                >
+                  {t('retryLocation')}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => void applyManualZone()}
+                >
+                  {t('useManualZone').replace(
+                    '{zone}',
+                    t(resolveZone(prefs.zona).labelKey)
+                  )}
+                </button>
+                <Link className="btn ghost" to="/promos" viewTransition>
+                  {t('goCatalog')}
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -500,6 +607,7 @@ export default function Cerca() {
                   </Link>
                   <div className="cerca-offer-body">
                     <p className="cerca-place-chain">{chain}</p>
+                    <PromoPrice promo={promo} />
                     <h3>
                       <Link
                         to={`/promos/${promo.slug || promo._id}`}
@@ -508,7 +616,6 @@ export default function Cerca() {
                         {title}
                       </Link>
                     </h3>
-                    <PromoPrice promo={promo} />
                     <div className="cerca-offer-actions">
                       <Link
                         className="btn primary btn-sm"

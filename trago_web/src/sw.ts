@@ -77,17 +77,8 @@ if (import.meta.env.PROD) {
 
 registerRoute(/\/api\/(auth|favoritos)/i, new NetworkOnly());
 registerRoute(/\/api\/sucursales\/cerca/i, new NetworkOnly());
-
-registerRoute(
-  /\/api\/(promociones|negocios)/i,
-  new NetworkFirst({
-    cacheName: 'trago-api-catalog',
-    networkTimeoutSeconds: 4,
-    plugins: [
-      new ExpirationPlugin({ maxEntries: 32, maxAgeSeconds: 60 * 30 }),
-    ],
-  })
-);
+// Catálogo/detalle: no cachear en SW (age-gate + sesión). Offline usa IndexedDB explícito.
+registerRoute(/\/api\/(promociones|negocios|anuncios)/i, new NetworkOnly());
 
 /** Logos / manifest: red primero para que un deploy nuevo se vea en el teléfono. */
 registerRoute(

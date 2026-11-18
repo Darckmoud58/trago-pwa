@@ -8,7 +8,10 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/catalogo.js",
+    "seed:anuncios-beta": "node src/seed/anuncios-beta.js",
     "refresh": "node src/scripts/refresh-official.js",
+    "repair:prices": "node src/scripts/repair-promo-prices.mjs",
+    "repair:prices:apply": "node src/scripts/repair-promo-prices.mjs --apply",
     "vapid": "node src/scripts/generate-vapid.js",
     "migrate:drop-token-login": "node src/scripts/migrate-drop-token-login.js",
     "test": "node scripts/run-tests.mjs"

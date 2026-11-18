@@ -1,5 +1,6 @@
 import { cronAuthorized } from '../lib/cronAuth.js';
 import { refreshOfficialSources } from '../services/officialPromoJob.js';
+import { runNewPromosPushJob } from '../services/newPromosPushJob.js';
 
 /** POST/GET /api/cron/refresh-official — scrapers oficiales (GitHub Actions / Vercel). */
 export async function refreshOfficial(req, res) {
@@ -9,10 +10,21 @@ export async function refreshOfficial(req, res) {
 
   try {
     const sources = await refreshOfficialSources();
+    let push = null;
+    try {
+      push = await runNewPromosPushJob();
+    } catch (pushErr) {
+      console.error('cron new-promos push:', pushErr.message);
+      push = {
+        ok: false,
+        message: pushErr.message || 'Push falló',
+      };
+    }
     return res.json({
       ok: true,
       sources: sources?.length ?? 0,
       at: new Date().toISOString(),
+      push,
     });
   } catch (e) {
     console.error('cron refresh-official:', e.message);

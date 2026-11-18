@@ -8,7 +8,7 @@ export default function Terminos() {
         <p className="ui-kicker">Legal</p>
         <h1>Términos y condiciones</h1>
         <p className="lead">
-          Última actualización: 24 de septiembre de 2026. Al usar TraGo aceptas
+          Última actualización: 18 de noviembre de 2026. Al usar TraGo aceptas
           estos términos. Si no estás de acuerdo, no uses el servicio.
         </p>
       </header>
@@ -43,6 +43,17 @@ export default function Terminos() {
           <li>
             Declaras que tu fecha de nacimiento es verdadera. Falsificar la edad
             puede implicar suspensión o baja de la cuenta.
+          </li>
+          <li>
+            Al ser redirigido o al abrir la página de detalle de una promoción
+            restringida, <strong>debes iniciar sesión</strong> en TraGo. Si no
+            hay sesión activa (o cerraste sesión),{' '}
+            <strong>
+              no aparecerán las promociones que viste antes mientras estabas
+              autenticado
+            </strong>
+            , ni se recuperarán desde caché local: el acceso se vuelve a
+            validar en esa página.
           </li>
         </ul>
       </section>
@@ -84,7 +95,9 @@ export default function Terminos() {
           promoción. Pueden modificarse o cancelarse ante abuso o cambios del
           servicio. Tus <strong>favoritos</strong> se guardan en tu dispositivo
           para consultarlos sin conexión; eres responsable de no almacenar datos
-          sensibles ajenos.
+          sensibles ajenos. El detalle de promociones restringidas no se
+          conserva para invitados: sin iniciar sesión en esa página, no
+          reaparecerán las ofertas que TraGo te mostró antes con cuenta activa.
         </p>
       </section>
 

@@ -34,6 +34,22 @@ const schema = new mongoose.Schema(
     /** Moderación de reportes de vigencia */
     reportes_bloqueado_hasta: { type: Date, default: null },
     reportes_abuso_count: { type: Number, default: 0 },
+    /**
+     * Preferencias PWA (personalización).
+     * No afecta catálogo oficial; solo orden/UI.
+     */
+    preferencias: {
+      categoriasFav: {
+        type: [String],
+        default: [],
+      },
+      densidad: {
+        type: String,
+        enum: ['comoda', 'compacta'],
+        default: 'comoda',
+      },
+      zona: { type: String, default: 'gdl', trim: true },
+    },
   },
   { timestamps: true, collection: 'usuarios' }
 );

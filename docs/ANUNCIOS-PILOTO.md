@@ -2,7 +2,10 @@
 
 Pauta **propia** (no AdSense). Los anuncios van etiquetados *Patrocinado* y **nunca** entran al catálogo `origen: oficial`.
 
-Ver tesis comercial: [`PITCH-TRAGO.md`](./PITCH-TRAGO.md), [`PROPUESTA-FREEMIUM-EQUIPO.md`](./PROPUESTA-FREEMIUM-EQUIPO.md).
+**Ingresos:** suscripción de cadena/sucursales + ellas suben **sus** anuncios.  
+**No** Freemium con pauta del vecino (pierde clientes de oferta).
+
+Ver tesis: [`PITCH-TRAGO.md`](./PITCH-TRAGO.md), [`PROPUESTA-FREEMIUM-EQUIPO.md`](./PROPUESTA-FREEMIUM-EQUIPO.md).
 
 ## Flujo piloto (cobro manual)
 
@@ -35,6 +38,7 @@ Planes útiles: `basic` (pauta), `campaign` (vuelo marca), `pro` / `premium` (ta
 | `home_rail` | Home |
 | `explorar_mid` | Explorar (`/promos`) |
 | `cerca_top` | Cerca |
+| `side_left` / `side_right` | Rieles desktop (huecos laterales) |
 
 ```http
 GET /api/anuncios/serving?slot=home_rail&zona=gdl
@@ -54,9 +58,27 @@ POST /api/anuncios/:id/evento  { "tipo": "impression" | "click" }
 - Alcohol: solo copy; gate 18+ de la app aplica.
 - Fase 2: Mercado Pago / Stripe → webhook pone `activo` (`origen: pasarela`).
 
+## Beta local / demo (video)
+
+Para ver slots con creativo de prueba (muestras públicas, **no marcas reales**):
+
+```bash
+cd server && npm run seed:anuncios-beta -- --yes
+```
+
+Crea empresa `trago-beta-ads`, suscripción `basic` 30 días y anuncios activos
+(`home_rail`, `explorar_mid`, `cerca_top`, `side_left`, `side_right`) con
+`video_url` + poster **distintos** por slot (noche urbana / brindis rooftop /
+calle cercana / pour de cóctel / antro neón) en `trago_web/public/ads-beta/`.
+Creativos con look de comercial; no son ofertas oficiales.
+La PWA reproduce el video muted/loop etiquetado *Patrocinado · Demostración*.
+
+Campo en `anuncios`: `video_url` (https o path `/…`). Si está presente, gana sobre `imagen_url`.
+
 ## Checklist venta piloto
 
-- [ ] 1 anunciante GDL con plan `basic` 30 días
-- [ ] Creativo en `cerca_top` + `explorar_mid`
+- [x] Seed beta video (demo)
+- [ ] 1 anunciante GDL real con plan `basic` 30 días
+- [ ] Creativo de marca en `cerca_top` + `explorar_mid`
 - [ ] Revisar impresiones/clics en panel Cadena
-- [ ] Upsell Pro: destacada cerca + quitar pauta de terceros (siguiente corte)
+- [ ] Upsell: más sucursales / destacada cerca / slots extra (sin pauta de terceros)

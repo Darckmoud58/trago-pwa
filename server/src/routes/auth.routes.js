@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { login, profile, register } from '../controllers/auth.controller.js';
+import {
+  login,
+  profile,
+  register,
+  updatePreferencias,
+} from '../controllers/auth.controller.js';
 import { auth } from '../middleware/auth.js';
 import { LIMITS, rateLimit } from '../middleware/rateLimit.js';
 
@@ -32,5 +37,6 @@ router.post(
 );
 
 router.get('/me', auth, profile);
+router.patch('/preferencias', auth, updatePreferencias);
 
 export default router;

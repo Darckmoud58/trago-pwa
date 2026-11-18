@@ -1,0 +1,83 @@
+.bday-guide-fab {
+  position: fixed;
+  z-index: 40;
+  left: 50%;
+  bottom: calc(4.35rem + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.65rem 1.05rem;
+  border: 1px solid color-mix(in srgb, #fff6e6 42%, transparent);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, #820808 88%, #d81a1c),
+      color-mix(in srgb, #5a1420 80%, #820808)
+    );
+  color: #fff6e6;
+  font-family: var(--display, Georgia, serif);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 14px 36px color-mix(in srgb, #d81a1c 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff6e6 22%, transparent);
+  cursor: pointer;
+  animation: bday-fab-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bday-guide-fab-pulse {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #fff6e6;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 color-mix(in srgb, #fff6e6 50%, transparent);
+  animation: bday-fab-pulse 1.6s ease-out infinite;
+}
+
+.bday-guide-fab-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes bday-fab-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes bday-fab-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #fff6e6 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (min-width: 900px) {
+  .bday-guide-fab {
+    left: calc(50% + 2.4rem);
+    bottom: 1.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bday-guide-fab,
+  .bday-guide-fab-pulse {
+    animation: none;
+  }
+}

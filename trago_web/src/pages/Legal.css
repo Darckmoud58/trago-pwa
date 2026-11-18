@@ -13,8 +13,8 @@
 }
 
 html[data-theme='night'] .legal {
-  --legal-ink: #f7e5b5;
-  --legal-muted: rgba(247, 229, 181, 0.82);
+  --legal-ink: #fff6e6;
+  --legal-muted: rgba(255, 246, 230, 0.82);
   --legal-surface: #2e0a12;
 }
 
@@ -40,7 +40,7 @@ html[data-theme='night'] .legal-hero {
   background:
     radial-gradient(120% 90% at 100% 0%, rgba(216, 26, 28, 0.3), transparent 55%),
     linear-gradient(165deg, #4a1018 0%, #2a0810 55%, #1a060a 100%);
-  border-color: rgba(247, 229, 181, 0.16);
+  border-color: rgba(255, 246, 230, 0.16);
 }
 
 .legal-hero .label,
@@ -75,7 +75,7 @@ html[data-theme='night'] .legal-hero {
 
 html[data-theme='night'] .legal-section {
   background: linear-gradient(160deg, #451018 0%, #2a0810 100%);
-  border-color: rgba(247, 229, 181, 0.14);
+  border-color: rgba(255, 246, 230, 0.14);
 }
 
 .legal h2,
@@ -216,14 +216,14 @@ html[data-theme='night'] .legal-section a:hover {
 
 html[data-theme='night'] .legal-checks {
   background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(247, 229, 181, 0.22);
+  border-color: rgba(255, 246, 230, 0.22);
 }
 
 html[data-theme='night'] .legal-checks label,
 html[data-theme='night'] .legal-checks label span,
 html[data-theme='night'] .legal-checks a,
 html[data-theme='night'] .legal-checks a:visited {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 html[data-theme='night'] .legal-checks a:hover {
@@ -247,14 +247,14 @@ html[data-theme='night'] .legal-checks a:hover {
 }
 
 html[data-theme='night'] .register-age-note {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
   background: rgba(216, 26, 28, 0.16);
-  border-color: rgba(247, 229, 181, 0.22);
+  border-color: rgba(255, 246, 230, 0.22);
 }
 
 html[data-theme='night'] .register-age-note.is-adult {
   background: rgba(26, 122, 60, 0.22);
-  border-color: rgba(247, 229, 181, 0.22);
+  border-color: rgba(255, 246, 230, 0.22);
 }
 
 .age-banner {
@@ -296,19 +296,19 @@ html[data-theme='night'] .register-age-note.is-adult {
 
 html[data-theme='night'] .age-banner {
   background: linear-gradient(160deg, #451018 0%, #2a0810 100%);
-  border-color: rgba(247, 229, 181, 0.16);
+  border-color: rgba(255, 246, 230, 0.16);
 }
 
 html[data-theme='night'] .age-banner p,
 html[data-theme='night'] .age-banner a {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 /* Anula overrides globales que bajaban contraste en legal */
 html[data-theme='night'] .legal h1,
 html[data-theme='night'] .legal h2,
 html[data-theme='night'] .legal strong {
-  color: #f7e5b5 !important;
+  color: #fff6e6 !important;
 }
 
 html[data-theme='night'] .legal p,
@@ -317,7 +317,7 @@ html[data-theme='night'] .legal .lead,
 html[data-theme='night'] .legal .label,
 html[data-theme='night'] .legal .meta,
 html[data-theme='night'] .legal .muted {
-  color: rgba(247, 229, 181, 0.86) !important;
+  color: rgba(255, 246, 230, 0.86) !important;
 }
 
 @media (min-width: 900px) {

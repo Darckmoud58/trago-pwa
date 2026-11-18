@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TraGo">
-  <rect width="512" height="512" rx="96" fill="#3B0B13"/>
+  <rect width="512" height="512" rx="96" fill="#820808"/>
   <text
     x="256"
     y="296"
@@ -8,6 +8,6 @@
     font-weight="700"
     font-size="138"
     letter-spacing="-0.04em"
-    fill="#F7E5B5"
+    fill="#FFF6E6"
   >TraGo</text>
 </svg>

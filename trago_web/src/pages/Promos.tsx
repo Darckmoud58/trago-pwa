@@ -1,24 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
+import OfflineState from '../components/OfflineState';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import SponsoredSlot from '../components/SponsoredSlot';
 import { useAuthUser } from '../hooks/useAuthUser';
+import { useUserPrefs } from '../hooks/useUserPrefs';
 import {
   CACHE_KEYS,
   cacheGet,
   cacheSet,
+  canUseRestrictedOfflineCache,
   filterActivePromos,
+  filterGuestSafePromos,
+  isRestrictedCachedPromo,
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { resolveMediaUrl } from '../lib/mediaUrl';
+import { formatCacheAge } from '../lib/userPrefs';
 import type { Promo } from '../types';
 import './Promos.css';
 
-type FilterId = 'todas' | 'destacadas' | 'cumple' | 'comida' | 'cafe';
+type FilterId =
+  | 'todas'
+  | 'destacadas'
+  | 'cumple'
+  | 'comida'
+  | 'cafe'
+  | 'destilados';
 
-const PUBLIC_FILTERS: FilterId[] = ['todas', 'destacadas', 'comida', 'cafe'];
+const PUBLIC_FILTERS: FilterId[] = [
+  'todas',
+  'destacadas',
+  'comida',
+  'cafe',
+  'destilados',
+];
 
 function parseFilter(raw: string | null, allowBday: boolean): FilterId {
   if (raw === 'cumple' && allowBday) return 'cumple';
@@ -50,18 +68,34 @@ export default function Promos() {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
   const { token, birthdayToday, firstName } = useAuthUser();
+  const { prefs } = useUserPrefs();
   const allowBday = birthdayToday;
   const [searchParams, setSearchParams] = useSearchParams();
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
+  const [cacheSavedAt, setCacheSavedAt] = useState<number | null>(null);
+  const [online, setOnline] = useState(
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [emptyOfficial, setEmptyOfficial] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'), false)
   );
   const [bdayLockedNote, setBdayLockedNote] = useState(false);
+
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
 
   useEffect(() => {
     const raw = searchParams.get('f');
@@ -79,25 +113,36 @@ export default function Promos() {
     let cancelled = false;
     async function load() {
       try {
+        if (!navigator.onLine) throw new Error('offline');
         const res = await api.get('/api/promociones');
         if (cancelled) return;
         const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
-        await cacheSet(CACHE_KEYS.promos, list);
+        // En disco solo guardamos lo que un invitado puede volver a ver.
+        await cacheSet(
+          CACHE_KEYS.promos,
+          list.filter((p) => !isRestrictedCachedPromo(p))
+        );
         setPromos(list);
         setFromCache(false);
+        setCacheSavedAt(Date.now());
         setError('');
         setEmptyOfficial(list.length === 0);
       } catch {
         const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
         if (cancelled) return;
         if (cached?.data?.length) {
-          setPromos(filterActivePromos(cached.data));
+          const safe = canUseRestrictedOfflineCache()
+            ? filterActivePromos(cached.data)
+            : filterGuestSafePromos(cached.data);
+          setPromos(safe);
           setFromCache(true);
+          setCacheSavedAt(cached.savedAt);
           setError('');
           setEmptyOfficial(false);
         } else {
           setError(t('promosLoadError'));
           setEmptyOfficial(false);
+          setCacheSavedAt(null);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -151,6 +196,20 @@ export default function Promos() {
         !matchesKind(p, ['cafe', 'café', 'starbucks', 'bebida'])
       )
         return false;
+      if (
+        filter === 'destilados' &&
+        !matchesKind(p, [
+          'destilado',
+          'tequila',
+          'mezcal',
+          'whisky',
+          'whiskey',
+          'ron',
+          'vodka',
+          'licor',
+        ])
+      )
+        return false;
       if (!q) return true;
       const hay = [p.nombre, p.title, p.descripcion, p.subtitle, p.chainName]
         .filter(Boolean)
@@ -160,15 +219,44 @@ export default function Promos() {
     });
   }, [promos, filter, query, allowBday]);
 
-  const filters: { id: FilterId; label: string }[] = [
-    { id: 'todas', label: t('filterAll') },
-    { id: 'destacadas', label: t('filterFeatured') },
-    { id: 'comida', label: t('filterFood') },
-    { id: 'cafe', label: t('filterCafe') },
-    ...(allowBday
-      ? [{ id: 'cumple' as const, label: t('filterBday') }]
-      : []),
-  ];
+  const filters: { id: FilterId; label: string }[] = useMemo(() => {
+    const fav = new Set(prefs.categoriasFav);
+    const base: { id: FilterId; label: string; weight: number }[] = [
+      { id: 'todas', label: t('filterAll'), weight: 100 },
+      { id: 'destacadas', label: t('filterFeatured'), weight: 80 },
+      {
+        id: 'comida',
+        label: t('filterFood'),
+        weight: fav.has('comida') ? 95 : 50,
+      },
+      {
+        id: 'cafe',
+        label: t('filterCafe'),
+        weight: fav.has('cafe') ? 94 : 48,
+      },
+      {
+        id: 'destilados',
+        label: t('prefsCatDestilados'),
+        weight: fav.has('destilados') || fav.has('antro') ? 93 : 40,
+      },
+      ...(allowBday
+        ? [
+            {
+              id: 'cumple' as const,
+              label: t('filterBday'),
+              weight: fav.has('cumple') ? 96 : 70,
+            },
+          ]
+        : []),
+    ];
+    return [...base]
+      .sort((a, b) => b.weight - a.weight)
+      .map(({ id, label }) => ({ id, label }));
+  }, [allowBday, prefs.categoriasFav, t]);
+
+  const cacheAgeLabel = formatCacheAge(cacheSavedAt, (k, vars) =>
+    t(k as 'cacheAgeJustNow', vars)
+  );
 
   const countLabel =
     visible.length === 1
@@ -207,15 +295,24 @@ export default function Promos() {
                 lead: t('exploreHeroCafe'),
                 bday: false,
               }
-            : {
-                kicker: t('navExplore'),
-                title: t('exploreHeroTitle'),
-                lead: t('exploreHeroLead'),
-                bday: false,
-              };
+            : filter === 'destilados'
+              ? {
+                  kicker: t('navExplore'),
+                  title: t('prefsCatDestilados'),
+                  lead: t('exploreHeroLead'),
+                  bday: false,
+                }
+              : {
+                  kicker: t('navExplore'),
+                  title: t('exploreHeroTitle'),
+                  lead: t('exploreHeroLead'),
+                  bday: false,
+                };
 
   return (
-    <section className="promos-page">
+    <section
+      className={`promos-page${prefs.densidad === 'compacta' ? ' is-dense' : ''}${!online ? ' is-offline' : ''}`}
+    >
       <header className={`promos-hero-stage${hero.bday ? ' is-bday' : ''}`}>
         <div className="promos-hero-visual" aria-hidden />
         <div className="promos-hero-glow" aria-hidden />
@@ -223,6 +320,12 @@ export default function Promos() {
           <p className="ui-kicker">{hero.kicker}</p>
           <h1>{hero.title}</h1>
           <p className="promos-hero-lead">{hero.lead}</p>
+          {fromCache || !online ? (
+            <p className="promos-cache-badge">
+              {t('offlineCache')}
+              {cacheAgeLabel ? ` · ${cacheAgeLabel}` : ''}
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -283,7 +386,10 @@ export default function Promos() {
 
       <SponsoredSlot slot="explorar_mid" className="promos-sponsored" />
 
-      {error && <p className="error">{error}</p>}
+      {error && !fromCache && online ? <p className="error">{error}</p> : null}
+      {error && !fromCache && !online ? (
+        <OfflineState cacheAge={cacheAgeLabel} />
+      ) : null}
 
       <div className="promo-grid promos-grid stagger" data-reveal data-reveal-delay="1">
         {visible.map((p) => {
@@ -298,7 +404,8 @@ export default function Promos() {
               <Link
                 to={`/promos/${p.slug || p._id}`}
                 className={`promo-cover${img ? '' : ' promo-cover-fallback'}`}
-                aria-label={title}
+                tabIndex={-1}
+                aria-hidden="true"
                 viewTransition
               >
                 <PromoMediaImg
@@ -320,7 +427,8 @@ export default function Promos() {
                   )}
                 </div>
 
-                <h3>
+                <PromoPrice promo={p} />
+                <h2 className="promo-card-title">
                   <Link
                     to={`/promos/${p.slug || p._id}`}
                     className="promo-title-link"
@@ -328,8 +436,7 @@ export default function Promos() {
                   >
                     {title}
                   </Link>
-                </h3>
-                <PromoPrice promo={p} />
+                </h2>
                 {desc && <p className="promo-desc">{desc}</p>}
 
                 <div className="promo-meta-row">

@@ -12,18 +12,21 @@
 
 ---
 
-## 1. Qué vendemos (no AdSense)
+## 1. Qué vendemos (no AdSense, no Freemium con ads ajenos)
+
+> **Decisión (nov 2026):** ingresos = **suscripción de sucursales/cadena** + **sus anuncios**.  
+> No hay plan $0 que muestre el banner del competidor (pierde clientes). Ver [`PROPUESTA-FREEMIUM-EQUIPO.md`](./PROPUESTA-FREEMIUM-EQUIPO.md).
 
 | Producto | Quién paga | Qué recibe | Dónde se ve |
 |----------|------------|------------|-------------|
-| **Freemium** | Cadena chica | Perfil + hasta 2 promos activas; **ve anuncios de terceros** | App usuario |
-| **Pro** | Cadena 3+ locales | Sin ads en su flujo B2B; **promo destacada cerca**; reportes | Home/Cerca |
-| **Slot anunciante** | Cadena Pro / marca / local | Banner *Patrocinado* en inventario Free | Home, Explorar, Cerca |
+| **Suscripción Cadena** | Cadena / sucursales | Panel, promos↔locales, vigencia, métrica norte | Panel `/cadena` |
+| **Pauta propia** | Misma cadena (incluida o add-on) | Creativos *Patrocinado* (img/video) | Home, Explorar, Cerca |
+| **Destacada cerca** | Incluida en suscripción | Prioridad en Cerca / Home | Home/Cerca |
 | **Campaña marca** (fase 2) | Destilado / cerveza | Vuelo 7–15 días | Slot nocturno / destacada |
 
 **Regla de oro:** todo anuncio lleva etiqueta fija **Publicidad** / **Patrocinado**. Nunca mezcla con cards de promo oficial (`origen`).
 
-**No hacer al inicio:** Google AdSense (alcohol + poco control).
+**No hacer:** Google AdSense; Freemium con pauta de terceros.
 
 ---
 
@@ -34,21 +37,15 @@ flowchart LR
   subgraph oferta [Oferta]
     Reg[Registro empresa]
     Ver[Admin verifica]
-    Plan{Plan}
-    Free[Freemium]
-    Pro[Pro / Premium]
-    Ads[Alta anuncios]
+    Sub[Suscripción activa]
+    Ads[Alta SUS anuncios]
   end
   subgraph demanda [Demanda PWA]
     Home[Home]
     Exp[Explorar]
     Cerca[Cerca]
   end
-  Reg --> Ver --> Plan
-  Plan --> Free
-  Plan --> Pro
-  Pro --> Ads
-  Free -.->|ve pauta| Home
+  Reg --> Ver --> Sub --> Ads
   Ads --> Home
   Ads --> Exp
   Ads --> Cerca
@@ -56,9 +53,9 @@ flowchart LR
 
 1. **Empresa se registra** (ya existe camino `/cadena` + auth rol empresa).
 2. **Admin verifica** (`verificada: true`) → sus promos pueden entrar al catálogo.
-3. **Plan por defecto `freemium`**: límite de promos; no puede marcar `destacada`; no puede crear anuncios.
-4. **Upgrade a Pro** (pago o activación manual piloto) → desbloquea destacada + cupo de anuncios + reportes.
-5. **Anuncios activos** se sirven a usuarios en superficies Free / feed general, rotados por zona GPS si hay coords.
+3. **Sin suscripción:** no pauta propia; no destacada (campo técnico `plan: freemium` = “aún no paga”, no un producto Free con ads ajenos).
+4. **Suscripción activa** (pago o activación manual piloto) → destacada + cupo de **sus** anuncios + reportes.
+5. **Anuncios activos** de cadenas suscritas se sirven en Home / Explorar / Cerca; si no hay creativo → slot oculto.
 
 ---
 
@@ -116,9 +113,9 @@ Slots sugeridos: `home_rail` · `explore_feed` · `cerca_list` (máx. 1 cada N c
 
 ### Panel cadena (`/cadena`)
 - Badge de plan + fecha de vencimiento
-- Freemium: CTA “Pasar a Pro” + copy del upsell (quitar ads del vecino / destacar cerca)
-- Pro: pestaña **Anuncios** (alta, preview, pausar) + toggle **Destacada** en promos
-- Contador “promos activas X / límite”
+- Sin suscripción: CTA “Activar suscripción” (piloto: solicitar → admin)
+- Con suscripción: pestaña **Anuncios** (alta img/video, preview, pausar) + toggle **Destacada**
+- Contador sucursales / slots de pauta
 
 ### PWA usuario
 - Componente `SponsoredSlot` con label **Publicidad**
@@ -138,8 +135,9 @@ Slots sugeridos: `home_rail` · `explore_feed` · `cerca_list` (máx. 1 cada N c
 1. Anuncio **no** usa `origen: oficial` ni entra al scraper.
 2. Sin lectura legible / sin verificación → no inventar creativos.
 3. Alcohol en creativo → mismo gate 18+ que el resto de la app.
-4. Freemium no puede `destacada: true` (server enforce).
+4. Sin suscripción activa no puede `destacada: true` ni crear anuncios (server enforce).
 5. Métrica norte sigue siendo GPS × promo × sucursal; ads reportan impresiones/clics **aparte**.
+6. Nunca rellenar slots con creativos de terceros “para castigar” a quien no paga.
 
 ---
 
@@ -168,20 +166,20 @@ Slots sugeridos: `home_rail` · `explore_feed` · `cerca_list` (máx. 1 cada N c
 
 | Plan | Precio | Notas |
 |------|--------|--------|
-| Freemium | $0 | 2 promos; ve pauta |
-| Pro | **$2,900 MXN/mes** zona GDL (lista; ajustar) | Destacada + sin ads propios + cupo 1–3 anuncios |
+| Sin suscripción | — | Sin pauta propia / sin destacada |
+| Suscripción Cadena | **$2,900 MXN/mes** zona GDL (lista; ajustar) | Destacada + cupo 1–3 anuncios propios |
 | Slot extra / marca | Cotizar vuelo | Fase C |
 
-Upsell: “En Free sale el anuncio del vecino; en Pro sales tú cerca y quitas su banner.”
+Upsell: más sucursales, más zona, más slots/video — no “quita el banner del vecino”.
 
 ---
 
-## 9. Decisiones abiertas (necesitan ok de Mario)
+## 9. Decisiones (Mario)
 
-1. **Pasarela en Fase A:** ¿solo activación manual, o ya Mercado Pago?
-2. **Precio Pro lista:** ¿$2,900 o $4,900 / mes zona?
-3. **Quién anuncia en Free:** ¿solo Pro/Premium, o también marcas sin sucursal (solo creativo)?
-4. **¿Empezamos a codear Fase A** sobre este doc?
+1. ~~Freemium con pauta de terceros~~ → **No.**
+2. **Pasarela en Fase A:** ¿solo activación manual, o ya Mercado Pago?
+3. **Precio suscripción lista:** ¿$2,900 o $4,900 / mes zona?
+4. **Marcas sin sucursal:** ¿solo fase campaña, o también add-on creativo?
 
 ---
 
