@@ -224,7 +224,7 @@ export default function PromoDetalle() {
     nearestBranch && typeof nearestBranch.distanceMeters === 'number'
       ? nearestBranch.distanceMeters
       : undefined;
-  const showFacts = Boolean(end || nearest != null);
+  const showFacts = true;
 
   const chainName = promo.chainName || t('chainFallback');
   const favPlace = nearestBranch
@@ -310,16 +310,16 @@ export default function PromoDetalle() {
       {/* Solo hechos útiles: vigencia / distancia. No puntos de lealtad aquí. */}
       {showFacts && (
         <div className="detail-facts rise" data-reveal>
-          {end && (
-            <div className="detail-fact">
-              <p className="label">{t('validity')}</p>
-              <p className="detail-fact-value">
-                {new Date(end).toLocaleDateString(
-                  locale === 'en' ? 'en-US' : 'es-MX'
-                )}
-              </p>
-            </div>
-          )}
+          <div className="detail-fact">
+            <p className="label">{t('validity')}</p>
+            <p className="detail-fact-value">
+              {end
+                ? new Date(end).toLocaleDateString(
+                    locale === 'en' ? 'en-US' : 'es-MX'
+                  )
+                : t('noSourceDate')}
+            </p>
+          </div>
           {nearest != null && (
             <div className="detail-fact">
               <p className="label">{t('navNear')}</p>

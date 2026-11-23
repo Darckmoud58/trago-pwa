@@ -649,6 +649,9 @@ export default function Home() {
           <PromoPrice promo={p} />
           <h3>{title}</h3>
           {near?.label ? <p className="meta">{near.label}</p> : null}
+          {!(p.termina_en || p.endsAt) ? (
+            <p className="meta">{t('noSourceDate')}</p>
+          ) : null}
           {nearest ? (
             <span className="home-bday-reveal-cta">{t('bdayRevealCta')}</span>
           ) : null}

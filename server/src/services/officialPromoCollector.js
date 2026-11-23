@@ -6,6 +6,7 @@ import { looksLikeAlcohol } from '../lib/ageGate.js';
 import { parsePromoPrice, resolvePromoPrice } from '../lib/promoPrice.js';
 import {
   classifyCatalogEntry,
+  isUnreadableCatalogTitle,
   sanitizePromoTitle,
 } from '../lib/catalogQuality.js';
 
@@ -1487,6 +1488,28 @@ export async function backfillMissingProductImages(empresaId, limit = 20) {
 }
 
 /** Importa promociones oficiales con solicitudes concurrentes. */
+/** Caduca solo fichas cuyo título no es una oferta. No toca el resto de la empresa. */
+async function caducarTitulosIlegibles(companyId) {
+  const rows = await Promocion.find({
+    id_empresa: companyId,
+    origen: 'oficial',
+    cumpleanos: { $ne: true },
+    estatus: 'activo',
+  })
+    .select('_id nombre')
+    .limit(300)
+    .lean();
+  const ids = rows
+    .filter((row) => isUnreadableCatalogTitle(row.nombre))
+    .map((row) => row._id);
+  if (!ids.length) return 0;
+  const result = await Promocion.updateMany(
+    { _id: { $in: ids } },
+    { $set: { estatus: 'caduco' } }
+  );
+  return result.modifiedCount || 0;
+}
+
 export async function collectNearbyPromos(companies) {
   return Promise.all(
     companies.map(async (company) => {
@@ -1529,6 +1552,7 @@ export async function collectNearbyPromos(companies) {
       const operations = [...uniqueHits.values()]
         .map((hit) => {
           const cleanTitle = sanitizePromoTitle(hit.title) || hit.title;
+          if (isUnreadableCatalogTitle(cleanTitle)) return null;
           const quality = classifyCatalogEntry({
             title: cleanTitle,
             description: hit.description,
@@ -1657,6 +1681,10 @@ export async function collectNearbyPromos(companies) {
           { $set: { estatus: 'caduco' } }
         );
       }
+
+      // Un fallo HTTP no debe conservar navegación markdown como si fuera promo.
+      // Tampoco borra el resto del catálogo de esa empresa.
+      await caducarTitulosIlegibles(company._id);
 
       let imagesBackfilled = 0;
       try {

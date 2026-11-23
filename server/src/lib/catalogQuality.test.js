@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   classifyCatalogEntry,
   isLandingPromoTitle,
+  isUnreadableCatalogTitle,
   looksLikeInternalResourceName,
   sanitizePromoTitle,
 } from './catalogQuality.js';
@@ -37,6 +38,20 @@ describe('catalogQuality', () => {
     });
     assert.equal(c.kind, 'oferta');
     assert.equal(c.publish, true);
+  });
+
+  it('rechaza markdown y Title: sin tocar un producto de grid', () => {
+    assert.equal(
+      isUnreadableCatalogTitle('[Calidad](https://www.mcdonalds.com.mx/calidad)'),
+      true
+    );
+    assert.equal(isUnreadableCatalogTitle("Title: McDonald's -"), true);
+    assert.equal(
+      isUnreadableCatalogTitle('![logo](https://cdn.example/logo.png)'),
+      true
+    );
+    assert.equal(classifyCatalogEntry({ title: 'Title: McDonald\'s -' }).publish, false);
+    assert.equal(isUnreadableCatalogTitle('Agua alcalina Vitawa 1.5L'), false);
   });
 
   it('publica cards del grid oficial OXXO sin 2x1 en el título', () => {

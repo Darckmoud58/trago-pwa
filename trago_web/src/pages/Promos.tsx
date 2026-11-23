@@ -81,6 +81,7 @@ export default function Promos() {
   );
   const [emptyOfficial, setEmptyOfficial] = useState(false);
   const [query, setQuery] = useState('');
+  const [serverQuery, setServerQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>(() =>
     parseFilter(searchParams.get('f'), false)
   );
@@ -110,23 +111,36 @@ export default function Promos() {
   }, [searchParams, allowBday, setSearchParams]);
 
   useEffect(() => {
+    const q = query.trim();
+    const id = window.setTimeout(
+      () => setServerQuery(q.length >= 2 ? q : ''),
+      q.length >= 2 ? 300 : 0
+    );
+    return () => window.clearTimeout(id);
+  }, [query]);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
         if (!navigator.onLine) throw new Error('offline');
-        const res = await api.get('/api/promociones');
+        const res = await api.get('/api/promociones', {
+          params: serverQuery ? { q: serverQuery } : undefined,
+        });
         if (cancelled) return;
         const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
-        // En disco solo guardamos lo que un invitado puede volver a ver.
-        await cacheSet(
-          CACHE_KEYS.promos,
-          list.filter((p) => !isRestrictedCachedPromo(p))
-        );
+        // La búsqueda no sustituye el catálogo guardado para uso offline.
+        if (!serverQuery) {
+          await cacheSet(
+            CACHE_KEYS.promos,
+            list.filter((p) => !isRestrictedCachedPromo(p))
+          );
+        }
         setPromos(list);
         setFromCache(false);
         setCacheSavedAt(Date.now());
         setError('');
-        setEmptyOfficial(list.length === 0);
+        setEmptyOfficial(list.length === 0 && !serverQuery);
       } catch {
         const cached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
         if (cancelled) return;
@@ -152,7 +166,7 @@ export default function Promos() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, serverQuery]);
 
   function applyFilter(next: FilterId) {
     if (next === 'cumple' && !allowBday) {
@@ -440,7 +454,7 @@ export default function Promos() {
                 {desc && <p className="promo-desc">{desc}</p>}
 
                 <div className="promo-meta-row">
-                  {end && (
+                  {end ? (
                     <span className="meta">
                       {t('untilDate')}{' '}
                       {new Date(end).toLocaleDateString(
@@ -449,6 +463,8 @@ export default function Promos() {
                       {left != null && left >= 0 ? ` · ${left}d` : ''}
                       {left != null && left < 0 ? t('expired') : ''}
                     </span>
+                  ) : (
+                    <span className="meta">{t('noSourceDate')}</span>
                   )}
                 </div>
               </div>
