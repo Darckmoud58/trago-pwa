@@ -26,6 +26,14 @@ import {
 import { assertMexicoCoords, quantizeMaxMeters } from '../lib/geoNear.js';
 import { resolvePromoPrice } from '../lib/promoPrice.js';
 import { distanceMeters } from '../lib/validity.js';
+import {
+  buildPromoSearchClause,
+  promoSearchRegex,
+} from '../lib/catalogSearch.js';
+import {
+  sortBranchesByDistance,
+  sortPromosByNearest,
+} from '../lib/nearOrder.js';
 
 /** Evita CastError cuando id_empresa viene null/undefined (String(undefined) === "undefined"). */
 function validObjectIds(values) {
@@ -270,18 +278,37 @@ export async function listPromos(req, res) {
       req.query.cumpleanos === '1' ||
       req.query.cumple === '1' ||
       req.query.f === 'cumple';
-    const filter = birthdayOnly
+    const searchRx = promoSearchRegex(req.query.q);
+    let filter = birthdayOnly
       ? {
           ...dateActiveFilter(now),
           cumpleanos: true,
           origen: { $in: ['oficial', 'demo', 'empresa'] },
         }
       : await publicCatalogFilter(now);
+    if (searchRx) {
+      const matchedEmpresas = await Empresa.find({
+        estatus: 'activo',
+        $or: [{ nombre: searchRx }, { slug: searchRx }],
+      })
+        .select('_id')
+        .limit(15)
+        .lean();
+      filter = {
+        $and: [
+          filter,
+          buildPromoSearchClause(
+            searchRx,
+            matchedEmpresas.map((empresa) => empresa._id)
+          ),
+        ],
+      };
+    }
     const ageFilter =
       req.viewer && !req.viewer.canSeeAlcohol ? mongoExcludeRestricted() : {};
     const promos = await Promocion.find({ ...filter, ...ageFilter })
       .sort({ destacada: -1, termina_en: 1 })
-      .limit(100)
+      .limit(searchRx ? 60 : 100)
       .lean();
     const empresaIds = validObjectIds(promos.map((p) => p.id_empresa));
     const empresas = empresaIds.length
@@ -306,9 +333,11 @@ export async function listPromos(req, res) {
       },
       emptyReason:
         mapped.length === 0
-          ? birthdayOnly
-            ? 'Hoy no hay promos de cumple publicadas.'
-            : 'Aún no hay ofertas disponibles. Prueba más tarde o mira Cerca.'
+          ? searchRx
+            ? 'Ninguna promo oficial coincide con esa búsqueda.'
+            : birthdayOnly
+              ? 'Hoy no hay promos de cumple publicadas.'
+              : 'Aún no hay ofertas disponibles. Prueba más tarde o mira Cerca.'
           : null,
     });
   } catch (e) {
@@ -567,21 +596,25 @@ export async function nearbyPromos(req, res) {
         sucursalesParticipantesCount: links.length,
         vinculoSucursales: vinculoMeta(links.length, fuenteEsp),
         // OSM cerca de la misma marca: candidatas, NO participación confirmada.
-        ubicacionesCercanas: branches
-          .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
-          .map((b) => ({
-            _id: b._id,
-            nombre: b.nombre || b.calle,
-            distanceMeters: b.distanceMeters,
-            osmUrl: b.osmUrl,
-            participacionConfirmada: false,
-          })),
+        ubicacionesCercanas: sortBranchesByDistance(
+          branches
+            .filter((b) => String(b.id_empresa) === String(promo.id_empresa))
+            .map((b) => ({
+              _id: b._id,
+              nombre: b.nombre || b.calle,
+              distanceMeters: b.distanceMeters,
+              osmUrl: b.osmUrl,
+              participacionConfirmada: false,
+            }))
+        ),
       };
     });
     // Política ageGate: alcohol solo con cuenta adult. Sin sesión no se muestra.
     const viewerOk = canSeeRestricted(req.viewer);
     const restrictedCount = mappedRaw.filter((p) => isRestrictedPromo(p)).length;
-    const mapped = filterPromosForViewer(mappedRaw, req.viewer);
+    const mapped = sortPromosByNearest(
+      filterPromosForViewer(mappedRaw, req.viewer)
+    );
     const brandOfferStats = {};
     for (const promo of mappedRaw) {
       const key = String(promo.chainName || '').trim();

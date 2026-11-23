@@ -83,6 +83,19 @@ export const registerEmpresaSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'birthDate debe ser YYYY-MM-DD'),
     acceptTerms: z.boolean().optional(),
     acceptPrivacy: z.boolean().optional(),
+    /** Primera sucursal opcional. Las coordenadas las escribe la cadena. */
+    sucursal: z
+      .object({
+        nombre: z.string().trim().max(120).optional(),
+        calle: z.string().trim().min(3).max(200),
+        colonia: z.string().trim().max(120).optional(),
+        municipio: z.string().trim().max(80).optional(),
+        estado: z.string().trim().max(80).optional(),
+        lat: z.coerce.number().finite(),
+        lng: z.coerce.number().finite(),
+        horario: z.string().trim().max(200).optional(),
+      })
+      .optional(),
   })
   .strict()
   .superRefine((data, ctx) => {

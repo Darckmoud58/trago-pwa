@@ -229,6 +229,35 @@ export async function registerEmpresaCompleto(req, res) {
       throw e;
     }
 
+    let sucursal = null;
+    if (data.sucursal) {
+      const s = data.sucursal;
+      const lat = Number(s.lat);
+      const lng = Number(s.lng);
+      const calle = clipStr(s.calle, 200);
+      const nombreSuc =
+        clipStr(s.nombre, 120) || clipStr(calle, 120) || 'Sucursal principal';
+      try {
+        const sucSlug = await uniqueSlug(Ubicacion, `${slug}-${nombreSuc}`);
+        sucursal = await Ubicacion.create({
+          nombre: nombreSuc,
+          slug: sucSlug,
+          calle,
+          colonia: clipStr(s.colonia, 120),
+          municipio: clipStr(s.municipio || 'Guadalajara', 80),
+          estado: clipStr(s.estado || 'Jalisco', 80),
+          lat,
+          long: lng,
+          location: { type: 'Point', coordinates: [lng, lat] },
+          id_empresa: empresa._id,
+          horario: clipStr(s.horario, 200),
+          estatus: 'activo',
+        });
+      } catch (e) {
+        console.error('registerEmpresa sucursal:', e.message);
+      }
+    }
+
     const token = signAccessToken({
       id: user._id,
       role: roleEmpresa.codigo,
@@ -239,6 +268,15 @@ export async function registerEmpresaCompleto(req, res) {
     return res.status(201).json({
       token,
       empresa: mapEmpresa(empresa.toObject()),
+      sucursal: sucursal
+        ? {
+            _id: sucursal._id,
+            nombre: sucursal.nombre,
+            calle: sucursal.calle,
+            lat: sucursal.lat,
+            lng: sucursal.long,
+          }
+        : null,
       user: {
         id: user._id,
         email: user.correo,

@@ -59,6 +59,24 @@ export function looksLikeInternalResourceName(title) {
   return false;
 }
 
+const MARKDOWN_LINK = /\]\(\s*https?:/i;
+const MARKDOWN_IMAGE = /!\[[^\]]*\]\(/;
+const BARE_TITLE_PREFIX = /^title\s*:/i;
+
+/**
+ * Título que no es una oferta: markdown de navegación, "Title: …" o landing.
+ * No marca como ilegible un producto del grid oficial solo porque no trae 2x1.
+ */
+export function isUnreadableCatalogTitle(title) {
+  const t = String(title || '').trim();
+  if (!t || t.length < 3) return true;
+  if (MARKDOWN_LINK.test(t) || MARKDOWN_IMAGE.test(t)) return true;
+  if (BARE_TITLE_PREFIX.test(t)) return true;
+  if (isLandingPromoTitle(t)) return true;
+  if (looksLikeInternalResourceName(t)) return true;
+  return false;
+}
+
 export function isLandingPromoTitle(title) {
   const t = fold(title).replace(/[^a-z0-9\s]+/g, ' ').replace(/\s+/g, ' ').trim();
   if (!t) return true;
@@ -83,8 +101,8 @@ export function classifyCatalogEntry(hit = {}) {
   const description = String(hit.description || '').trim();
   const blob = `${title} ${description}`;
 
-  if (!title || title.length < 3) {
-    return { kind: 'revision', publish: false, reason: 'titulo-vacio' };
+  if (!title || title.length < 3 || isUnreadableCatalogTitle(title)) {
+    return { kind: 'revision', publish: false, reason: 'titulo-ilegible' };
   }
   if (isLandingPromoTitle(title)) {
     return { kind: 'campana', publish: false, reason: 'landing' };

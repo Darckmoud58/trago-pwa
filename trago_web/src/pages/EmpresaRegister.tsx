@@ -5,6 +5,7 @@ import { maxBirthDateForAccount } from '../lib/age';
 import { clearCatalogCache } from '../lib/catalogCache';
 import { useI18n } from '../lib/i18n';
 import './Legal.css';
+import './Cadena.css';
 
 /**
  * Un solo registro: la cadena ES quien se da de alta
@@ -21,6 +22,10 @@ export default function EmpresaRegister() {
   const [birthDate, setBirthDate] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptPrivacy, setAcceptPrivacy] = useState(false);
+  const [sucNombre, setSucNombre] = useState('');
+  const [sucCalle, setSucCalle] = useState('');
+  const [sucLat, setSucLat] = useState('');
+  const [sucLng, setSucLng] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +38,7 @@ export default function EmpresaRegister() {
     }
     setLoading(true);
     try {
+      const hasBranch = sucCalle.trim().length >= 3 && sucLat && sucLng;
       const { data } = await api.post('/api/cadena/registro-empresa', {
         empresaNombre,
         empresaDescripcion: empresaDesc,
@@ -42,6 +48,16 @@ export default function EmpresaRegister() {
         birthDate,
         acceptTerms,
         acceptPrivacy,
+        ...(hasBranch
+          ? {
+              sucursal: {
+                nombre: sucNombre || undefined,
+                calle: sucCalle,
+                lat: Number(sucLat),
+                lng: Number(sucLng),
+              },
+            }
+          : {}),
       });
       saveToken(data.token);
       await clearCatalogCache();
@@ -125,6 +141,42 @@ export default function EmpresaRegister() {
             max={maxBirthDateForAccount()}
           />
         </label>
+
+        <p className="meta auth-fav-hint">{t('bizBranchOptional')}</p>
+        <label>
+          {t('bizBranchName')}
+          <input
+            value={sucNombre}
+            onChange={(e) => setSucNombre(e.target.value)}
+            autoComplete="off"
+          />
+        </label>
+        <label>
+          {t('bizBranchStreet')}
+          <input
+            value={sucCalle}
+            onChange={(e) => setSucCalle(e.target.value)}
+            autoComplete="street-address"
+          />
+        </label>
+        <div className="cadena-row">
+          <label>
+            {t('bizBranchLat')}
+            <input
+              value={sucLat}
+              onChange={(e) => setSucLat(e.target.value)}
+              inputMode="decimal"
+            />
+          </label>
+          <label>
+            {t('bizBranchLng')}
+            <input
+              value={sucLng}
+              onChange={(e) => setSucLng(e.target.value)}
+              inputMode="decimal"
+            />
+          </label>
+        </div>
 
         <div className="legal-checks">
           <label>

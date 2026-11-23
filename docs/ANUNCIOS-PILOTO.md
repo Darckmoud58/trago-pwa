@@ -7,12 +7,14 @@ Pauta **propia** (no AdSense). Los anuncios van etiquetados *Patrocinado* y **nu
 
 Ver tesis: [`PITCH-TRAGO.md`](./PITCH-TRAGO.md), [`PROPUESTA-FREEMIUM-EQUIPO.md`](./PROPUESTA-FREEMIUM-EQUIPO.md).
 
-## Flujo piloto (cobro manual)
+## Flujo piloto (sandbox o cobro manual)
 
-1. Alta unificada: PWA `/registro-empresa` → `POST /api/cadena/registro-empresa` crea responsable + empresa + rol en un paso.  
+Detalle pasarela: [`PAGOS-SANDBOX.md`](./PAGOS-SANDBOX.md). El sandbox no cobra dinero real. Mercado Pago solo entra con token `TEST-`.
+
+1. Alta unificada: PWA `/registro-empresa` → `POST /api/cadena/registro-empresa` crea responsable + empresa + rol (+ sucursal opcional).  
    Entrada: `/entrar-empresa` → panel `/cadena`.
-2. En **Anuncios** pulsa *Solicitar plan de pauta* → crea `suscripciones` con `estatus: pending`.
-3. Admin activa tras confirmar pago (transferencia / factura):
+2. En **Anuncios** → **Pagar suscripción (sandbox)** (`POST /api/cadena/pagos/checkout`) o *Solicitar plan de pauta* (pending).
+3. Admin (si cobro manual) activa tras confirmar transferencia / factura:
 
 ```http
 POST /api/anuncios/admin/suscripciones
@@ -56,7 +58,7 @@ POST /api/anuncios/:id/evento  { "tipo": "impression" | "click" }
 - Si no hay anuncio activo vigente → el slot se oculta (no inventar).
 - Label visible *Patrocinado* / *Sponsored*.
 - Alcohol: solo copy; gate 18+ de la app aplica.
-- Fase 2: Mercado Pago / Stripe → webhook pone `activo` (`origen: pasarela`).
+- Sandbox TraGo, o Mercado Pago con token `TEST-` (`PAGOS_PROVIDER`) → aprobar pone `activo` (`origen: pasarela` o `sandbox`).
 
 ## Beta local / demo (video)
 
