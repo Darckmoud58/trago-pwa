@@ -308,6 +308,30 @@ export default function Cadena() {
     }
   }
 
+  async function onPagarSandbox() {
+    setBusy(true);
+    setError('');
+    setInfo('');
+    try {
+      const res = await api.post('/api/cadena/pagos/checkout', {
+        plan: 'basic',
+        sucursales: Math.max(1, sucursales.length),
+      });
+      const url = String(res.data.checkout_url || '');
+      if (url) {
+        window.location.assign(url);
+        return;
+      }
+      setInfo(res.data.message || t('payCheckoutOk'));
+      await load();
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      setError(axiosErr.response?.data?.message || t('payCheckoutError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function onCreateAnuncio(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -587,14 +611,24 @@ export default function Cadena() {
               {suscripcion?.plan ? ` · ${suscripcion.plan}` : ''}
             </p>
             {!puedePauta && (
-              <button
-                type="button"
-                className="btn primary"
-                disabled={busy || suscripcion?.estatus === 'pending'}
-                onClick={() => void onSolicitarPauta()}
-              >
-                {t('chainAdsRequest')}
-              </button>
+              <div className="cadena-row">
+                <button
+                  type="button"
+                  className="btn primary"
+                  disabled={busy}
+                  onClick={() => void onPagarSandbox()}
+                >
+                  {t('payCheckoutCta')}
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost"
+                  disabled={busy || suscripcion?.estatus === 'pending'}
+                  onClick={() => void onSolicitarPauta()}
+                >
+                  {t('chainAdsRequest')}
+                </button>
+              </div>
             )}
             {puedePauta && (
               <form onSubmit={onCreateAnuncio} className="cadena-ad-form">

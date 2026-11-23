@@ -18,6 +18,7 @@ import Negocios from './pages/Negocios';
 import Favoritos from './pages/Favoritos';
 import Cuenta from './pages/Cuenta';
 import Cadena from './pages/Cadena';
+import PagoSandbox from './pages/PagoSandbox';
 import Idioma from './pages/Idioma';
 import Terminos from './pages/Terminos';
 import AvisoPrivacidad from './pages/AvisoPrivacidad';
@@ -61,6 +62,7 @@ createRoot(document.getElementById('root')!).render(
                 </RequireAuth>
               }
             />
+            <Route path="/cadena/pago-sandbox" element={<PagoSandbox />} />
             <Route path="/idioma" element={<Idioma />} />
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/aviso-de-privacidad" element={<AvisoPrivacidad />} />

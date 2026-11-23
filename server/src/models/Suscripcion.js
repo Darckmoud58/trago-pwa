@@ -30,7 +30,7 @@ const schema = new mongoose.Schema(
     },
     origen: {
       type: String,
-      enum: ['manual', 'pasarela', 'solicitud'],
+      enum: ['manual', 'pasarela', 'solicitud', 'sandbox'],
       default: 'solicitud',
     },
     notas: { type: String, default: '' },

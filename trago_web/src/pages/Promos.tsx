@@ -80,6 +80,7 @@ export default function Promos() {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
   const [emptyOfficial, setEmptyOfficial] = useState(false);
+  const [restrictedHidden, setRestrictedHidden] = useState(true);
   const [query, setQuery] = useState('');
   const [serverQuery, setServerQuery] = useState('');
   const [filter, setFilter] = useState<FilterId>(() =>
@@ -129,6 +130,7 @@ export default function Promos() {
         });
         if (cancelled) return;
         const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
+        setRestrictedHidden(Boolean(res.data.ageGate?.restrictedHidden));
         // La búsqueda no sustituye el catálogo guardado para uso offline.
         if (!serverQuery) {
           await cacheSet(
@@ -475,22 +477,40 @@ export default function Promos() {
 
       {!loading && !error && visible.length === 0 && (
         <div className="empty-state promos-empty">
-          <p>{emptyOfficial ? t('promosEmptyOfficial') : t('promosEmpty')}</p>
-          {emptyOfficial ? (
-            <Link className="btn primary" to="/cerca" viewTransition>
-              {t('openNear')}
-            </Link>
+          {filter === 'destilados' && restrictedHidden ? (
+            <>
+              <p>{token ? t('promosSpiritsNeedAdult') : t('promosSpiritsNeedLogin')}</p>
+              {!token ? (
+                <Link
+                  className="btn primary"
+                  to="/entrar"
+                  state={{ from: '/promos?f=destilados', reason: 'account' }}
+                  viewTransition
+                >
+                  {t('quickLogin')}
+                </Link>
+              ) : null}
+            </>
           ) : (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => {
-                applyFilter('todas');
-                setQuery('');
-              }}
-            >
-              {t('clearFilters')}
-            </button>
+            <>
+              <p>{emptyOfficial ? t('promosEmptyOfficial') : t('promosEmpty')}</p>
+              {emptyOfficial ? (
+                <Link className="btn primary" to="/cerca" viewTransition>
+                  {t('openNear')}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => {
+                    applyFilter('todas');
+                    setQuery('');
+                  }}
+                >
+                  {t('clearFilters')}
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
