@@ -191,10 +191,8 @@ export default function Promos() {
     const q = query.trim().toLowerCase();
     return promos.filter((p) => {
       if (filter === 'destacadas' && !(p.featured || p.destacada)) return false;
-      if (filter === 'cumple') {
-        if (!allowBday) return false;
-        if (!(p.cumpleanos || p.isBirthday)) return false;
-      }
+      if ((p.cumpleanos || p.isBirthday) && !allowBday) return false;
+      if (filter === 'cumple' && !(p.cumpleanos || p.isBirthday)) return false;
       if (
         filter === 'comida' &&
         !matchesKind(p, [

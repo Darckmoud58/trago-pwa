@@ -7,6 +7,7 @@ import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import ValidityVote from '../components/ValidityVote';
 import { useI18n } from '../lib/i18n';
+import { useAuthUser } from '../hooks/useAuthUser';
 import {
   CACHE_KEYS,
   cacheDelete,
@@ -44,6 +45,7 @@ function readGps(): Promise<GeolocationPosition> {
 export default function PromoDetalle() {
   const { promoId } = useParams();
   const { t, locale } = useI18n();
+  const { birthdayToday, token } = useAuthUser();
   const [promo, setPromo] = useState<Promo | null>(null);
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
   const [vinculoMsg, setVinculoMsg] = useState<string | null>(null);
@@ -252,6 +254,31 @@ export default function PromoDetalle() {
           imagen: img || undefined,
         }
       : null;
+
+  const birthday = Boolean(promo.cumpleanos || promo.isBirthday);
+  if (birthday && !birthdayToday) {
+    return (
+      <section className="promo-detail">
+        <header className="detail-head rise">
+          <p className="tag">{t('bdayTag')}</p>
+          <h1>{title}</h1>
+          <p className="lead">
+            {token ? t('offerBirthdayWait') : t('offerBirthdayLogin')}
+          </p>
+          {!token && (
+            <Link
+              className="btn primary"
+              to="/entrar"
+              state={{ from: `/promos/${promo.slug || promo._id}`, reason: 'birthday' }}
+              viewTransition
+            >
+              {t('placeOffersLoginCta')}
+            </Link>
+          )}
+        </header>
+      </section>
+    );
+  }
 
   return (
     <section className="promo-detail">
