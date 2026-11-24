@@ -17,6 +17,10 @@ import {
   windowForPosition,
 } from '../lib/pagosPricing.js';
 import { sanitizeHttpUrl, sanitizeMediaUrl } from '../lib/safeUrl.js';
+import {
+  MAX_ANUNCIO_BORRADORES,
+  assertCanCreateDraft,
+} from '../lib/anuncioDrafts.js';
 
 function clipStr(raw, max = 500) {
   return String(raw ?? '').trim().slice(0, max);
@@ -189,7 +193,10 @@ export async function streamAdMedia(req, res) {
   }
 }
 
-/** POST /api/cadena/anuncios — crea borrador. Publicarlo sigue exigiendo pauta. */
+/**
+ * POST /api/cadena/anuncios — crea borrador (máx. 10) o publica si `publicar: true`.
+ * Publicar exige pauta + ventana/posición pagadas.
+ */
 export async function createAnuncio(req, res) {
   try {
     const empresa = assertOwnEmpresa(req);
@@ -198,11 +205,30 @@ export async function createAnuncio(req, res) {
       return res.status(400).json({ message: 'titulo es requerido' });
     }
     const placement = resolveCreativePlacement(req.body);
+    const publicar = Boolean(req.body.publicar || req.body.publish);
     const zonasRaw = req.body.zonas;
     const zonas = Array.isArray(zonasRaw)
       ? zonasRaw.map((z) => clipStr(z, 32).toLowerCase()).filter(Boolean)
       : ['gdl'];
 
+    if (!publicar) {
+      const draftCount = await Anuncio.countDocuments({
+        id_empresa: empresa._id,
+        estatus: 'borrador',
+      });
+      assertCanCreateDraft(draftCount, MAX_ANUNCIO_BORRADORES);
+    } else if (!req.isAdmin) {
+      const sub = await findActivePautaSub(empresa._id);
+      if (!puedePauta(empresa, sub)) {
+        return res.status(402).json({
+          message:
+            'Necesitas una suscripción de pauta activa para publicar anuncios.',
+        });
+      }
+      await assertCanPublish(req, empresa, placement);
+    }
+
+    const inicia = req.body.inicia ? new Date(req.body.inicia) : null;
     const doc = await Anuncio.create({
       id_empresa: empresa._id,
       titulo,
@@ -210,15 +236,27 @@ export async function createAnuncio(req, res) {
       imagen_url: sanitizeMediaUrl(req.body.imagen_url || req.body.imagen),
       video_url: sanitizeMediaUrl(req.body.video_url || req.body.video),
       url_destino: sanitizeHttpUrl(req.body.url_destino || req.body.url),
-      inicia: req.body.inicia ? new Date(req.body.inicia) : null,
+      inicia: publicar && !inicia ? new Date() : inicia,
       termina: req.body.termina ? new Date(req.body.termina) : null,
       zonas: zonas.length ? zonas : ['gdl'],
       slot: placement.slot,
       ventana: placement.ventana,
       posicion: placement.posicion,
-      estatus: 'borrador',
+      estatus: publicar ? 'activo' : 'borrador',
       alcohol: Boolean(req.body.alcohol),
     });
+
+    if (publicar) {
+      await Anuncio.updateMany(
+        {
+          id_empresa: empresa._id,
+          slot: doc.slot,
+          estatus: 'activo',
+          _id: { $ne: doc._id },
+        },
+        { $set: { estatus: 'pausado' } }
+      );
+    }
 
     return res.status(201).json({
       anuncio: mapAnuncio(doc.toObject(), {
@@ -251,7 +289,8 @@ export async function updateAnuncio(req, res) {
     }
     if (req.body.estatus === 'activo') {
       return res.status(400).json({
-        message: 'Para publicar usa Activar. El borrador se guarda sin pauta.',
+        message:
+          'Para publicar usa Publicar o Activar. El borrador se guarda sin pauta.',
       });
     }
 
