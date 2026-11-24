@@ -20,7 +20,16 @@ export function resolvePagosProvider(raw = process.env) {
 }
 
 export function mpSandboxReady(raw = process.env) {
-  return String(raw.MP_ACCESS_TOKEN || '').startsWith('TEST-');
+  const mode = String(raw.MP_MODE || 'sandbox')
+    .trim()
+    .toLowerCase();
+  if (mode === 'live' || mode === 'production' || mode === 'produccion') {
+    return false;
+  }
+  const token = String(raw.MP_ACCESS_TOKEN || '').trim();
+  // Credenciales de prueba: el panel nuevo las muestra como APP_USR- con la pestaña Prueba.
+  // TEST- es el formato viejo. Producción queda apagada con MP_MODE=live.
+  return token.startsWith('TEST-') || token.startsWith('APP_USR-');
 }
 
 export function paypalSandboxReady(raw = process.env) {
@@ -50,7 +59,7 @@ export function pagosConfigured(raw = process.env) {
 export function assertGateway(provider, raw = process.env) {
   if (provider === 'mercadopago' && !mpSandboxReady(raw)) {
     const err = new Error(
-      'Falta el Access Token de prueba de Mercado Pago. Tiene que empezar por TEST-.'
+      'Falta el Access Token de Credenciales de prueba de Mercado Pago. Producción no está habilitada.'
     );
     err.status = 503;
     throw err;

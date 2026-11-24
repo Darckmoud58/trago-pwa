@@ -10,6 +10,7 @@ import {
   resolvePagosProvider,
   pagosConfigured,
   gatewayStatus,
+  mpSandboxReady,
   paypalApproveLink,
   paypalOrderMatches,
   moneyMatches,
@@ -113,19 +114,31 @@ describe('pagosProvider', () => {
     );
   });
 
-  it('un token live o producción no sale del sandbox', () => {
+  it('las credenciales de prueba APP_USR sirven mientras producción esté apagada', () => {
+    assert.equal(mpSandboxReady({ MP_ACCESS_TOKEN: 'APP_USR-prueba' }), true);
+    assert.equal(
+      resolvePagosProvider({
+        PAGOS_PROVIDER: 'mercadopago',
+        MP_ACCESS_TOKEN: 'APP_USR-prueba',
+        NODE_ENV: 'production',
+      }),
+      'mercadopago'
+    );
+  });
+
+  it('MP_MODE live no habilita Mercado Pago', () => {
+    assert.equal(
+      mpSandboxReady({
+        MP_ACCESS_TOKEN: 'APP_USR-live',
+        MP_MODE: 'live',
+      }),
+      false
+    );
     assert.equal(
       resolvePagosProvider({
         PAGOS_PROVIDER: 'mercadopago',
         MP_ACCESS_TOKEN: 'APP_USR-live',
-        NODE_ENV: 'production',
-      }),
-      'sandbox'
-    );
-    assert.equal(
-      resolvePagosProvider({
-        MP_ACCESS_TOKEN: 'APP_USR-live',
-        NODE_ENV: 'production',
+        MP_MODE: 'production',
       }),
       'sandbox'
     );
