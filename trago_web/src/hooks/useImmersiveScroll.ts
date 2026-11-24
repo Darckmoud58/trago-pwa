@@ -9,8 +9,8 @@ function prefersReducedMotion() {
 }
 
 /**
- * Atmósfera de scroll: clase is-scrolled en el shell + revelado de
- * elementos [data-reveal] / .scroll-reveal al entrar en viewport.
+ * Atmósfera de scroll: clase is-scrolled, --scroll-y para parallax,
+ * y revelado de [data-reveal] / .scroll-reveal (también si llegan tarde).
  */
 export function useImmersiveScroll(shellSelector = '.app-shell') {
   const { pathname } = useLocation();
@@ -26,6 +26,10 @@ export function useImmersiveScroll(shellSelector = '.app-shell') {
       requestAnimationFrame(() => {
         const y = window.scrollY || document.documentElement.scrollTop;
         shell.classList.toggle('is-scrolled', y > 12);
+        (shell as HTMLElement).style.setProperty(
+          '--scroll-y',
+          String(Math.min(y, 900))
+        );
         ticking = false;
       });
     };
@@ -43,11 +47,7 @@ export function useImmersiveScroll(shellSelector = '.app-shell') {
       return;
     }
 
-    const nodes = Array.from(
-      document.querySelectorAll<HTMLElement>('[data-reveal], .scroll-reveal')
-    );
-    if (nodes.length === 0) return;
-
+    const seen = new WeakSet<Element>();
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -58,29 +58,42 @@ export function useImmersiveScroll(shellSelector = '.app-shell') {
       },
       {
         root: null,
-        rootMargin: '0px 0px -8% 0px',
-        threshold: 0.12,
+        rootMargin: '0px 0px -10% 0px',
+        threshold: 0.08,
       }
     );
 
-    // Micro-delay: deja que PageTransition monte el DOM nuevo
-    const id = window.setTimeout(() => {
-      nodes.forEach((el) => {
-        if (!el.classList.contains('scroll-reveal')) {
-          el.classList.add('scroll-reveal');
-        }
-        io.observe(el);
-      });
-    }, 40);
+    function watch(el: HTMLElement) {
+      if (seen.has(el)) return;
+      seen.add(el);
+      if (!el.classList.contains('scroll-reveal')) {
+        el.classList.add('scroll-reveal');
+      }
+      if (el.classList.contains('is-inview')) return;
+      io.observe(el);
+    }
 
-    // Fallback: nada debe quedar invisible si el IO no dispara
+    function scan() {
+      document
+        .querySelectorAll<HTMLElement>('[data-reveal], .scroll-reveal')
+        .forEach(watch);
+    }
+
+    const boot = window.setTimeout(scan, 40);
     const safety = window.setTimeout(() => {
-      nodes.forEach((el) => el.classList.add('is-inview'));
-    }, 1800);
+      document
+        .querySelectorAll<HTMLElement>('[data-reveal], .scroll-reveal')
+        .forEach((el) => el.classList.add('is-inview'));
+    }, 4200);
+
+    const root = document.getElementById('main') || document.body;
+    const mo = new MutationObserver(() => scan());
+    mo.observe(root, { childList: true, subtree: true });
 
     return () => {
-      window.clearTimeout(id);
+      window.clearTimeout(boot);
       window.clearTimeout(safety);
+      mo.disconnect();
       io.disconnect();
     };
   }, [pathname]);

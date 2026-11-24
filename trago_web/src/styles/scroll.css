@@ -92,22 +92,62 @@ html {
   scroll-snap-align: start;
 }
 
-/* ——— Revelado al entrar en viewport ——— */
+/* ——— Revelado al entrar en viewport (bajar / navegar) ——— */
 .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 22px, 0) scale(0.985);
-  filter: blur(3px);
+  transform: translate3d(0, 36px, 0) scale(0.96);
+  filter: blur(6px);
   transition:
-    opacity 0.55s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform 0.55s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    filter 0.55s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-  will-change: opacity, transform;
+    opacity 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    filter 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  will-change: opacity, transform, filter;
 }
 
 .scroll-reveal.is-inview {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);
   filter: blur(0);
+}
+
+.scroll-reveal.is-inview .home-deal,
+.scroll-reveal.is-inview .home-explore-card,
+.scroll-reveal.is-inview .home-proof-rail li,
+.scroll-reveal.is-inview .home-step {
+  animation: scroll-child-in 0.55s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.scroll-reveal.is-inview .home-deal:nth-child(2),
+.scroll-reveal.is-inview .home-explore-card:nth-child(2),
+.scroll-reveal.is-inview .home-step:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.scroll-reveal.is-inview .home-deal:nth-child(3),
+.scroll-reveal.is-inview .home-explore-card:nth-child(3),
+.scroll-reveal.is-inview .home-step:nth-child(3) {
+  animation-delay: 0.12s;
+}
+.scroll-reveal.is-inview .home-deal:nth-child(4),
+.scroll-reveal.is-inview .home-explore-card:nth-child(4) {
+  animation-delay: 0.18s;
+}
+.scroll-reveal.is-inview .home-deal:nth-child(5),
+.scroll-reveal.is-inview .home-explore-card:nth-child(5) {
+  animation-delay: 0.24s;
+}
+.scroll-reveal.is-inview .home-deal:nth-child(n + 6) {
+  animation-delay: 0.3s;
+}
+
+@keyframes scroll-child-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .scroll-reveal[data-reveal-delay='1'] {
@@ -124,17 +164,22 @@ html {
 }
 
 /* Scroll-driven (Chrome / Safari recientes): parallax suave del hero */
+.home-hero-visual {
+  transform: translate3d(0, calc(var(--scroll-y, 0) * 0.12px), 0) scale(1.02);
+  transition: transform 0.05s linear;
+}
+
 @supports (animation-timeline: scroll()) {
   .home-hero {
     animation: hero-drift linear both;
     animation-timeline: scroll();
-    animation-range: 0 28vh;
+    animation-range: 0 32vh;
   }
 
   @keyframes hero-drift {
     to {
-      opacity: 0.72;
-      transform: translateY(-12px) scale(0.985);
+      opacity: 0.68;
+      transform: translateY(-18px) scale(0.975);
     }
   }
 
@@ -155,6 +200,7 @@ html {
 @supports (animation-timeline: view()) {
   .promo-card,
   .feed-card,
+  .home-deal,
   .cerca-offer-card,
   .cerca-place-card,
   .fav-card,
@@ -163,17 +209,19 @@ html {
   .settings-row {
     animation: view-settle linear both;
     animation-timeline: view();
-    animation-range: entry 0% entry 35%;
+    animation-range: entry 0% entry 40%;
   }
 
   @keyframes view-settle {
     from {
-      opacity: 0.55;
-      transform: translateY(14px);
+      opacity: 0.35;
+      transform: translateY(22px) scale(0.98);
+      filter: blur(2px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
+      filter: blur(0);
     }
   }
 }
@@ -201,12 +249,21 @@ html {
     mask-image: none;
   }
 
+  .home-hero-visual {
+    transform: none !important;
+    transition: none !important;
+  }
+
   .scroll-reveal,
-  .scroll-reveal.is-inview {
+  .scroll-reveal.is-inview,
+  .scroll-reveal.is-inview .home-deal,
+  .scroll-reveal.is-inview .home-explore-card,
+  .scroll-reveal.is-inview .home-step {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
     transition: none !important;
+    animation: none !important;
   }
 
   .home-hero,
