@@ -61,6 +61,18 @@ export function useSlotAds(slot: AdSlot, zona = 'gdl') {
   return ads;
 }
 
+/** Cada `every` fichas, el siguiente anuncio del pool (vuelve a empezar si se acaba). */
+export function weaveAdAt<T>(
+  ads: T[],
+  index: number,
+  every = 6
+): T | null {
+  if (!ads.length || every < 1) return null;
+  if ((index + 1) % every !== 0) return null;
+  const turn = Math.floor((index + 1) / every) - 1;
+  return ads[((turn % ads.length) + ads.length) % ads.length] ?? null;
+}
+
 function pickVisitAd(list: ServedAd[], slot: string) {
   if (!list.length) return null;
   if (list.length === 1) return list[0];
