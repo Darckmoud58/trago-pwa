@@ -11,7 +11,11 @@ import { Link } from 'react-router-dom';
 import { api } from '../api';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
-import SponsoredSlot, { useSlotAds, weaveAdAt } from '../components/SponsoredSlot';
+import SponsoredSlot, {
+  useSlotAds,
+  weaveAdAtSafe,
+  weaveAdCount,
+} from '../components/SponsoredSlot';
 import { isBirthdayFreebie, useAuthUser } from '../hooks/useAuthUser';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import {
@@ -667,6 +671,10 @@ export default function Home() {
 
   const forYou = nearPromos.slice(0, 6);
   const railNear = nearPromos.slice(6);
+  /** Misma cadencia que Explorar/Cerca: no pegar Patrocinado al primer bloque. */
+  const HOME_AD_EVERY = 6;
+  const forYouWoveSponsored =
+    homeAds.length > 0 && weaveAdCount(forYou.length, HOME_AD_EVERY) > 0;
   const showNearFeed = !birthdayToday && nearPromos.length > 0;
   const showCatalog = !birthdayToday && catalogPromos.length > 0;
   const nearChains = useMemo(() => {
@@ -885,7 +893,10 @@ export default function Home() {
           {forYou.length > 0 ? (
             <div className="home-for-you-grid stagger">
               {forYou.map((p, i) => {
-                const ad = weaveAdAt(homeAds, i, 3);
+                const ad = weaveAdAtSafe(homeAds, i, HOME_AD_EVERY, {
+                  title: p.nombre || p.title,
+                  image: p.imagen || p.imageUrl,
+                });
                 return (
                   <Fragment key={p._id}>
                     {renderPromoCard(p, { featured: i === 0 })}
@@ -1037,16 +1048,6 @@ export default function Home() {
         </section>
       )}
 
-      {homeAds[0] ? (
-        <div data-reveal>
-          <SponsoredSlot
-            slot="home_rail"
-            fixedAd={homeAds[0]}
-            className="home-sponsored"
-          />
-        </div>
-      ) : null}
-
       {!birthdayToday && (
         <section
           className="home-how"
@@ -1142,6 +1143,17 @@ export default function Home() {
           </ul>
         </div>
       </section>
+
+      {/* Después de Explorar: no pegar dos Patrocinado al bloque «Para ti». */}
+      {homeAds[0] && !forYouWoveSponsored ? (
+        <div data-reveal>
+          <SponsoredSlot
+            slot="home_rail"
+            fixedAd={homeAds[0]}
+            className="home-sponsored"
+          />
+        </div>
+      ) : null}
 
       {showNearFeed && (
         <section
