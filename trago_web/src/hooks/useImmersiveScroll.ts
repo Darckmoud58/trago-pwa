@@ -9,8 +9,9 @@ function prefersReducedMotion() {
 }
 
 /**
- * Atmósfera de scroll: clase is-scrolled, --scroll-y para parallax,
- * y revelado de [data-reveal] / .scroll-reveal (también si llegan tarde).
+ * Atmósfera de scroll: clase is-scrolled, --scroll-y para parallax/succión
+ * (hero + bloques con animation-timeline en scroll.css), y revelado de
+ * [data-reveal] / .scroll-reveal (también si llegan tarde).
  */
 export function useImmersiveScroll(shellSelector = '.app-shell') {
   const { pathname } = useLocation();
