@@ -73,6 +73,40 @@ export function weaveAdAt<T>(
   return ads[((turn % ads.length) + ads.length) % ads.length] ?? null;
 }
 
+/** Cuántos anuncios intercalaría un feed de `itemCount` fichas. */
+export function weaveAdCount(itemCount: number, every = 6): number {
+  if (every < 1 || itemCount < every) return 0;
+  return Math.floor(itemCount / every);
+}
+
+type AdLike = { _id?: string; titulo?: string; imagen_url?: string; video_url?: string };
+
+/**
+ * Elige el anuncio del weave evitando repetir el mismo id o creativo
+ * que el ítem anterior (p. ej. promo con la misma imagen).
+ */
+export function weaveAdAtSafe<T extends AdLike>(
+  ads: T[],
+  index: number,
+  every = 6,
+  previous?: { title?: string; image?: string; video?: string } | null
+): T | null {
+  const raw = weaveAdAt(ads, index, every);
+  if (!raw) return null;
+  if (!previous) return raw;
+  const prevTitle = String(previous.title || '')
+    .trim()
+    .toLowerCase();
+  const adTitle = String(raw.titulo || '')
+    .trim()
+    .toLowerCase();
+  if (prevTitle && adTitle && prevTitle === adTitle) return null;
+  const prevMedia = String(previous.image || previous.video || '').trim();
+  const adMedia = String(raw.imagen_url || raw.video_url || '').trim();
+  if (prevMedia && adMedia && prevMedia === adMedia) return null;
+  return raw;
+}
+
 function pickVisitAd(list: ServedAd[], slot: string) {
   if (!list.length) return null;
   if (list.length === 1) return list[0];
