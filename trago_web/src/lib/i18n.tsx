@@ -301,7 +301,7 @@ const messages = {
     chainBranchNumber: 'Número',
     chainBranchPostal: 'Código postal',
     chainBranchHint:
-      'Escribe la calle. Al aparecer el resultado, elige la dirección y se llenan municipio, colonia y código postal.',
+      'Escribe o pega la dirección completa: calle, número, colonia, código postal y municipio.',
     chainBranchSearch: 'Buscando la calle…',
     chainBranchPick: 'Elige la dirección de la lista para registrar el municipio.',
     chainBranchNone: 'No hay una calle con esos datos en México.',
@@ -933,7 +933,7 @@ const messages = {
     chainBranchNumber: 'Number',
     chainBranchPostal: 'Postal code',
     chainBranchHint:
-      'Type the street. When a result appears, pick the address and the city, neighborhood and postal code fill in.',
+      'Type or paste the full address: street, number, neighborhood, postal code and city.',
     chainBranchSearch: 'Looking up the street…',
     chainBranchPick: 'Pick an address from the list to save the city.',
     chainBranchNone: 'No street matched those details in Mexico.',
