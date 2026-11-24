@@ -1,9 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
-import SponsoredSlot from '../components/SponsoredSlot';
+import SponsoredSlot, { useSlotAds, weaveAdAt } from '../components/SponsoredSlot';
 import { isBirthdayFreebie, useAuthUser } from '../hooks/useAuthUser';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import {
@@ -168,6 +176,7 @@ export default function Home() {
   const { t } = useI18n();
   const { token, user, birthdayToday, firstName } = useAuthUser();
   const { prefs } = useUserPrefs();
+  const homeAds = useSlotAds('home_rail');
   const userId = user?.id || user?._id || null;
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -656,13 +665,22 @@ export default function Home() {
     );
   }
 
-  const forYou = nearPromos.slice(0, 5);
-  const showNearFeed = !birthdayToday && nearPromos.length > 5;
-  const showCatalogFallback =
-    !nearLoading &&
-    nearPromos.length === 0 &&
-    (nearGpsError || catalogPromos.length > 0);
-  const railNear = nearPromos.slice(5);
+  const forYou = nearPromos.slice(0, 6);
+  const railNear = nearPromos.slice(6);
+  const showNearFeed = !birthdayToday && nearPromos.length > 0;
+  const showCatalog = !birthdayToday && catalogPromos.length > 0;
+  const nearChains = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const promo of nearPromos) {
+      const name = String(promo.chainName || '').trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      out.push(name);
+      if (out.length >= 8) break;
+    }
+    return out;
+  }, [nearPromos]);
   const showBdayConfetti = birthdayToday && bdayPhase === 'reveal' && !bdayGpsError;
   const bdayHeroCta =
     bdayPhase === 'welcome'
@@ -866,9 +884,21 @@ export default function Home() {
           {offlineEmpty ? <OfflineState /> : null}
           {forYou.length > 0 ? (
             <div className="home-for-you-grid stagger">
-              {forYou.map((p, i) =>
-                renderPromoCard(p, { featured: i === 0 })
-              )}
+              {forYou.map((p, i) => {
+                const ad = weaveAdAt(homeAds, i, 3);
+                return (
+                  <Fragment key={p._id}>
+                    {renderPromoCard(p, { featured: i === 0 })}
+                    {ad ? (
+                      <SponsoredSlot
+                        slot="home_rail"
+                        fixedAd={ad}
+                        className="home-sponsored home-sponsored--feed"
+                      />
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </div>
           ) : null}
           {!nearLoading &&
@@ -1007,7 +1037,74 @@ export default function Home() {
         </section>
       )}
 
-      <SponsoredSlot slot="home_rail" className="home-sponsored" />
+      {homeAds[0] ? (
+        <div data-reveal>
+          <SponsoredSlot
+            slot="home_rail"
+            fixedAd={homeAds[0]}
+            className="home-sponsored"
+          />
+        </div>
+      ) : null}
+
+      {!birthdayToday && (
+        <section
+          className="home-how"
+          data-reveal
+          aria-labelledby="home-how-title"
+        >
+          <div className="home-how-copy">
+            <p className="ui-kicker">{t('homeHowTitle')}</p>
+            <h2 id="home-how-title">{t('homeHowLead')}</h2>
+          </div>
+          <ol className="home-how-steps">
+            <li className="home-step">
+              <strong>{t('homeHowStep1')}</strong>
+              <span>{t('homeHowStep1Body')}</span>
+            </li>
+            <li className="home-step">
+              <strong>{t('homeHowStep2')}</strong>
+              <span>{t('homeHowStep2Body')}</span>
+            </li>
+            <li className="home-step">
+              <strong>{t('homeHowStep3')}</strong>
+              <span>{t('homeHowStep3Body')}</span>
+            </li>
+          </ol>
+        </section>
+      )}
+
+      {!birthdayToday && nearChains.length > 0 && (
+        <section
+          className="home-block home-chains"
+          data-reveal
+          aria-labelledby="home-chains-title"
+        >
+          <div className="block-head">
+            <div>
+              <p className="ui-kicker">{t('gpsLabel')}</p>
+              <h2 id="home-chains-title">{t('homeChainsTitle')}</h2>
+              <p className="home-section-lead">{t('homeChainsLead')}</p>
+            </div>
+            <Link className="text-link" to="/cerca" viewTransition>
+              {t('openNear')}
+            </Link>
+          </div>
+          <ul className="home-chain-rail scroll-rail">
+            {nearChains.map((name) => (
+              <li key={name}>
+                <Link
+                  className="home-chain-chip"
+                  to="/cerca"
+                  viewTransition
+                >
+                  {name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section
         className="home-explore"
@@ -1062,47 +1159,38 @@ export default function Home() {
               {t('openNear')}
             </Link>
           </div>
-          {railNear.length > 0 && (
-            <div className="home-deal-rail scroll-rail stagger">
-              {railNear.map((p) => renderPromoCard(p))}
-            </div>
-          )}
+          <div className="home-deal-rail scroll-rail stagger">
+            {(railNear.length ? railNear : nearPromos).map((p) =>
+              renderPromoCard(p)
+            )}
+          </div>
         </section>
       )}
 
-      {showCatalogFallback && (
-        <section className="home-block" data-reveal data-reveal-delay="1">
+      {showCatalog && (
+        <section
+          className="home-block"
+          data-reveal
+          data-reveal-delay="1"
+          aria-labelledby="home-featured-title"
+        >
           <div className="block-head">
             <div>
-              {nearGpsError ? (
-                <>
-                  <p className="ui-kicker">{t('gpsLabel')}</p>
-                  <h2>{t('featured')}</h2>
-                </>
-              ) : (
-                <h2>{t('homeNearTitle')}</h2>
-              )}
+              <p className="ui-kicker">{t('featured')}</p>
+              <h2 id="home-featured-title">{t('homeFeaturedTitle')}</h2>
+              <p className="home-section-lead">{t('homeFeaturedLead')}</p>
             </div>
             <Link className="text-link" to="/promos" viewTransition>
               {t('seeAll')}
             </Link>
           </div>
-          {catalogPromos.length > 0 ? (
-            <div className="home-deal-rail scroll-rail stagger">
-              {catalogPromos.map((p) => renderPromoCard(p))}
-            </div>
-          ) : (
-            !nearLoading && (
-              <p className="muted">
-                {t('promosEmptyOfficial')}{' '}
-                <Link to="/cerca">{t('openNear')}</Link>
-              </p>
-            )
-          )}
+          <div className="home-deal-rail scroll-rail stagger">
+            {catalogPromos.map((p) => renderPromoCard(p))}
+          </div>
         </section>
       )}
 
-      <div className="tour-help-link" aria-label={t('tourHelpAria')}>
+      <div className="tour-help-link" data-reveal aria-label={t('tourHelpAria')}>
         <button type="button" onClick={replayOnboarding}>
           {t('tourReplay')} ↗
         </button>

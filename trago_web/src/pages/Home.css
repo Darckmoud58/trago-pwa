@@ -969,6 +969,105 @@
   box-shadow: none;
 }
 
+.home-for-you-grid .home-sponsored--feed {
+  grid-column: 1 / -1;
+  margin-inline: 0;
+  border-radius: 1.1rem;
+}
+
+.home-how {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.05rem 1.15rem;
+  border-radius: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--rojo) 22%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface) 94%, #fff),
+    var(--surface)
+  );
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--chrome) 10%, transparent);
+}
+
+.home-how-copy h2 {
+  margin: 0.2rem 0 0;
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 3.8vw, 1.45rem);
+  color: var(--chrome);
+}
+
+.home-how-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.home-step {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in srgb, var(--rojo) 14%, transparent);
+  background: color-mix(in srgb, var(--surface) 92%, var(--rojo));
+}
+
+.home-step strong {
+  font-size: 0.92rem;
+  color: var(--chrome);
+}
+
+.home-step span {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--fg-soft);
+}
+
+.home-chain-rail {
+  list-style: none;
+  margin: 0;
+  padding: 0.1rem 0 0.25rem;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: max-content;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.home-chain-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.home-chain-chip {
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.55rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--rojo) 28%, transparent);
+  background: color-mix(in srgb, var(--surface) 94%, #fff);
+  color: var(--chrome) !important;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.86rem;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--chrome) 10%, transparent);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.home-chain-chip:active {
+  transform: scale(0.97);
+}
+
+@media (min-width: 720px) {
+  .home-how-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (min-width: 900px) {
   .home-sponsored {
     margin: 0.35rem 0 0.75rem;
