@@ -10,6 +10,10 @@ export function resolveMediaUrl(src?: string | null): string {
   // Assets del front (public/ads-beta/…): mismo origen
   if (cleaned.startsWith('/') && !cleaned.startsWith('//')) {
     if (cleaned.includes('://') || cleaned.includes('\\')) return '';
+    if (cleaned.startsWith('/api/')) {
+      const base = String(import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+      return `${base}${cleaned}`;
+    }
     return cleaned;
   }
   if (!/^https?:\/\//i.test(cleaned)) return '';

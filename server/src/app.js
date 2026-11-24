@@ -69,7 +69,11 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '20kb' }));
+  app.use((req, res, next) => {
+    const uploading =
+      req.method === 'POST' && req.path === '/api/cadena/anuncios/medios';
+    return express.json({ limit: uploading ? '3mb' : '20kb' })(req, res, next);
+  });
   // Serverless: body a veces llega como string o Buffer
   app.use((req, _res, next) => {
     if (typeof req.body === 'string' && req.body.length) {

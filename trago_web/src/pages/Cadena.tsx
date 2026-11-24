@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { api, readToken, saveToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n } from '../lib/i18n';
+import { uploadCreative } from '../lib/uploadCreative';
 import './Cadena.css';
 
 type Empresa = {
@@ -119,6 +120,13 @@ export default function Cadena() {
   const [adVideo, setAdVideo] = useState('');
   const [adUrl, setAdUrl] = useState('');
   const [adSlot, setAdSlot] = useState('home_rail');
+  const [adPosterFile, setAdPosterFile] = useState<File | null>(null);
+  const [adVideoFile, setAdVideoFile] = useState<File | null>(null);
+  const [adInicia, setAdInicia] = useState('');
+  const [adTermina, setAdTermina] = useState('');
+  const [adPosterPreview, setAdPosterPreview] = useState('');
+  const [adVideoPreview, setAdVideoPreview] = useState('');
+  const [creativeKey, setCreativeKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -208,6 +216,26 @@ export default function Cadena() {
     }, 450);
     return () => clearTimeout(handle);
   }, [sucCalle, sucNum, sucCp, lugar]);
+
+  useEffect(() => {
+    if (!adPosterFile) {
+      setAdPosterPreview('');
+      return;
+    }
+    const url = URL.createObjectURL(adPosterFile);
+    setAdPosterPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [adPosterFile]);
+
+  useEffect(() => {
+    if (!adVideoFile) {
+      setAdVideoPreview('');
+      return;
+    }
+    const url = URL.createObjectURL(adVideoFile);
+    setAdVideoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [adVideoFile]);
 
   const filteredVigencia = useMemo(() => {
     if (mapFilter === 'all') return vigencia;
@@ -420,14 +448,31 @@ export default function Cadena() {
     setError('');
     setInfo('');
     try {
+      let imagen = adImagen.trim();
+      let video = adVideo.trim();
+      if (adPosterFile || adVideoFile) setInfo(t('chainAdUploading'));
+      if (adPosterFile) {
+        imagen = await uploadCreative(adPosterFile, async (body) => {
+          const res = await api.post('/api/cadena/anuncios/medios', body);
+          return res.data as { url?: string };
+        });
+      }
+      if (adVideoFile) {
+        video = await uploadCreative(adVideoFile, async (body) => {
+          const res = await api.post('/api/cadena/anuncios/medios', body);
+          return res.data as { url?: string };
+        });
+      }
       await api.post('/api/cadena/anuncios', {
         titulo: adTitulo,
         copy: adCopy,
-        imagen_url: adImagen,
-        video_url: adVideo,
+        imagen_url: imagen,
+        video_url: video,
         url_destino: adUrl,
         slot: adSlot,
         zonas: ['gdl'],
+        inicia: adInicia || null,
+        termina: adTermina || null,
       });
       setAdTitulo('');
       setAdCopy('');
@@ -435,11 +480,18 @@ export default function Cadena() {
       setAdVideo('');
       setAdUrl('');
       setAdSlot('home_rail');
+      setAdPosterFile(null);
+      setAdVideoFile(null);
+      setCreativeKey((key) => key + 1);
+      setAdInicia('');
+      setAdTermina('');
       setInfo(t('chainAdSave'));
       await load();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(
+        axiosErr.response?.data?.message || axiosErr.message || t('chainAdsError')
+      );
     } finally {
       setBusy(false);
     }
@@ -684,6 +736,7 @@ export default function Cadena() {
               )}
             </fieldset>
             <p className="muted">{t('chainPublishHint')}</p>
+            <p className="muted">{t('chainPromoMediaNote')}</p>
             <button className="btn primary" type="submit" disabled={busy}>
               {t('chainSavePromo')}
             </button>
@@ -770,8 +823,7 @@ export default function Cadena() {
                 </button>
               </div>
             )}
-            {puedePauta && (
-              <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
+            <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
                 <label>
                   {t('chainAdTitle')}
                   <input
@@ -788,6 +840,32 @@ export default function Cadena() {
                     rows={2}
                   />
                 </label>
+                <p className="muted">{t('chainAdFileHint')}</p>
+                <label>
+                  {t('chainAdVideo')}
+                  <input
+                    key={`video-${creativeKey}`}
+                    type="file"
+                    accept="video/mp4,video/webm"
+                    onChange={(e) => setAdVideoFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                {adVideoPreview ? (
+                  <video className="cadena-creative" src={adVideoPreview} controls muted />
+                ) : null}
+                <label>
+                  {t('chainAdImage')}
+                  <input
+                    key={`poster-${creativeKey}`}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => setAdPosterFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+                {adPosterPreview ? (
+                  <img className="cadena-creative" src={adPosterPreview} alt="" />
+                ) : null}
+                <p className="meta">{t('chainAdOrUrl')}</p>
                 <label>
                   {t('chainAdImage')}
                   <input
@@ -804,6 +882,24 @@ export default function Cadena() {
                     placeholder="https://…mp4"
                   />
                 </label>
+                <div className="cadena-row">
+                  <label>
+                    {t('chainAdStart')}
+                    <input
+                      type="date"
+                      value={adInicia}
+                      onChange={(e) => setAdInicia(e.target.value)}
+                    />
+                  </label>
+                  <label>
+                    {t('chainAdEnd')}
+                    <input
+                      type="date"
+                      value={adTermina}
+                      onChange={(e) => setAdTermina(e.target.value)}
+                    />
+                  </label>
+                </div>
                 <label>
                   {t('chainAdUrl')}
                   <input
@@ -829,7 +925,6 @@ export default function Cadena() {
                   {t('chainAdSave')}
                 </button>
               </form>
-            )}
             {anuncios.length === 0 ? (
               <p className="muted">{t('chainAdsEmpty')}</p>
             ) : (
