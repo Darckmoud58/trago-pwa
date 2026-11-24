@@ -56,7 +56,12 @@ export default function PagoSandbox() {
       });
       setInfo(res.data.message || t('paySandboxOk'));
       setPago(res.data.pago as PagoView);
-      window.setTimeout(() => navigate('/cadena', { replace: true }), 1200);
+      window.setTimeout(() => {
+        navigate(
+          `/cadena/pago-resultado?status=ok&pago=${encodeURIComponent(pagoId)}`,
+          { replace: true }
+        );
+      }, 600);
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || t('paySandboxFail'));

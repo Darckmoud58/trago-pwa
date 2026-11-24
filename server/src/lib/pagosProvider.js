@@ -249,7 +249,7 @@ export async function createCheckoutSession(opts, raw = process.env) {
           landing_page: 'LOGIN',
           user_action: 'PAY_NOW',
           return_url: `${apiOrigin(raw)}/api/pagos/paypal/retorno?pago=${encodeURIComponent(opts.pagoId)}`,
-          cancel_url: `${front}/cadena?pago=cancel`,
+          cancel_url: `${front}/cadena/pago-resultado?status=cancel&pago=${encodeURIComponent(opts.pagoId)}`,
         },
       },
     });
@@ -300,9 +300,9 @@ export async function createCheckoutSession(opts, raw = process.env) {
     external_reference: String(opts.pagoId),
     notification_url: notificationUrl,
     back_urls: {
-      success: `${front}/cadena?pago=ok`,
-      failure: `${front}/cadena?pago=fail`,
-      pending: `${front}/cadena?pago=pending`,
+      success: `${front}/cadena/pago-resultado?status=ok&pago=${encodeURIComponent(opts.pagoId)}`,
+      failure: `${front}/cadena/pago-resultado?status=fail&pago=${encodeURIComponent(opts.pagoId)}`,
+      pending: `${front}/cadena/pago-resultado?status=pending&pago=${encodeURIComponent(opts.pagoId)}`,
     },
     auto_return: 'approved',
     metadata: {

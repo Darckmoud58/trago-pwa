@@ -49,7 +49,7 @@ anunciosCadenaRouter.post(
   requireChain,
   rateLimit({
     name: 'anuncio-medio',
-    max: 40,
+    max: 120,
     windowMs: 10 * 60 * 1000,
     keyFn: (req, ip) => `rl:anuncio-medio:${req.userId || ip}`,
   }),

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Ubicacion from '../models/Ubicacion.js';
 import Pago from '../models/Pago.js';
+import Suscripcion from '../models/Suscripcion.js';
 import {
   ownedPositions,
   ownedWindows,
@@ -44,10 +45,82 @@ function mapPago(p) {
     dias: p.dias,
     estatus: p.estatus,
     provider: p.provider,
+    provider_ref: p.provider_ref || '',
     checkout_url: p.checkout_url,
     pagado_en: p.pagado_en,
+    kind: p.meta?.kind || '',
     createdAt: p.createdAt,
   };
+}
+
+function mapRecibo(pago, suscripcion) {
+  return {
+    pago: mapPago(pago),
+    suscripcion: suscripcion
+      ? {
+          _id: suscripcion._id,
+          plan: suscripcion.plan,
+          estatus: suscripcion.estatus,
+          termina: suscripcion.termina,
+          slots: suscripcion.slots || [],
+          posiciones: suscripcion.posiciones || [],
+        }
+      : null,
+    folio: String(pago?._id || ''),
+    aprobado: pago?.estatus === 'approved',
+  };
+}
+
+async function fetchMpPayment(paymentId) {
+  const mpToken = String(process.env.MP_ACCESS_TOKEN || '');
+  const payRes = await fetch(
+    `https://api.mercadopago.com/v1/payments/${paymentId}`,
+    { headers: { Authorization: `Bearer ${mpToken}` } }
+  );
+  return payRes.json().catch(() => ({}));
+}
+
+async function activarDesdePagoMp(payment) {
+  if (!payment || payment.status !== 'approved') {
+    const err = new Error('El cobro de Mercado Pago no está aprobado');
+    err.status = 409;
+    throw err;
+  }
+  if (payment.live_mode === true) {
+    const err = new Error('Solo se aceptan cobros de prueba de Mercado Pago');
+    err.status = 403;
+    throw err;
+  }
+  if (!payment.external_reference || !mongoose.isValidObjectId(payment.external_reference)) {
+    const err = new Error('El pago no trae referencia TraGo');
+    err.status = 400;
+    throw err;
+  }
+  const pago = await Pago.findById(payment.external_reference);
+  if (!pago || pago.provider !== 'mercadopago') {
+    const err = new Error('Pago TraGo no encontrado');
+    err.status = 404;
+    throw err;
+  }
+  const amountOk = moneyMatches(
+    pago.monto,
+    payment.transaction_amount,
+    payment.currency_id
+  );
+  if (!amountOk) {
+    const err = new Error('El monto de Mercado Pago no coincide con la cotización');
+    err.status = 409;
+    throw err;
+  }
+  pago.provider_ref = String(payment.id || pago.provider_ref);
+  pago.meta = {
+    ...(pago.meta || {}),
+    mp_status: payment.status,
+    mp_payment_id: payment.id,
+  };
+  return activarPagoAprobado(pago, {
+    notas: `MP payment ${payment.id}`,
+  });
 }
 
 /** GET /api/cadena/pagos/cotizar?plan=&sucursales= */
@@ -271,6 +344,7 @@ export async function aprobarSandbox(req, res) {
       already: result.already,
       pago: mapPago(result.pago),
       suscripcion: result.suscripcion,
+      recibo: mapRecibo(result.pago, result.suscripcion),
       message: result.already
         ? 'Pago ya estaba aprobado.'
         : 'Pago sandbox aprobado. Pauta activada.',
@@ -296,44 +370,17 @@ export async function webhookMercadoPago(req, res) {
       req.body?.data?.id ||
       req.body?.id;
 
-    // Ack rápido; procesamos si hay token
-    const mpToken = String(process.env.MP_ACCESS_TOKEN || '');
     if (!mpSandboxReady()) {
       return res.status(200).json({ ok: true, skipped: 'sandbox_only' });
     }
 
     if (String(topic).includes('payment') && id) {
-      const payRes = await fetch(
-        `https://api.mercadopago.com/v1/payments/${id}`,
-        {
-          headers: { Authorization: `Bearer ${mpToken}` },
-        }
-      );
-      const payment = await payRes.json().catch(() => ({}));
-      if (
-        payment.status === 'approved' &&
-        payment.live_mode === false &&
-        payment.external_reference
-      ) {
-        const pago = await Pago.findById(payment.external_reference);
-        const amountOk =
-          pago &&
-          pago.provider === 'mercadopago' &&
-          moneyMatches(
-            pago.monto,
-            payment.transaction_amount,
-            payment.currency_id
-          );
-        if (pago && pago.estatus === 'pending' && amountOk) {
-          pago.provider_ref = String(payment.id || pago.provider_ref);
-          pago.meta = {
-            ...(pago.meta || {}),
-            mp_status: payment.status,
-            mp_payment_id: payment.id,
-          };
-          await activarPagoAprobado(pago, {
-            notas: `MP payment ${payment.id}`,
-          });
+      const payment = await fetchMpPayment(id);
+      if (payment.status === 'approved' && payment.live_mode === false) {
+        try {
+          await activarDesdePagoMp(payment);
+        } catch (err) {
+          console.error('webhookMercadoPago activar:', err.message);
         }
       }
     }
@@ -346,8 +393,90 @@ export async function webhookMercadoPago(req, res) {
   }
 }
 
-function frontPago(status) {
-  return `${publicFrontOrigin()}/cadena?pago=${status}`;
+/**
+ * POST /api/pagos/mercadopago/confirmar
+ * Al volver del checkout: activa con payment_id (no depende solo del webhook).
+ */
+export async function confirmarMercadoPago(req, res) {
+  try {
+    if (!mpSandboxReady()) {
+      return res.status(503).json({
+        message: 'Mercado Pago de prueba no está configurado',
+      });
+    }
+    const paymentId =
+      req.body?.payment_id ||
+      req.body?.collection_id ||
+      req.query?.payment_id ||
+      req.query?.collection_id;
+    const external =
+      req.body?.external_reference || req.query?.external_reference || '';
+
+    let payment = null;
+    if (paymentId && String(paymentId) !== 'null') {
+      payment = await fetchMpPayment(paymentId);
+    } else if (mongoose.isValidObjectId(external)) {
+      const pago = await Pago.findById(external);
+      if (pago?.provider_ref) {
+        payment = await fetchMpPayment(pago.provider_ref);
+      }
+    }
+    if (!payment || !payment.id) {
+      return res.status(404).json({ message: 'No se encontró el cobro en Mercado Pago' });
+    }
+
+    const result = await activarDesdePagoMp(payment);
+    return res.json({
+      ok: true,
+      already: result.already,
+      message: result.already
+        ? 'Pago ya estaba aprobado.'
+        : 'Pago aprobado. Campo publicitario activo.',
+      recibo: mapRecibo(result.pago, result.suscripcion),
+    });
+  } catch (e) {
+    console.error('confirmarMercadoPago:', e.message);
+    return res
+      .status(e.status || 500)
+      .json({ message: e.message || 'No se pudo confirmar el pago' });
+  }
+}
+
+/**
+ * GET /api/cadena/pagos/:pagoId/recibo — detalle para la pantalla de confirmación
+ */
+export async function getReciboPago(req, res) {
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const { pagoId } = req.params;
+    if (!mongoose.isValidObjectId(pagoId)) {
+      return res.status(400).json({ message: 'pago inválido' });
+    }
+    const pago = await Pago.findOne({
+      _id: pagoId,
+      id_empresa: empresa._id,
+    }).lean();
+    if (!pago) {
+      return res.status(404).json({ message: 'Pago no encontrado' });
+    }
+    let suscripcion = null;
+    if (pago.id_suscripcion) {
+      suscripcion = await Suscripcion.findById(pago.id_suscripcion).lean();
+    }
+    return res.json(mapRecibo(pago, suscripcion));
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('getReciboPago:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
+function frontPago(status, pagoId = '') {
+  const q = new URLSearchParams({ status: String(status || 'fail') });
+  if (pagoId) q.set('pago', String(pagoId));
+  return `${publicFrontOrigin()}/cadena/pago-resultado?${q.toString()}`;
 }
 
 /**
@@ -363,19 +492,20 @@ export async function retornoPayPal(req, res) {
     }
     const pago = await Pago.findById(pagoId);
     if (!pago || pago.provider !== 'paypal') {
-      return res.redirect(302, frontPago('fail'));
+      return res.redirect(302, frontPago('fail', pagoId));
     }
     if (pago.estatus === 'approved') {
-      return res.redirect(302, frontPago('ok'));
+      return res.redirect(302, frontPago('ok', pagoId));
     }
     const order = await confirmPayPalPayment({ pago, orderId });
     pago.provider_ref = String(order.id || orderId);
     pago.meta = { ...(pago.meta || {}), paypal_status: order.status };
     await activarPagoAprobado(pago, { notas: `PayPal sandbox ${order.id}` });
-    return res.redirect(302, frontPago('ok'));
+    return res.redirect(302, frontPago('ok', pagoId));
   } catch (e) {
     console.error('retornoPayPal:', e.message);
-    return res.redirect(302, frontPago('fail'));
+    const pagoId = String(req.query.pago || '');
+    return res.redirect(302, frontPago('fail', pagoId));
   }
 }
 

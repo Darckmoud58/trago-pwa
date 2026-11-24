@@ -237,10 +237,10 @@ export async function createAnuncio(req, res) {
   }
 }
 
-/** PUT /api/cadena/anuncios/:id */
+/** PUT /api/cadena/anuncios/:id — editar/pausar borrador no exige pauta paga */
 export async function updateAnuncio(req, res) {
   try {
-    const { empresa } = await requirePauta(req);
+    const empresa = assertOwnEmpresa(req);
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: 'id inválido' });
@@ -248,6 +248,11 @@ export async function updateAnuncio(req, res) {
     const doc = await Anuncio.findOne({ _id: id, id_empresa: empresa._id });
     if (!doc) {
       return res.status(404).json({ message: 'Anuncio no encontrado' });
+    }
+    if (req.body.estatus === 'activo') {
+      return res.status(400).json({
+        message: 'Para publicar usa Activar. El borrador se guarda sin pauta.',
+      });
     }
 
     if (req.body.titulo != null || req.body.title != null) {
