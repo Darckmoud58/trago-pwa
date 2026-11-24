@@ -204,9 +204,9 @@ html {
 
 /*
   Succión continua en bloques principales (Inicio + pantallas clave).
-  Misma curva que hero-drift: entra desde abajo/escala, se asienta, y al
-  subir se contrae/desvanece. En estos targets el view timeline manda
-  (evita pelear con la transición one-shot de .scroll-reveal).
+  Misma familia que hero-drift: entra desde abajo/escala, se asienta
+  (legible), y al subir se contrae como el hero. El view timeline manda
+  aquí (sin pelear con la transición one-shot de .scroll-reveal).
 */
 @supports (animation-timeline: view()) {
   .home-app > [data-reveal].scroll-reveal,
@@ -227,33 +227,40 @@ html {
     animation-range: cover;
   }
 
+  /* Evita triple motion: el bloque succiona; hijos no repiten settle/child-in */
+  .home-app > [data-reveal].scroll-reveal .home-deal,
+  .home-app > [data-reveal].scroll-reveal .home-explore-card,
+  .home-app > [data-reveal].scroll-reveal .home-step,
+  .home-app > [data-reveal].scroll-reveal .home-proof-rail li {
+    animation: none !important;
+  }
+
   @keyframes section-suction {
     0% {
-      opacity: 0.45;
-      transform: translate3d(0, 36px, 0) scale(0.955);
-      filter: blur(5px);
+      opacity: 0.5;
+      transform: translate3d(0, 32px, 0) scale(0.96);
+      filter: blur(4px);
     }
-    14% {
+    12% {
       opacity: 1;
       transform: translate3d(0, 0, 0) scale(1);
       filter: blur(0);
     }
-    68% {
+    78% {
       opacity: 1;
       transform: translate3d(0, 0, 0) scale(1);
       filter: blur(0);
     }
     100% {
-      opacity: 0.7;
-      transform: translate3d(0, -18px, 0) scale(0.975);
+      opacity: 0.72;
+      transform: translate3d(0, -16px, 0) scale(0.978);
       filter: blur(0);
     }
   }
 
-  /* Cards: asiento al entrar (progressive) — más suave que la succión de sección */
+  /* Cards en listados (el bloque padre ya succiona en Inicio) */
   .promo-card,
   .feed-card,
-  .home-deal,
   .cerca-offer-card,
   .cerca-place-card,
   .fav-card,
@@ -267,9 +274,9 @@ html {
 
   @keyframes view-settle {
     from {
-      opacity: 0.35;
-      transform: translateY(22px) scale(0.98);
-      filter: blur(2px);
+      opacity: 0.4;
+      transform: translateY(18px) scale(0.985);
+      filter: blur(1.5px);
     }
     to {
       opacity: 1;
