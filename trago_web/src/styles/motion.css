@@ -60,7 +60,11 @@ html {
 }
 
 .page-motion[data-nav='push'] {
-  animation: page-dive 0.58s var(--ease-out) both;
+  animation: page-dive 0.62s var(--ease-out) both;
+}
+
+.page-motion[data-nav='pop'] {
+  animation: page-pop 0.42s var(--ease-out) both;
 }
 
 @keyframes page-in {
@@ -79,8 +83,21 @@ html {
 @keyframes page-dive {
   from {
     opacity: 0;
-    transform: translateY(32px) scale(0.96);
-    filter: blur(8px);
+    transform: translateY(36px) scale(0.94);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+@keyframes page-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.02);
+    filter: blur(4px);
   }
   to {
     opacity: 1;
