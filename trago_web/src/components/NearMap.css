@@ -71,9 +71,9 @@
 }
 
 @keyframes near-pulse {
-  0% { transform: scale(0.7); opacity: 0.85; }
-  80% { transform: scale(1.55); opacity: 0; }
-  100% { transform: scale(1.55); opacity: 0; }
+  0% { transform: scale(0.55); opacity: 0.9; }
+  80% { transform: scale(1.85); opacity: 0; }
+  100% { transform: scale(1.85); opacity: 0; }
 }
 
 @keyframes near-pop {

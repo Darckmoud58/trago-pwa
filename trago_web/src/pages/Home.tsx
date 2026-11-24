@@ -656,13 +656,13 @@ export default function Home() {
     );
   }
 
-  const forYou = nearPromos.slice(0, 3);
-  const showNearFeed = !birthdayToday && nearPromos.length > 3;
+  const forYou = nearPromos.slice(0, 5);
+  const showNearFeed = !birthdayToday && nearPromos.length > 5;
   const showCatalogFallback =
     !nearLoading &&
     nearPromos.length === 0 &&
     (nearGpsError || catalogPromos.length > 0);
-  const railNear = nearPromos.slice(3);
+  const railNear = nearPromos.slice(5);
   const showBdayConfetti = birthdayToday && bdayPhase === 'reveal' && !bdayGpsError;
   const bdayHeroCta =
     bdayPhase === 'welcome'
@@ -748,6 +748,7 @@ export default function Home() {
                   ? t('homeForYouNamed', { name: firstName })
                   : t('homeCertainty')}
               </p>
+              <p className="home-subhead">{t('homeCertaintySub')}</p>
               <div className="home-hero-cta">
                 <Link
                   className="btn primary home-cta-main"
@@ -756,11 +757,73 @@ export default function Home() {
                 >
                   {t('homeOpenAround')}
                 </Link>
+                <Link
+                  className="btn ghost home-cta-ghost"
+                  to="/promos"
+                  viewTransition
+                >
+                  {t('homeOpenCatalog')}
+                </Link>
               </div>
+              {!token ? (
+                <p className="home-guest-note">{t('homeGuestLead')}</p>
+              ) : null}
             </>
           )}
         </div>
       </section>
+
+      {!birthdayToday && (
+        <section
+          className="home-proof"
+          data-reveal
+          aria-labelledby="home-proof-title"
+        >
+          <div className="home-proof-copy">
+            <p className="ui-kicker">{t('homeProofTitle')}</p>
+            <h2 id="home-proof-title">{t('homeProofLead')}</h2>
+          </div>
+          <ul className="home-proof-rail" aria-label={t('homeProofTitle')}>
+            <li>
+              <strong>{t('homeProofPromo')}</strong>
+            </li>
+            <li>
+              <strong>{t('homeProofBranch')}</strong>
+            </li>
+            <li>
+              <strong>{t('homeProofGps')}</strong>
+            </li>
+            <li>
+              <strong>{t('homeProofVote')}</strong>
+            </li>
+          </ul>
+          <div className="home-live-pulse">
+            {nearPromos.length > 0 ? (
+              <>
+                <span className="home-live-dot" aria-hidden />
+                <p>
+                  {t('homeLivePulse').replace('{n}', String(nearPromos.length))}
+                </p>
+                <Link className="text-link" to="/cerca" viewTransition>
+                  {t('homeLiveOpen')}
+                </Link>
+              </>
+            ) : (
+              <>
+                <p>{t('homeLivePulseEmpty')}</p>
+                <button
+                  type="button"
+                  className="btn ghost btn-sm"
+                  disabled={nearLoading}
+                  onClick={() => void enableHomeLocation()}
+                >
+                  {nearLoading ? t('homeGpsLoading') : t('locSplashEnable')}
+                </button>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {!birthdayToday && (
         <section
