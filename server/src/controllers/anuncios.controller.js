@@ -7,6 +7,7 @@ import {
   mapSuscripcion,
   puedePauta,
 } from '../lib/pauta.js';
+import { acceptAdChunk, openAdMedia } from '../lib/adMedia.js';
 import { sanitizeHttpUrl, sanitizeMediaUrl } from '../lib/safeUrl.js';
 
 function clipStr(raw, max = 500) {
@@ -111,10 +112,50 @@ export async function listCadenaAnuncios(req, res) {
   }
 }
 
-/** POST /api/cadena/anuncios — crea borrador */
+/** POST /api/cadena/anuncios/medios — sube video o poster por fragmentos */
+export async function uploadAdMedia(req, res) {
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const result = await acceptAdChunk({
+      empresaId: empresa._id,
+      uploadId: req.body?.uploadId,
+      index: req.body?.index,
+      total: req.body?.total,
+      mime: req.body?.mime,
+      name: req.body?.name,
+      data: req.body?.data,
+    });
+    return res.status(result.done ? 201 : 202).json(result);
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('uploadAdMedia:', e.message);
+    return res.status(e.status || 500).json({ message: e.message || 'No se pudo subir el archivo' });
+  }
+}
+
+/** GET /api/anuncios/medios/:id — el creativo subido, para el reproductor */
+export async function streamAdMedia(req, res) {
+  try {
+    const media = await openAdMedia(req.params.id);
+    if (!media) return res.status(404).json({ message: 'Archivo no encontrado' });
+    res.setHeader('Content-Type', media.contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    media.stream.on('error', () => {
+      if (!res.headersSent) res.status(404).end();
+    });
+    return media.stream.pipe(res);
+  } catch (e) {
+    console.error('streamAdMedia:', e.message);
+    return res.status(500).json({ message: 'No se pudo leer el archivo' });
+  }
+}
+
+/** POST /api/cadena/anuncios — crea borrador. Publicarlo sigue exigiendo pauta. */
 export async function createAnuncio(req, res) {
   try {
-    const { empresa } = await requirePauta(req);
+    const empresa = assertOwnEmpresa(req);
     const titulo = clipStr(req.body.titulo || req.body.title, 120);
     if (!titulo) {
       return res.status(400).json({ message: 'titulo es requerido' });

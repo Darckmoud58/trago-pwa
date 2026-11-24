@@ -8,6 +8,8 @@ import {
   createAnuncio,
   listCadenaAnuncios,
   serveAnuncios,
+  streamAdMedia,
+  uploadAdMedia,
   solicitarSuscripcion,
   trackAnuncioEvento,
   updateAnuncio,
@@ -17,6 +19,7 @@ import {
 export const anunciosPublicRouter = Router();
 
 anunciosPublicRouter.get('/serving', serveAnuncios);
+anunciosPublicRouter.get('/medios/:id', streamAdMedia);
 
 anunciosPublicRouter.post(
   '/admin/suscripciones',
@@ -40,6 +43,18 @@ anunciosPublicRouter.post(
 export const anunciosCadenaRouter = Router();
 
 anunciosCadenaRouter.get('/', auth, requireChain, listCadenaAnuncios);
+anunciosCadenaRouter.post(
+  '/medios',
+  auth,
+  requireChain,
+  rateLimit({
+    name: 'anuncio-medio',
+    max: 40,
+    windowMs: 10 * 60 * 1000,
+    keyFn: (req, ip) => `rl:anuncio-medio:${req.userId || ip}`,
+  }),
+  uploadAdMedia
+);
 anunciosCadenaRouter.post('/', auth, requireChain, createAnuncio);
 anunciosCadenaRouter.post(
   '/suscripcion/solicitar',
