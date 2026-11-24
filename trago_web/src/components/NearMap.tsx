@@ -17,6 +17,8 @@ type Props = {
   places: NearMapPlace[];
   you?: { lat: number; lng: number } | null;
   selectedId?: string | null;
+  /** Acerca el mapa hasta el pin. El clic solo lo centra. */
+  dive?: boolean;
   onSelect?: (id: string) => void;
 };
 
@@ -46,7 +48,7 @@ function youIcon() {
   });
 }
 
-export default function NearMap({ places, you, selectedId, onSelect }: Props) {
+export default function NearMap({ places, you, selectedId, dive = false, onSelect }: Props) {
   const { t } = useI18n();
   const mapId = useId().replace(/:/g, '');
   const mapRef = useRef<L.Map | null>(null);
@@ -147,11 +149,16 @@ export default function NearMap({ places, you, selectedId, onSelect }: Props) {
     const picked = placesRef.current.find((place) => place.id === selectedId);
     if (!picked) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const zoom = 19;
-    if (reduce) map.setView([picked.lat, picked.lng], zoom, { animate: false });
-    else map.flyTo([picked.lat, picked.lng], zoom, { duration: 0.82 });
+    if (dive) {
+      if (reduce) map.setView([picked.lat, picked.lng], 19, { animate: false });
+      else map.flyTo([picked.lat, picked.lng], 19, { duration: 0.82 });
+    } else if (reduce) {
+      map.panTo([picked.lat, picked.lng], { animate: false });
+    } else {
+      map.panTo([picked.lat, picked.lng], { animate: true, duration: 0.45 });
+    }
     window.setTimeout(() => map.invalidateSize(), 80);
-  }, [selectedId]);
+  }, [selectedId, dive]);
 
   return (
     <div

@@ -416,19 +416,9 @@ export default function Cerca() {
   const selectedSpot = spots.find((spot) => spot.id === selectedPlaceId) || null;
 
   function focusPlace(id: string, scroll: boolean) {
-    setSelectedPlaceId(id);
-    const spot = spots.find((place) => place.id === id);
     if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
-    if (spot?.hasOffer) {
-      setAbsorbingId(id);
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      absorbTimer.current = window.setTimeout(() => {
-        setOpenOffersId(id);
-        setAbsorbingId(null);
-      }, reduce ? 0 : 820);
-    } else {
-      setAbsorbingId(null);
-    }
+    setAbsorbingId(null);
+    setSelectedPlaceId(id);
     if (!scroll) return;
     window.setTimeout(() => {
       document.getElementById(`cerca-place-${id}`)?.scrollIntoView({
@@ -436,6 +426,23 @@ export default function Cerca() {
         block: 'nearest',
       });
     }, 180);
+  }
+
+  function openPlacePromos(id: string) {
+    const spot = spots.find((place) => place.id === id);
+    if (!spot?.hasOffer) return;
+    setSelectedPlaceId(id);
+    setAbsorbingId(id);
+    document.querySelector('.cerca-stage-frame')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+    if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    absorbTimer.current = window.setTimeout(() => {
+      setOpenOffersId(id);
+      setAbsorbingId(null);
+    }, reduce ? 0 : 820);
   }
 
   if (offersBranch) {
@@ -812,6 +819,7 @@ export default function Cerca() {
               places={spots}
               you={originKind === 'gps' ? userOrigin : null}
               selectedId={selectedPlaceId}
+              dive={Boolean(absorbingId)}
               onSelect={(id) => focusPlace(id, false)}
             />
             {absorbingId && selectedSpot && (
@@ -820,20 +828,44 @@ export default function Cerca() {
                 <span>{selectedSpot.name}</span>
               </div>
             )}
-            {selectedSpot && !selectedSpot.hasOffer && !absorbingId && (
+            {selectedSpot && !absorbingId && (
               <article className="cerca-float" key={selectedSpot.id}>
                 <p className="cerca-float-chain">{selectedSpot.chain}</p>
                 <h3>{selectedSpot.name}</h3>
                 {selectedSpot.detail && <p className="meta">{selectedSpot.detail}</p>}
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() =>
-                    openExactPlace(selectedSpot.branch, selectedSpot.name, userOrigin)
-                  }
-                >
-                  {t('seeOnMap')} ↗
-                </button>
+                {selectedSpot.branch.address && (
+                  <p className="meta">{selectedSpot.branch.address}</p>
+                )}
+                {(selectedSpot.branch.colonia || selectedSpot.branch.city) && (
+                  <p className="meta">
+                    {[selectedSpot.branch.colonia, selectedSpot.branch.city]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </p>
+                )}
+                {selectedSpot.branch.hours && (
+                  <p className="meta">{selectedSpot.branch.hours}</p>
+                )}
+                <div className="cerca-float-actions">
+                  {selectedSpot.hasOffer && (
+                    <button
+                      type="button"
+                      className="cerca-badge cerca-offers-btn"
+                      onClick={() => openPlacePromos(selectedSpot.id)}
+                    >
+                      {t('seePlaceOffers')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() =>
+                      openExactPlace(selectedSpot.branch, selectedSpot.name, userOrigin)
+                    }
+                  >
+                    {t('seeOnMap')} ↗
+                  </button>
+                </div>
               </article>
             )}
             {offerSpots.length > 0 && (
@@ -932,7 +964,10 @@ export default function Cerca() {
                         <button
                           type="button"
                           className="cerca-badge cerca-offers-btn"
-                          onClick={() => setOpenOffersId(id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPlacePromos(id);
+                          }}
                         >
                           {t('seePlaceOffers')}
                         </button>
