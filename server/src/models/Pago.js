@@ -25,6 +25,8 @@ const schema = new mongoose.Schema(
     },
     /** Sucursales incluidas en el cálculo del monto. */
     sucursales: { type: Number, default: 1, min: 1 },
+    /** Campo publicitario que compra este pago. */
+    slot: { type: String, default: '' },
     monto: { type: Number, required: true, min: 0 },
     moneda: { type: String, default: 'MXN' },
     dias: { type: Number, default: 30, min: 1 },
@@ -36,7 +38,7 @@ const schema = new mongoose.Schema(
     },
     provider: {
       type: String,
-      enum: ['sandbox', 'mercadopago', 'manual'],
+      enum: ['sandbox', 'mercadopago', 'paypal', 'manual'],
       default: 'sandbox',
       index: true,
     },

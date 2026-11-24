@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
@@ -6,7 +6,7 @@ import OfflineState from '../components/OfflineState';
 import PlaceBrandMark from '../components/PlaceBrandMark';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
-import SponsoredSlot from '../components/SponsoredSlot';
+import SponsoredSlot, { useSlotAds } from '../components/SponsoredSlot';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
@@ -156,6 +156,7 @@ export default function Cerca() {
     offersBranch?.name ||
     '';
   const loggedIn = Boolean(readToken());
+  const cercaAds = useSlotAds('cerca_top');
 
   useEffect(() => {
     if (!openOffersId) return;
@@ -570,9 +571,13 @@ export default function Cerca() {
         </div>
       )}
 
-      {!loading && (
-        <SponsoredSlot slot="cerca_top" className="cerca-sponsored" />
-      )}
+      {!loading && cercaAds[0] ? (
+        <SponsoredSlot
+          slot="cerca_top"
+          fixedAd={cercaAds[0]}
+          className="cerca-sponsored"
+        />
+      ) : null}
 
       {!loading && catalogPromos.length > 0 && (
         <section className="cerca-offers" data-reveal>
@@ -652,7 +657,7 @@ export default function Cerca() {
             </p>
           </div>
           <ul className="cerca-place-list stagger">
-            {branches.map((b) => {
+            {branches.map((b, index) => {
               const id = String(b._id);
               const nombre = b.nombre || b.name || t('branchFallback');
               const chain = b.chainName || t('businessFallback');
@@ -671,8 +676,11 @@ export default function Cerca() {
                 originLng: userOrigin?.lng,
                 distanceMeters: b.distanceMeters,
               });
+              const nextAd = cercaAds[Math.floor((index + 1) / 6)];
+              const showNextAd = (index + 1) % 6 === 0 && Boolean(nextAd);
               return (
-                <li key={id} className="cerca-place-card">
+                <Fragment key={id}>
+                <li className="cerca-place-card">
                   <PlaceBrandMark
                     label={chain || nombre}
                     initials={initials(chain || nombre)}
@@ -747,6 +755,16 @@ export default function Cerca() {
                     </div>
                   </div>
                 </li>
+                {showNextAd && nextAd ? (
+                  <li className="cerca-place-ad">
+                    <SponsoredSlot
+                      slot="cerca_top"
+                      fixedAd={nextAd}
+                      className="cerca-sponsored"
+                    />
+                  </li>
+                ) : null}
+                </Fragment>
               );
             })}
           </ul>

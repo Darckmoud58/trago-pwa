@@ -29,21 +29,77 @@ type Props = {
   className?: string;
   /** Vertical creativo para rieles laterales (desktop). */
   variant?: 'default' | 'side';
+  /** Anuncio ya elegido. Si viene, no se vuelve a pedir el slot. */
+  fixedAd?: ServedAd | null;
 };
+
+export function useSlotAds(slot: AdSlot, zona = 'gdl') {
+  const [ads, setAds] = useState<ServedAd[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await api.get('/api/anuncios/serving', {
+          params: { slot, zona },
+        });
+        if (!cancelled) setAds((res.data.anuncios || []) as ServedAd[]);
+      } catch {
+        if (!cancelled) setAds([]);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [slot, zona]);
+
+  return ads;
+}
+
+function pickVisitAd(list: ServedAd[], slot: string) {
+  if (!list.length) return null;
+  if (list.length === 1) return list[0];
+  const key = `trago-ad-turn:${slot}`;
+  let turn = 0;
+  try {
+    turn = Number(sessionStorage.getItem(key) || '0') || 0;
+  } catch {
+    turn = 0;
+  }
+  const ad = list[Math.abs(turn) % list.length];
+  try {
+    sessionStorage.setItem(key, String(turn + 1));
+  } catch {
+    /* sesión privada */
+  }
+  return ad;
+}
 
 export default function SponsoredSlot({
   slot,
   zona = 'gdl',
   className = '',
   variant = 'default',
+  fixedAd,
 }: Props) {
   const { t } = useI18n();
-  const [ad, setAd] = useState<ServedAd | null>(null);
+  const [ad, setAd] = useState<ServedAd | null>(fixedAd ?? null);
   const [videoFailed, setVideoFailed] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const tracked = useRef(false);
+  const locked = fixedAd !== undefined;
 
   useEffect(() => {
+    if (!locked) return;
+    tracked.current = false;
+    setVideoFailed(false);
+    setImgFailed(false);
+    setAd(fixedAd ?? null);
+  }, [locked, fixedAd]);
+
+  useEffect(() => {
+    if (locked) return;
     let cancelled = false;
     tracked.current = false;
     setVideoFailed(false);
@@ -54,7 +110,7 @@ export default function SponsoredSlot({
           params: { slot, zona },
         });
         const list = (res.data.anuncios || []) as ServedAd[];
-        if (!cancelled) setAd(list[0] || null);
+        if (!cancelled) setAd(pickVisitAd(list, slot));
       } catch {
         if (!cancelled) setAd(null);
       }
@@ -63,7 +119,7 @@ export default function SponsoredSlot({
     return () => {
       cancelled = true;
     };
-  }, [slot, zona]);
+  }, [slot, zona, locked]);
 
   useEffect(() => {
     if (!ad?._id || tracked.current) return;

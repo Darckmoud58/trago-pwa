@@ -9,6 +9,10 @@
   margin: 0;
 }
 
+.cerca-place-ad {
+  list-style: none;
+}
+
 .cerca-hero {
   position: relative;
   overflow: hidden;

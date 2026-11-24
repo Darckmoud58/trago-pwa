@@ -362,6 +362,14 @@ const messages = {
       'El video de la campaña no va en la promo. Súbelo abajo, en Campaña de marketing.',
     chainAdsRequest: 'Solicitar campo publicitario',
     payCheckoutCta: 'Pagar campo publicitario',
+    payAnotherSlot: 'Comprar otro campo',
+    payOwned: 'Campos a tu disposición',
+    payFirstPrice:
+      'El primer campo cuesta $2,900 MXN, más $500 por cada sucursal extra. Dura 30 días.',
+    payExtraPrice:
+      'Cada campo adicional cuesta $2,900 MXN. Los que ya pagaste siguen disponibles.',
+    payAllSlots: 'Ya tienes los cinco campos a tu disposición.',
+    payThisSlot: 'Pagar este campo',
     payMpCta: 'Pagar campo publicitario · Mercado Pago',
     payPalCta: 'Pagar campo publicitario · PayPal',
     payGatewayHint:
@@ -1011,6 +1019,14 @@ const messages = {
       'The campaign video does not belong on the promo. Upload it below, in Marketing campaign.',
     chainAdsRequest: 'Request an ad slot',
     payCheckoutCta: 'Pay for an ad slot',
+    payAnotherSlot: 'Buy another slot',
+    payOwned: 'Slots you already have',
+    payFirstPrice:
+      'The first slot is $2,900 MXN, plus $500 for each extra branch. It lasts 30 days.',
+    payExtraPrice:
+      'Each additional slot is $2,900 MXN. The ones you already paid for stay available.',
+    payAllSlots: 'You already have all five slots.',
+    payThisSlot: 'Pay for this slot',
     payMpCta: 'Pay for an ad slot · Mercado Pago',
     payPalCta: 'Pay for an ad slot · PayPal',
     payGatewayHint:

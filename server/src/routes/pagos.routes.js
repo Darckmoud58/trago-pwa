@@ -7,7 +7,9 @@ import {
   cotizarPago,
   crearCheckout,
   getSandboxPago,
+  retornoPayPal,
   webhookMercadoPago,
+  webhookPayPal,
 } from '../controllers/pagos.controller.js';
 
 /** Montar en /api/cadena/pagos — JWT cadena */
@@ -40,6 +42,8 @@ pagosPublicRouter.post(
   }),
   aprobarSandbox
 );
+pagosPublicRouter.get('/paypal/retorno', retornoPayPal);
 pagosPublicRouter.post('/webhook/mercadopago', webhookMercadoPago);
+pagosPublicRouter.post('/webhook/paypal', webhookPayPal);
 
 export default pagosPublicRouter;

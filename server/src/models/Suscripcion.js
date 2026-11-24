@@ -34,6 +34,11 @@ const schema = new mongoose.Schema(
       default: 'solicitud',
     },
     notas: { type: String, default: '' },
+    /** Campos publicitarios ya pagados. Vacío en un plan viejo = Home. */
+    slots: {
+      type: [String],
+      default: [],
+    },
     auto_renovar: { type: Boolean, default: false },
   },
   { timestamps: true, collection: 'suscripciones' }

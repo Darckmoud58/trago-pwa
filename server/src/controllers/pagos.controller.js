@@ -1,11 +1,20 @@
 import mongoose from 'mongoose';
 import Ubicacion from '../models/Ubicacion.js';
 import Pago from '../models/Pago.js';
-import { quoteSubscription } from '../lib/pagosPricing.js';
 import {
+  quoteSlotPurchase,
+  slotsFromLegacy,
+} from '../lib/pagosPricing.js';
+import { findActivePautaSub } from '../lib/pauta.js';
+import {
+  assertGateway,
+  confirmPayPalPayment,
   createCheckoutSession,
+  gatewayStatus,
+  moneyMatches,
   newSandboxToken,
   pagosConfigured,
+  publicFrontOrigin,
   resolvePagosProvider,
 } from '../lib/pagosProvider.js';
 import { activarPagoAprobado } from '../services/activarPago.js';
@@ -25,6 +34,7 @@ function mapPago(p) {
     _id: p._id,
     plan: p.plan,
     sucursales: p.sucursales,
+    slot: p.slot || '',
     monto: p.monto,
     moneda: p.moneda,
     dias: p.dias,
@@ -49,11 +59,26 @@ export async function cotizarPago(req, res) {
       if (sucursales < 1) sucursales = 1;
     }
     const plan = req.query.plan || 'basic';
-    const quote = quoteSubscription(plan, sucursales);
+    const sub = await findActivePautaSub(empresa._id);
+    const owned = slotsFromLegacy(sub);
+    const slot = String(req.query.slot || '');
+    let quote = null;
+    if (slot) {
+      try {
+        quote = quoteSlotPurchase({ plan, sucursales, slot, owned });
+      } catch (err) {
+        return res.status(err.status || 400).json({
+          message: err.message,
+          owned,
+        });
+      }
+    }
     return res.json({
-      ...quote,
+      ...(quote || { plan, sucursales, moneda: 'MXN' }),
+      owned,
       provider: resolvePagosProvider(),
       configured: pagosConfigured(),
+      gateways: gatewayStatus(),
     });
   } catch (e) {
     if (e.status === 404 || e.message === 'NO_EMPRESA') {
@@ -84,14 +109,36 @@ export async function crearCheckout(req, res) {
       if (sucursales < 1) sucursales = 1;
     }
 
-    const quote = quoteSubscription(req.body.plan || 'basic', sucursales);
-    const provider = resolvePagosProvider();
+    const requested = String(req.body?.provider || '')
+      .trim()
+      .toLowerCase();
+    const provider =
+      requested === 'paypal' || requested === 'mercadopago'
+        ? requested
+        : resolvePagosProvider();
+    if (provider === 'paypal' || provider === 'mercadopago') {
+      assertGateway(provider);
+    }
+    const sub = await findActivePautaSub(empresa._id);
+    const owned = slotsFromLegacy(sub);
+    let quote;
+    try {
+      quote = quoteSlotPurchase({
+        plan: req.body.plan || 'basic',
+        sucursales,
+        slot: String(req.body.slot || ''),
+        owned,
+      });
+    } catch (err) {
+      return res.status(err.status || 400).json({ message: err.message, owned });
+    }
     const sandbox_token = newSandboxToken();
 
     const pago = await Pago.create({
       id_empresa: empresa._id,
       plan: quote.plan,
       sucursales: quote.sucursales,
+      slot: quote.slot,
       monto: quote.monto,
       moneda: quote.moneda,
       dias: quote.dias,
@@ -108,7 +155,9 @@ export async function crearCheckout(req, res) {
       sucursales: quote.sucursales,
       monto: quote.monto,
       moneda: quote.moneda,
+      slot: quote.slot,
       empresaNombre: empresa.nombre,
+      provider,
     });
 
     pago.provider_ref = session.provider_ref;
@@ -121,9 +170,11 @@ export async function crearCheckout(req, res) {
       checkout_url: session.checkout_url,
       mode: session.mode,
       message:
-        session.mode === 'sandbox'
-          ? 'Sandbox listo: abre checkout_url para simular el pago.'
-          : 'Preferencia creada. Completa el pago en Mercado Pago.',
+        session.mode === 'paypal_sandbox'
+          ? 'PayPal sandbox listo. Inicia sesión con el comprador de prueba.'
+          : session.mode === 'mp_sandbox'
+            ? 'Mercado Pago sandbox listo. Inicia sesión con el comprador de prueba.'
+            : 'Sandbox listo: abre checkout_url para simular el pago.',
     });
   } catch (e) {
     if (e.status === 404 || e.message === 'NO_EMPRESA') {
@@ -233,7 +284,15 @@ export async function webhookMercadoPago(req, res) {
       const payment = await payRes.json().catch(() => ({}));
       if (payment.status === 'approved' && payment.external_reference) {
         const pago = await Pago.findById(payment.external_reference);
-        if (pago && pago.estatus === 'pending') {
+        const amountOk =
+          pago &&
+          pago.provider === 'mercadopago' &&
+          moneyMatches(
+            pago.monto,
+            payment.transaction_amount,
+            payment.currency_id
+          );
+        if (pago && pago.estatus === 'pending' && amountOk) {
           pago.provider_ref = String(payment.id || pago.provider_ref);
           pago.meta = {
             ...(pago.meta || {}),
@@ -251,6 +310,69 @@ export async function webhookMercadoPago(req, res) {
   } catch (e) {
     console.error('webhookMercadoPago:', e.message);
     // MP reintenta si no es 2xx; devolvemos 200 para no ciclar en errores nuestros
+    return res.status(200).json({ ok: false });
+  }
+}
+
+function frontPago(status) {
+  return `${publicFrontOrigin()}/cadena?pago=${status}`;
+}
+
+/**
+ * GET /api/pagos/paypal/retorno?pago=&token=
+ * PayPal agrega token=ORDER_ID tras el login del comprador de prueba.
+ */
+export async function retornoPayPal(req, res) {
+  try {
+    const { pago: pagoId } = req.query;
+    const orderId = String(req.query.token || '');
+    if (!mongoose.isValidObjectId(pagoId)) {
+      return res.redirect(302, frontPago('fail'));
+    }
+    const pago = await Pago.findById(pagoId);
+    if (!pago || pago.provider !== 'paypal') {
+      return res.redirect(302, frontPago('fail'));
+    }
+    if (pago.estatus === 'approved') {
+      return res.redirect(302, frontPago('ok'));
+    }
+    const order = await confirmPayPalPayment({ pago, orderId });
+    pago.provider_ref = String(order.id || orderId);
+    pago.meta = { ...(pago.meta || {}), paypal_status: order.status };
+    await activarPagoAprobado(pago, { notas: `PayPal sandbox ${order.id}` });
+    return res.redirect(302, frontPago('ok'));
+  } catch (e) {
+    console.error('retornoPayPal:', e.message);
+    return res.redirect(302, frontPago('fail'));
+  }
+}
+
+/**
+ * POST /api/pagos/webhook/paypal
+ * No confía en el cuerpo: vuelve a leer la orden en el sandbox.
+ */
+export async function webhookPayPal(req, res) {
+  try {
+    const event = String(req.body?.event_type || '');
+    const resource = req.body?.resource || {};
+    const orderId =
+      resource?.supplementary_data?.related_ids?.order_id ||
+      (event.startsWith('CHECKOUT.ORDER') ? resource.id : '');
+    const pagoId = resource.custom_id || resource.purchase_units?.[0]?.custom_id;
+    if (!orderId || !mongoose.isValidObjectId(pagoId)) {
+      return res.status(200).json({ ok: true, skipped: 'no_ref' });
+    }
+    const pago = await Pago.findById(pagoId);
+    if (!pago || pago.provider !== 'paypal' || pago.estatus !== 'pending') {
+      return res.status(200).json({ ok: true, skipped: 'pago' });
+    }
+    const order = await confirmPayPalPayment({ pago, orderId: String(orderId) });
+    pago.provider_ref = String(order.id || orderId);
+    pago.meta = { ...(pago.meta || {}), paypal_status: order.status };
+    await activarPagoAprobado(pago, { notas: `PayPal webhook ${order.id}` });
+    return res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error('webhookPayPal:', e.message);
     return res.status(200).json({ ok: false });
   }
 }

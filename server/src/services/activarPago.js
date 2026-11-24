@@ -1,6 +1,8 @@
 import Empresa from '../models/Empresa.js';
 import Pago from '../models/Pago.js';
 import Suscripcion from '../models/Suscripcion.js';
+import { AD_SLOTS, slotsFromLegacy } from '../lib/pagosPricing.js';
+import { findActivePautaSub } from '../lib/pauta.js';
 
 /**
  * Marca un pago como approved y activa la suscripción + plan_pauta de la empresa.
@@ -28,25 +30,50 @@ export async function activarPagoAprobado(pago, { notas = '' } = {}) {
   const inicia = new Date();
   const dias = Number(pago.dias) || 30;
   const termina = new Date(inicia.getTime() + dias * 24 * 60 * 60 * 1000);
+  const slot = AD_SLOTS.includes(pago.slot) ? pago.slot : 'home_rail';
 
   await Suscripcion.updateMany(
     { id_empresa: empresa._id, estatus: 'pending' },
     { $set: { estatus: 'cancelado', activo: false } }
   );
 
-  const sub = await Suscripcion.create({
-    id_empresa: empresa._id,
-    plan: pago.plan,
-    inicia,
-    termina,
-    activo: true,
-    estatus: 'activo',
-    origen: pago.provider === 'sandbox' ? 'pasarela' : 'pasarela',
-    notas:
-      notas ||
-      `Pago ${pago.provider} ${pago.provider_ref || pago._id} · ${pago.sucursales} suc.`,
-    auto_renovar: false,
-  });
+  const current = await findActivePautaSub(empresa._id);
+  let sub;
+  if (current) {
+    const slots = [...new Set([...slotsFromLegacy(current), slot])];
+    const currentEnd = current.termina ? new Date(current.termina) : null;
+    const nextEnd = currentEnd && currentEnd > termina ? currentEnd : termina;
+    sub = await Suscripcion.findByIdAndUpdate(
+      current._id,
+      {
+        $set: {
+          slots,
+          termina: nextEnd,
+          activo: true,
+          estatus: 'activo',
+          notas:
+            notas ||
+            `Campo ${slot} · pago ${pago.provider} ${pago.provider_ref || pago._id}`,
+        },
+      },
+      { new: true }
+    );
+  } else {
+    sub = await Suscripcion.create({
+      id_empresa: empresa._id,
+      plan: pago.plan,
+      inicia,
+      termina,
+      activo: true,
+      estatus: 'activo',
+      origen: 'pasarela',
+      slots: [slot],
+      notas:
+        notas ||
+        `Pago ${pago.provider} ${pago.provider_ref || pago._id} · campo ${slot}`,
+      auto_renovar: false,
+    });
+  }
 
   const pautaPlan =
     pago.plan === 'campaign' ? 'campaign' : pago.plan === 'freemium' ? 'none' : 'basic';

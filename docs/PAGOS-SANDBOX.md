@@ -43,21 +43,25 @@ PAGOS_PROVIDER=sandbox
 APP_ORIGIN=http://localhost:5173
 ```
 
-## Mercado Pago (sandbox real)
+## Mercado Pago y PayPal (sandbox real)
 
-1. [Developers MP](https://www.mercadopago.com.mx/developers) → credenciales de **prueba** (`TEST-…`)
-2. Env API:
+En el panel hay dos botones. Cada uno abre **su** checkout de prueba. El plan se activa solo cuando la pasarela confirma el mismo monto en MXN. Un token que no empieza por `TEST-`, o `PAYPAL_MODE` distinto de `sandbox`, no cobra.
+
+Mercado Pago: credencial de **prueba** en [Developers MP](https://www.mercadopago.com.mx/developers). Al pagar, inicia sesión con el **comprador de prueba**.
+
+PayPal: app de **Sandbox** en [developer.paypal.com](https://developer.paypal.com/dashboard/applications/sandbox). Al pagar, inicia sesión con la cuenta **Personal** de sandbox.
 
 ```bash
-PAGOS_PROVIDER=mercadopago
+# server/.env  — no commitear los secretos
 MP_ACCESS_TOKEN=TEST-...
+PAYPAL_MODE=sandbox
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
 APP_ORIGIN=https://trago-pwa-ujo5.vercel.app
-API_PUBLIC_URL=https://<tu-api>.vercel.app
+API_PUBLIC_URL=https://trago-pwa.vercel.app
 ```
 
-3. Webhook: `POST /api/pagos/webhook/mercadopago` (MP avisa `topic=payment`).
-
-Un token que no empieza por `TEST-` no activa Mercado Pago: el checkout se queda en sandbox y el webhook no cobra ni aprueba.
+Retorno PayPal: `GET /api/pagos/paypal/retorno`. Webhooks: `POST /api/pagos/webhook/mercadopago` y `POST /api/pagos/webhook/paypal`. El servidor vuelve a leer el cobro en la API de prueba antes de activar la pauta.
 
 ## Admin manual (sigue vivo)
 
