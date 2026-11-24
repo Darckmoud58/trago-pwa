@@ -57,6 +57,16 @@
   gap: 0.75rem;
 }
 
+.pay-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pay-choices .btn {
+  width: 100%;
+}
+
 .cadena-address {
   position: relative;
   display: flex;

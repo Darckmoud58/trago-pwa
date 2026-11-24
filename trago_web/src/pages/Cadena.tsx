@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, readToken, saveToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n } from '../lib/i18n';
@@ -81,6 +81,7 @@ const PAY_SLOTS = [
 
 export default function Cadena() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [token] = useState(() => readToken());
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
@@ -439,32 +440,6 @@ export default function Cadena() {
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
       setError(axiosErr.response?.data?.message || t('chainAdsError'));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onPagarPasarela(provider?: 'paypal' | 'mercadopago') {
-    setBusy(true);
-    setError('');
-    setInfo('');
-    try {
-      const res = await api.post('/api/cadena/pagos/checkout', {
-        plan: 'basic',
-        sucursales: Math.max(1, sucursales.length),
-        slot: paySlot,
-        ...(provider ? { provider } : {}),
-      });
-      const url = String(res.data.checkout_url || '');
-      if (url) {
-        window.location.assign(url);
-        return;
-      }
-      setInfo(res.data.message || t('payCheckoutOk'));
-      await load();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || t('payCheckoutError'));
     } finally {
       setBusy(false);
     }
@@ -862,33 +837,15 @@ export default function Cadena() {
                 <p className="meta">
                   {puedePauta ? t('payExtraPrice') : t('payFirstPrice')}
                 </p>
-                <div className="cadena-row">
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={busy}
-                    onClick={() => void onPagarPasarela()}
-                  >
-                    {t('payThisSlot')}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={busy}
-                    onClick={() => void onPagarPasarela('mercadopago')}
-                  >
-                    {t('payMpCta')}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn primary"
-                    disabled={busy}
-                    onClick={() => void onPagarPasarela('paypal')}
-                  >
-                    {t('payPalCta')}
-                  </button>
-                </div>
-                <p className="meta">{t('payGatewayHint')}</p>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() =>
+                    navigate(`/cadena/pagar?slot=${encodeURIComponent(paySlot)}`)
+                  }
+                >
+                  {t('payCheckoutCta')}
+                </button>
                 {!puedePauta && (
                   <button
                     type="button"
