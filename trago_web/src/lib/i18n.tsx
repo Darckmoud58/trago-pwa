@@ -459,7 +459,7 @@ const messages = {
     until: 'hasta',
     gpsLabel: 'Cerca de ti',
     aroundTitle: 'Qué hay a tu alrededor',
-    cercaStageHint: 'Toca un pin con oferta: el mapa se mete en el local y abre sus promociones.',
+    cercaStageHint: 'Toca un pin para ver la sucursal. Ver ofertas mete el mapa en el local.',
     cercaDockEmpty: 'Esta sucursal no tiene una oferta oficial ligada.',
     cercaVoteNeedsLink:
       'El voto de si sigue o ya no se abre cuando esta sucursal está ligada a la oferta.',
@@ -1148,7 +1148,7 @@ const messages = {
     until: 'until',
     gpsLabel: 'Near you',
     aroundTitle: 'What’s around you',
-    cercaStageHint: 'Tap a pin with an offer: the map pulls you into the place and opens its promos.',
+    cercaStageHint: 'Tap a pin to see the branch. See offers pulls the map into the place.',
     cercaDockEmpty: 'This branch has no official offer linked.',
     cercaVoteNeedsLink:
       'The still-valid vote opens when this branch is linked to the offer.',
