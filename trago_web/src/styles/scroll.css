@@ -92,16 +92,17 @@ html {
   scroll-snap-align: start;
 }
 
-/* ——— Revelado al entrar en viewport (bajar / navegar) ——— */
+/* ——— Revelado al entrar en viewport (bajar / navegar) ———
+   Entrada alineada a la «succión» del hero: sube + escala desde más adentro. */
 .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 36px, 0) scale(0.96);
+  transform: translate3d(0, 40px, 0) scale(0.94);
   filter: blur(6px);
   transition:
-    opacity 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    filter 0.7s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
-  will-change: opacity, transform, filter;
+    opacity 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    filter 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  will-change: opacity, transform;
 }
 
 .scroll-reveal.is-inview {
@@ -163,10 +164,15 @@ html {
   transition-delay: 0.2s;
 }
 
-/* Scroll-driven (Chrome / Safari recientes): parallax suave del hero */
+/* Scroll-driven (Chrome / Safari recientes): parallax + succión del hero */
 .home-hero-visual {
   transform: translate3d(0, calc(var(--scroll-y, 0) * 0.12px), 0) scale(1.02);
   transition: transform 0.05s linear;
+}
+
+/* Parallax ligero en el escenario Explorar (misma familia que hero-visual) */
+.home-explore-glow {
+  translate: 0 calc(var(--scroll-y, 0) * 0.08px);
 }
 
 @supports (animation-timeline: scroll()) {
@@ -196,8 +202,55 @@ html {
   }
 }
 
-/* View timeline: cards se asientan al entrar (progressive) */
+/*
+  Succión continua en bloques principales (Inicio + pantallas clave).
+  Misma curva que hero-drift: entra desde abajo/escala, se asienta, y al
+  subir se contrae/desvanece. En estos targets el view timeline manda
+  (evita pelear con la transición one-shot de .scroll-reveal).
+*/
 @supports (animation-timeline: view()) {
+  .home-app > [data-reveal].scroll-reveal,
+  .cerca-offers[data-reveal].scroll-reveal,
+  .cerca-places[data-reveal].scroll-reveal,
+  .promo-grid[data-reveal].scroll-reveal,
+  .favs-list[data-reveal].scroll-reveal,
+  .cuenta-profile[data-reveal].scroll-reveal,
+  .detail-facts[data-reveal].scroll-reveal,
+  .detail-section[data-reveal].scroll-reveal {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+    will-change: transform, opacity;
+    animation: section-suction linear both;
+    animation-timeline: view();
+    animation-range: cover;
+  }
+
+  @keyframes section-suction {
+    0% {
+      opacity: 0.45;
+      transform: translate3d(0, 36px, 0) scale(0.955);
+      filter: blur(5px);
+    }
+    14% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+    }
+    68% {
+      opacity: 1;
+      transform: translate3d(0, 0, 0) scale(1);
+      filter: blur(0);
+    }
+    100% {
+      opacity: 0.7;
+      transform: translate3d(0, -18px, 0) scale(0.975);
+      filter: blur(0);
+    }
+  }
+
+  /* Cards: asiento al entrar (progressive) — más suave que la succión de sección */
   .promo-card,
   .feed-card,
   .home-deal,
@@ -254,22 +307,36 @@ html {
     transition: none !important;
   }
 
+  .home-explore-glow {
+    translate: none !important;
+  }
+
   .scroll-reveal,
   .scroll-reveal.is-inview,
   .scroll-reveal.is-inview .home-deal,
   .scroll-reveal.is-inview .home-explore-card,
-  .scroll-reveal.is-inview .home-step {
+  .scroll-reveal.is-inview .home-step,
+  .home-app > [data-reveal].scroll-reveal,
+  .cerca-offers[data-reveal].scroll-reveal,
+  .cerca-places[data-reveal].scroll-reveal,
+  .promo-grid[data-reveal].scroll-reveal,
+  .favs-list[data-reveal].scroll-reveal,
+  .cuenta-profile[data-reveal].scroll-reveal,
+  .detail-facts[data-reveal].scroll-reveal,
+  .detail-section[data-reveal].scroll-reveal {
     opacity: 1 !important;
     transform: none !important;
     filter: none !important;
     transition: none !important;
     animation: none !important;
+    will-change: auto !important;
   }
 
   .home-hero,
   .detail-stage,
   .promo-card,
   .feed-card,
+  .home-deal,
   .cerca-offer-card,
   .cerca-place-card,
   .fav-card,
