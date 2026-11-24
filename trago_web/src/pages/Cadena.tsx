@@ -255,11 +255,14 @@ export default function Cadena() {
 
   useEffect(() => {
     const pago = searchParams.get('pago');
-    if (pago === 'ok') setInfo(t('payReturnOk'));
-    else if (pago === 'pending') setInfo(t('payReturnPending'));
-    else if (pago === 'cancel') setInfo(t('payReturnCancel'));
-    else if (pago === 'fail') setError(t('payReturnFail'));
-  }, [searchParams, t]);
+    if (!pago) return;
+    // Enlaces viejos de la pasarela → pantalla con recibo
+    if (['ok', 'pending', 'cancel', 'fail'].includes(pago)) {
+      navigate(`/cadena/pago-resultado?status=${encodeURIComponent(pago)}`, {
+        replace: true,
+      });
+    }
+  }, [searchParams, navigate]);
 
   useEffect(() => {
     if (!adPosterFile) {
@@ -846,6 +849,7 @@ export default function Cadena() {
               <p className="meta">{t('payAllSlots')}</p>
             )}
             <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
+                <p className="muted">{t('chainAdDraftHint')}</p>
                 <label>
                   {t('chainAdTitle')}
                   <input

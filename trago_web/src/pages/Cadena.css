@@ -166,6 +166,44 @@
   font-size: 0.9rem;
 }
 
+.pay-receipt.is-ok {
+  border-color: color-mix(in srgb, #1a7a3c 45%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, #1a7a3c 12%, transparent);
+}
+
+.pay-receipt.is-warn {
+  border-color: color-mix(in srgb, var(--rojo) 35%, transparent);
+}
+
+.pay-receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 1rem 0 0;
+}
+
+.pay-receipt-grid dt {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-soft, #6b4a4a);
+}
+
+.pay-receipt-grid dd {
+  margin: 0.15rem 0 0;
+  font-weight: 700;
+  color: var(--chrome, #820808);
+  word-break: break-word;
+}
+
+.pay-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
 .cadena-page .text-link {
   font-size: 0.85rem;
   color: #d81a1c;

@@ -19,6 +19,7 @@ import Favoritos from './pages/Favoritos';
 import Cuenta from './pages/Cuenta';
 import Cadena from './pages/Cadena';
 import PagoSandbox from './pages/PagoSandbox';
+import PagoResultado from './pages/PagoResultado';
 import PagarCampo from './pages/PagarCampo';
 import Idioma from './pages/Idioma';
 import Terminos from './pages/Terminos';
@@ -72,6 +73,14 @@ createRoot(document.getElementById('root')!).render(
               }
             />
             <Route path="/cadena/pago-sandbox" element={<PagoSandbox />} />
+            <Route
+              path="/cadena/pago-resultado"
+              element={
+                <RequireAuth reason="chain">
+                  <PagoResultado />
+                </RequireAuth>
+              }
+            />
             <Route path="/idioma" element={<Idioma />} />
             <Route path="/terminos" element={<Terminos />} />
             <Route path="/aviso-de-privacidad" element={<AvisoPrivacidad />} />
