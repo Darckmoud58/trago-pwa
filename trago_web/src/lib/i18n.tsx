@@ -362,6 +362,10 @@ const messages = {
       'El video de la campaña no va en la promo. Súbelo abajo, en Campaña de marketing.',
     chainAdsRequest: 'Solicitar campo publicitario',
     payCheckoutCta: 'Pagar campo publicitario',
+    payGateTitle: 'Pagar campo publicitario',
+    payGateLead:
+      'Elige Mercado Pago o PayPal. Se abre la pasarela de prueba y ahí pagas con el comprador de prueba. No se cobra dinero real.',
+    payGateChoose: 'Elige la pasarela',
     payAnotherSlot: 'Comprar otro campo',
     payOwned: 'Campos a tu disposición',
     payFirstPrice:
@@ -1019,6 +1023,10 @@ const messages = {
       'The campaign video does not belong on the promo. Upload it below, in Marketing campaign.',
     chainAdsRequest: 'Request an ad slot',
     payCheckoutCta: 'Pay for an ad slot',
+    payGateTitle: 'Pay for an ad slot',
+    payGateLead:
+      'Choose Mercado Pago or PayPal. The test checkout opens and you pay with the sandbox buyer. No real money is charged.',
+    payGateChoose: 'Choose the gateway',
     payAnotherSlot: 'Buy another slot',
     payOwned: 'Slots you already have',
     payFirstPrice:
