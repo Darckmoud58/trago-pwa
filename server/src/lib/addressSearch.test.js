@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mapNominatimHit, searchMexicoAddress } from './addressSearch.js';
+import { mapNominatimHit, parseMexicoAddress, searchMexicoAddress } from './addressSearch.js';
 
 describe('addressSearch', () => {
   it('toma municipio y código postal de una calle mexicana', () => {
@@ -67,6 +67,33 @@ describe('addressSearch', () => {
     assert.match(urls[0], /Manuel/);
     assert.equal(lugares[0].municipio, 'Guadalajara');
     assert.equal(lugares[0].codigoPostal, '44200');
+  });
+
+  it('separa una dirección completa pegada en la calle', () => {
+    const parsed = parseMexicoAddress(
+      'C. Independencia 55, Centro, 44100 Guadalajara, Jal.'
+    );
+    assert.equal(parsed.calle, 'Independencia');
+    assert.equal(parsed.numero, '55');
+    assert.equal(parsed.colonia, 'Centro');
+    assert.equal(parsed.municipio, 'Guadalajara');
+    assert.equal(parsed.cp, '44100');
+    assert.equal(parsed.tipo, 'Calle');
+  });
+
+  it('busca la calle limpia cuando pegan la dirección completa', async () => {
+    const urls = [];
+    await searchMexicoAddress(
+      { calle: 'C. Independencia 55, Centro, 44100 Guadalajara, Jal.' },
+      async (url) => {
+        urls.push(String(url));
+        return { ok: true, json: async () => [] };
+      }
+    );
+    const asked = decodeURIComponent(urls[0].replace(/\+/g, ' '));
+    assert.match(asked, /Calle Independencia 55/);
+    assert.match(asked, /Guadalajara/);
+    assert.doesNotMatch(asked, /Jal/);
   });
 
   it('no consulta la red si la calle es demasiado corta', async () => {
