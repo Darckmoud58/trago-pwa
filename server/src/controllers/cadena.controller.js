@@ -16,6 +16,7 @@ import {
   zodErrorMessage,
 } from '../lib/authValidate.js';
 import { signAccessToken } from '../lib/jwt.js';
+import { searchMexicoAddress } from '../lib/addressSearch.js';
 import { sanitizeHttpUrl } from '../lib/safeUrl.js';
 import { enrichCadenaMeAds } from './anuncios.controller.js';
 
@@ -100,7 +101,9 @@ export async function getCadenaMe(req, res) {
       sucursales: sucursales.map((u) => ({
         ...u,
         name: u.nombre || u.calle,
-        address: [u.calle, u.num_ext, u.colonia].filter(Boolean).join(' '),
+        address: [u.calle, u.num_ext, u.colonia, u.municipio, u.estado, u.codigo_postal]
+          .filter(Boolean)
+          .join(', '),
       })),
       suscripcion: ads.suscripcion,
       puedePauta: ads.puedePauta,
@@ -366,6 +369,27 @@ export async function registerCadena(req, res) {
   }
 }
 
+/** GET /api/cadena/direcciones?calle=&numero=&cp= */
+export async function buscarDireccion(req, res) {
+  try {
+    assertOwnEmpresa(req);
+    const lugares = await searchMexicoAddress({
+      calle: clipStr(req.query.calle, 120),
+      numero: clipStr(req.query.numero, 20),
+      cp: clipStr(req.query.cp, 10),
+    });
+    return res.json({ lugares });
+  } catch (e) {
+    if (e.status === 404 || e.message === 'NO_EMPRESA') {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('buscarDireccion:', e.message);
+    return res
+      .status(e.status || 500)
+      .json({ message: e.message || 'No se pudo buscar la calle' });
+  }
+}
+
 /** POST /api/cadena/sucursales */
 export async function createSucursal(req, res) {
   try {
@@ -390,8 +414,12 @@ export async function createSucursal(req, res) {
       nombre,
       slug,
       calle,
-      num_ext: clipStr(req.body.num_ext, 20),
+      num_ext: clipStr(req.body.num_ext || req.body.numero, 20),
       colonia: clipStr(req.body.colonia, 120),
+      codigo_postal: clipStr(req.body.codigo_postal || req.body.cp, 10).replace(
+        /\D/g,
+        ''
+      ),
       municipio: clipStr(req.body.municipio || req.body.city || 'Guadalajara', 80),
       estado: clipStr(req.body.estado || 'Jalisco', 80),
       lat,

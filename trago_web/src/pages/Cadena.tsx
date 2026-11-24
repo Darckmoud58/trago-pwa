@@ -36,6 +36,18 @@ type SucursalRow = {
   long?: number;
 };
 
+type Lugar = {
+  calle: string;
+  numero: string;
+  colonia: string;
+  municipio: string;
+  estado: string;
+  codigoPostal: string;
+  lat: number;
+  lng: number;
+  etiqueta: string;
+};
+
 type AnuncioRow = {
   _id: string;
   titulo?: string;
@@ -73,8 +85,12 @@ export default function Cadena() {
 
   const [sucNombre, setSucNombre] = useState('');
   const [sucCalle, setSucCalle] = useState('');
-  const [sucLat, setSucLat] = useState('20.6767');
-  const [sucLng, setSucLng] = useState('-103.347');
+  const [sucNum, setSucNum] = useState('');
+  const [sucCp, setSucCp] = useState('');
+  const [sugerencias, setSugerencias] = useState<Lugar[]>([]);
+  const [buscandoCalle, setBuscandoCalle] = useState(false);
+  const [calleConsultada, setCalleConsultada] = useState('');
+  const [lugar, setLugar] = useState<Lugar | null>(null);
 
   const [promoNombre, setPromoNombre] = useState('');
   const [promoDesc, setPromoDesc] = useState('');
@@ -155,6 +171,44 @@ export default function Cadena() {
     void load();
   }, [token, load]);
 
+  useEffect(() => {
+    const calle = sucCalle.trim();
+    if (
+      lugar &&
+      lugar.calle === calle &&
+      lugar.numero === sucNum.trim() &&
+      lugar.codigoPostal === sucCp.trim()
+    ) {
+      return;
+    }
+    if (calle.length < 3) {
+      const clear = setTimeout(() => setSugerencias([]), 0);
+      return () => clearTimeout(clear);
+    }
+    const handle = setTimeout(() => {
+      void (async () => {
+        setBuscandoCalle(true);
+        try {
+          const res = await api.get('/api/cadena/direcciones', {
+            params: {
+              calle,
+              numero: sucNum.trim(),
+              cp: sucCp.trim(),
+            },
+          });
+          setSugerencias((res.data.lugares || []) as Lugar[]);
+          setCalleConsultada(calle);
+        } catch {
+          setSugerencias([]);
+          setCalleConsultada(calle);
+        } finally {
+          setBuscandoCalle(false);
+        }
+      })();
+    }, 450);
+    return () => clearTimeout(handle);
+  }, [sucCalle, sucNum, sucCp, lugar]);
+
   const filteredVigencia = useMemo(() => {
     if (mapFilter === 'all') return vigencia;
     return vigencia.filter((r) => r.crowdStatus === mapFilter);
@@ -189,21 +243,49 @@ export default function Cadena() {
     }
   }
 
+  function elegirLugar(item: Lugar) {
+    const next = {
+      ...item,
+      calle: item.calle || sucCalle.trim(),
+      numero: item.numero || sucNum.trim(),
+      codigoPostal: item.codigoPostal || sucCp.trim(),
+    };
+    setLugar(next);
+    setSucCalle(next.calle);
+    setSucNum(next.numero);
+    setSucCp(next.codigoPostal);
+    setSugerencias([]);
+  }
+
   async function onCreateSucursal(e: FormEvent) {
     e.preventDefault();
+    const elegido = lugar || (sugerencias.length === 1 ? sugerencias[0] : null);
+    if (!elegido) {
+      setError(t('chainBranchPick'));
+      return;
+    }
     setBusy(true);
     setError('');
     setInfo('');
     try {
       await api.post('/api/cadena/sucursales', {
         nombre: sucNombre,
-        calle: sucCalle,
-        lat: Number(sucLat),
-        lng: Number(sucLng),
+        calle: elegido.calle || sucCalle,
+        num_ext: elegido.numero || sucNum,
+        colonia: elegido.colonia,
+        municipio: elegido.municipio,
+        estado: elegido.estado,
+        codigo_postal: elegido.codigoPostal || sucCp,
+        lat: elegido.lat,
+        lng: elegido.lng,
       });
       setInfo(t('chainBranchCreated'));
       setSucNombre('');
       setSucCalle('');
+      setSucNum('');
+      setSucCp('');
+      setLugar(null);
+      setSugerencias([]);
       await load();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
@@ -469,32 +551,90 @@ export default function Cadena() {
                 required
               />
             </label>
-            <label>
-              {t('chainBranchStreet')}
-              <input
-                value={sucCalle}
-                onChange={(e) => setSucCalle(e.target.value)}
-                required
-              />
-            </label>
+            <p className="muted">{t('chainBranchHint')}</p>
+            <div className="cadena-address">
+              <label>
+                {t('chainBranchStreet')}
+                <input
+                  value={sucCalle}
+                  onChange={(e) => {
+                    setSucCalle(e.target.value);
+                    setLugar(null);
+                  }}
+                  required
+                  autoComplete="off"
+                  aria-autocomplete="list"
+                />
+              </label>
+              {buscandoCalle ? <p className="meta">{t('chainBranchSearch')}</p> : null}
+              {sugerencias.length > 0 ? (
+                <ul className="cadena-suggest" role="listbox">
+                  {sugerencias.map((item) => (
+                    <li key={`${item.lat}-${item.lng}-${item.etiqueta}`}>
+                      <button
+                        type="button"
+                        onClick={() => elegirLugar(item)}
+                      >
+                        <strong>
+                          {[item.calle, item.numero].filter(Boolean).join(' ') ||
+                            item.etiqueta}
+                        </strong>
+                        <span>
+                          {[item.colonia, item.municipio, item.estado, item.codigoPostal]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
             <div className="cadena-row">
               <label>
-                Lat
+                {t('chainBranchNumber')}
                 <input
-                  value={sucLat}
-                  onChange={(e) => setSucLat(e.target.value)}
-                  required
+                  value={sucNum}
+                  onChange={(e) => {
+                    setSucNum(e.target.value);
+                    setLugar(null);
+                  }}
+                  inputMode="text"
+                  autoComplete="off"
                 />
               </label>
               <label>
-                Lng
+                {t('chainBranchPostal')}
                 <input
-                  value={sucLng}
-                  onChange={(e) => setSucLng(e.target.value)}
-                  required
+                  value={sucCp}
+                  onChange={(e) => {
+                    setSucCp(e.target.value.replace(/[^\d]/g, '').slice(0, 5));
+                    setLugar(null);
+                  }}
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  placeholder="44100"
                 />
               </label>
             </div>
+            <p className="cadena-place">
+              {lugar
+                ? [lugar.colonia, lugar.municipio, lugar.estado, lugar.codigoPostal]
+                    .filter(Boolean)
+                    .join(' · ')
+                : sugerencias[0]
+                  ? t('chainBranchMatch').replace(
+                      '{place}',
+                      [sugerencias[0].municipio, sugerencias[0].estado]
+                        .filter(Boolean)
+                        .join(', ')
+                    )
+                  : calleConsultada === sucCalle.trim() &&
+                      sucCalle.trim().length >= 3 &&
+                      !buscandoCalle
+                    ? t('chainBranchNone')
+                    : t('chainBranchMunicipio')}
+            </p>
             <button className="btn primary" type="submit" disabled={busy}>
               {t('chainSaveBranch')}
             </button>

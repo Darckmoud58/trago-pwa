@@ -5,6 +5,7 @@ import { LIMITS, rateLimit } from '../middleware/rateLimit.js';
 import Empresa from '../models/Empresa.js';
 import {
   blockUserReports,
+  buscarDireccion,
   createPromo,
   createSucursal,
   getCadenaMe,
@@ -61,6 +62,18 @@ router.post(
 router.get('/me', auth, attachOwnEmpresa, getCadenaMe);
 
 /** Escritura: dueño / rol empresa|chain|admin. */
+router.get(
+  '/direcciones',
+  auth,
+  requireChain,
+  rateLimit({
+    name: 'cadena-direccion',
+    max: 20,
+    windowMs: 60 * 1000,
+    keyFn: (req, ip) => `rl:cadena-direccion:${req.userId || ip}`,
+  }),
+  buscarDireccion
+);
 router.post('/sucursales', auth, requireChain, createSucursal);
 router.post('/promociones', auth, requireChain, createPromo);
 router.put('/promociones/:id', auth, requireChain, updatePromo);

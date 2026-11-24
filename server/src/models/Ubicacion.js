@@ -10,6 +10,7 @@ const schema = new mongoose.Schema(
     num_ext: { type: String, default: '' },
     num_int: { type: String, default: '' },
     colonia: { type: String, default: '', trim: true },
+    codigo_postal: { type: String, default: '', trim: true },
     municipio: { type: String, default: 'Guadalajara', trim: true },
     estado: { type: String, default: 'Jalisco', trim: true },
     lat: { type: Number, required: true },
