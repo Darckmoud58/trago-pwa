@@ -243,6 +243,10 @@
   margin: 0.15rem 0 0.35rem;
 }
 
+.promos-grid .promos-sponsored--feed {
+  grid-column: 1 / -1;
+}
+
 .promos-grid {
   margin-top: 0.15rem;
   gap: 1rem;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { api, readToken, saveToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n } from '../lib/i18n';
@@ -68,10 +68,20 @@ type SuscripcionRow = {
   estatus?: string;
   activo?: boolean;
   termina?: string | null;
+  slots?: string[];
 };
+
+const PAY_SLOTS = [
+  ['home_rail', 'chainAdSlotHome'],
+  ['explorar_mid', 'chainAdSlotExplore'],
+  ['cerca_top', 'chainAdSlotNear'],
+  ['side_left', 'chainAdSlotSideLeft'],
+  ['side_right', 'chainAdSlotSideRight'],
+] as const;
 
 export default function Cadena() {
   const { t } = useI18n();
+  const [searchParams] = useSearchParams();
   const [token] = useState(() => readToken());
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [promos, setPromos] = useState<PromoRow[]>([]);
@@ -120,6 +130,7 @@ export default function Cadena() {
   const [adVideo, setAdVideo] = useState('');
   const [adUrl, setAdUrl] = useState('');
   const [adSlot, setAdSlot] = useState('home_rail');
+  const [paySlot, setPaySlot] = useState('cerca_top');
   const [adPosterFile, setAdPosterFile] = useState<File | null>(null);
   const [adVideoFile, setAdVideoFile] = useState<File | null>(null);
   const [adInicia, setAdInicia] = useState('');
@@ -218,6 +229,14 @@ export default function Cadena() {
   }, [sucCalle, sucNum, sucCp, lugar]);
 
   useEffect(() => {
+    const pago = searchParams.get('pago');
+    if (pago === 'ok') setInfo(t('payReturnOk'));
+    else if (pago === 'pending') setInfo(t('payReturnPending'));
+    else if (pago === 'cancel') setInfo(t('payReturnCancel'));
+    else if (pago === 'fail') setError(t('payReturnFail'));
+  }, [searchParams, t]);
+
+  useEffect(() => {
     if (!adPosterFile) {
       setAdPosterPreview('');
       return;
@@ -236,6 +255,13 @@ export default function Cadena() {
     setAdVideoPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [adVideoFile]);
+
+  useEffect(() => {
+    const owned = suscripcion?.slots || [];
+    if (!owned.includes(paySlot)) return;
+    const next = PAY_SLOTS.find(([id]) => !owned.includes(id));
+    if (next) setPaySlot(next[0]);
+  }, [suscripcion, paySlot]);
 
   const filteredVigencia = useMemo(() => {
     if (mapFilter === 'all') return vigencia;
@@ -418,7 +444,7 @@ export default function Cadena() {
     }
   }
 
-  async function onPagarSandbox() {
+  async function onPagarPasarela(provider?: 'paypal' | 'mercadopago') {
     setBusy(true);
     setError('');
     setInfo('');
@@ -426,6 +452,8 @@ export default function Cadena() {
       const res = await api.post('/api/cadena/pagos/checkout', {
         plan: 'basic',
         sucursales: Math.max(1, sucursales.length),
+        slot: paySlot,
+        ...(provider ? { provider } : {}),
       });
       const url = String(res.data.checkout_url || '');
       if (url) {
@@ -803,25 +831,77 @@ export default function Cadena() {
                   : t('chainAdsNeedPlan')}
               {suscripcion?.plan ? ` · ${suscripcion.plan}` : ''}
             </p>
-            {!puedePauta && (
-              <div className="cadena-row">
-                <button
-                  type="button"
-                  className="btn primary"
-                  disabled={busy}
-                  onClick={() => void onPagarSandbox()}
-                >
-                  {t('payCheckoutCta')}
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  disabled={busy || suscripcion?.estatus === 'pending'}
-                  onClick={() => void onSolicitarPauta()}
-                >
-                  {t('chainAdsRequest')}
-                </button>
-              </div>
+            {(suscripcion?.slots || []).length > 0 && (
+              <p className="meta">
+                {t('payOwned')}:{' '}
+                {(suscripcion?.slots || [])
+                  .map((id) => {
+                    const row = PAY_SLOTS.find(([slot]) => slot === id);
+                    return row ? t(row[1]) : id;
+                  })
+                  .join(' · ')}
+              </p>
+            )}
+            {PAY_SLOTS.some(([id]) => !(suscripcion?.slots || []).includes(id)) ? (
+              <>
+                <label>
+                  {puedePauta ? t('payAnotherSlot') : t('payCheckoutCta')}
+                  <select
+                    value={paySlot}
+                    onChange={(e) => setPaySlot(e.target.value)}
+                  >
+                    {PAY_SLOTS.filter(
+                      ([id]) => !(suscripcion?.slots || []).includes(id)
+                    ).map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {t(label)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="meta">
+                  {puedePauta ? t('payExtraPrice') : t('payFirstPrice')}
+                </p>
+                <div className="cadena-row">
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={busy}
+                    onClick={() => void onPagarPasarela()}
+                  >
+                    {t('payThisSlot')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={busy}
+                    onClick={() => void onPagarPasarela('mercadopago')}
+                  >
+                    {t('payMpCta')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    disabled={busy}
+                    onClick={() => void onPagarPasarela('paypal')}
+                  >
+                    {t('payPalCta')}
+                  </button>
+                </div>
+                <p className="meta">{t('payGatewayHint')}</p>
+                {!puedePauta && (
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={busy || suscripcion?.estatus === 'pending'}
+                    onClick={() => void onSolicitarPauta()}
+                  >
+                    {t('chainAdsRequest')}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="meta">{t('payAllSlots')}</p>
             )}
             <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
                 <label>
@@ -920,6 +1000,7 @@ export default function Cadena() {
                     <option value="side_left">{t('chainAdSlotSideLeft')}</option>
                     <option value="side_right">{t('chainAdSlotSideRight')}</option>
                   </select>
+                  <span className="meta">{t('chainAdSlotHint')}</span>
                 </label>
                 <button className="btn primary" type="submit" disabled={busy}>
                   {t('chainAdSave')}

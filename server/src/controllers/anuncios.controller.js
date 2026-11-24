@@ -8,6 +8,8 @@ import {
   puedePauta,
 } from '../lib/pauta.js';
 import { acceptAdChunk, openAdMedia } from '../lib/adMedia.js';
+import { selectSlotRotation } from '../lib/adRotation.js';
+import { slotsFromLegacy } from '../lib/pagosPricing.js';
 import { sanitizeHttpUrl, sanitizeMediaUrl } from '../lib/safeUrl.js';
 
 function clipStr(raw, max = 500) {
@@ -277,7 +279,7 @@ export async function updateAnuncio(req, res) {
 /** POST /api/cadena/anuncios/:id/activar */
 export async function activateAnuncio(req, res) {
   try {
-    const { empresa } = await requirePauta(req);
+    const { empresa, sub } = await requirePauta(req);
     const { id } = req.params;
     if (!mongoose.isValidObjectId(id)) {
       return res.status(400).json({ message: 'id inválido' });
@@ -289,6 +291,21 @@ export async function activateAnuncio(req, res) {
     if (!doc.titulo) {
       return res.status(400).json({ message: 'El anuncio necesita título' });
     }
+    if (!req.isAdmin && !slotsFromLegacy(sub).includes(doc.slot)) {
+      return res.status(402).json({
+        message:
+          'Ese campo no está pagado. Puedes comprarlo sin perder los que ya tienes.',
+      });
+    }
+    await Anuncio.updateMany(
+      {
+        id_empresa: empresa._id,
+        slot: doc.slot,
+        estatus: 'activo',
+        _id: { $ne: doc._id },
+      },
+      { $set: { estatus: 'pausado' } }
+    );
     doc.estatus = 'activo';
     if (!doc.inicia) doc.inicia = new Date();
     await doc.save();
@@ -435,6 +452,9 @@ export async function serveAnuncios(req, res) {
     const slot = ANUNCIO_SLOTS.includes(req.query.slot)
       ? req.query.slot
       : null;
+    if (!slot) {
+      return res.json({ anuncios: [], slot: null });
+    }
     const zona = clipStr(req.query.zona || 'gdl', 32).toLowerCase() || 'gdl';
     const now = new Date();
 
@@ -448,11 +468,11 @@ export async function serveAnuncios(req, res) {
         },
       ],
     };
-    if (slot) filter.slot = slot;
+    filter.slot = slot;
 
     const rows = await Anuncio.find(filter)
       .sort({ updatedAt: -1 })
-      .limit(8)
+      .limit(40)
       .lean();
 
     if (!rows.length) {
@@ -487,16 +507,19 @@ export async function serveAnuncios(req, res) {
       if (!subByEmpresa[k]) subByEmpresa[k] = s;
     }
 
-    const allowed = [];
+    const eligible = [];
     for (const row of rows) {
       const emp = empresaById[String(row.id_empresa)];
       if (!emp) continue;
       if (!puedePauta(emp, subByEmpresa[String(emp._id)])) continue;
-      // Creativos demo (seed anuncios-beta) visibles para la presentación del piloto.
-      allowed.push(mapAnuncio(row, empresaById));
+      eligible.push(row);
     }
 
-    return res.json({ anuncios: allowed.slice(0, 3) });
+    const rotation = selectSlotRotation(eligible, empresaById);
+    return res.json({
+      slot,
+      anuncios: rotation.slice(0, 12).map((row) => mapAnuncio(row, empresaById)),
+    });
   } catch (e) {
     console.error('serveAnuncios:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
