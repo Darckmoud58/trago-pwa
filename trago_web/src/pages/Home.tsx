@@ -308,7 +308,9 @@ export default function Home() {
       const fromNear = filterGuestSafePromos(
         (nearCached?.data?.promos ?? []) as Promo[]
       )
-        .filter((p) => !isLandingTitle(p))
+        .filter(
+          (p) => !isLandingTitle(p) && !(p.cumpleanos || p.isBirthday)
+        )
         .sort((a, b) => promoMeters(a) - promoMeters(b));
       if (fromNear.length) {
         setNearPromos(fromNear.slice(0, 10));
@@ -365,7 +367,12 @@ export default function Home() {
           timeout: CERCA_TIMEOUT_MS,
         });
         return filterActivePromos((data.promos ?? []) as Promo[])
-          .filter((p) => !p.requiresAuth && !isLandingTitle(p))
+          .filter(
+            (p) =>
+              !p.requiresAuth &&
+              !isLandingTitle(p) &&
+              (!(p.cumpleanos || p.isBirthday) || birthdayToday)
+          )
           .sort((a, b) => promoMeters(a) - promoMeters(b));
       }
 

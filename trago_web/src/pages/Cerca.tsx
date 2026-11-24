@@ -10,6 +10,7 @@ import NearMap from '../components/NearMap';
 import ValidityVote from '../components/ValidityVote';
 import SponsoredSlot, { useSlotAds } from '../components/SponsoredSlot';
 import { useUserPrefs } from '../hooks/useUserPrefs';
+import { useAuthUser } from '../hooks/useAuthUser';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { readGpsCached } from '../lib/lastKnownGps';
@@ -141,6 +142,7 @@ function brandTone(name: string) {
 export default function Cerca() {
   const { t } = useI18n();
   const { prefs } = useUserPrefs();
+  const { birthdayToday, token } = useAuthUser();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
@@ -177,7 +179,7 @@ export default function Cerca() {
     offersBranch?.nombre ||
     offersBranch?.name ||
     '';
-  const loggedIn = Boolean(readToken());
+  const loggedIn = Boolean(token);
   const cercaAds = useSlotAds('cerca_top');
 
   useEffect(() => {
@@ -510,12 +512,21 @@ export default function Cerca() {
                 const title = promo.nombre || promo.title || t('promoFallback');
                 const img = resolveMediaUrl(promo.imagen || promo.imageUrl);
                 const tall = index % 5 === 0 || index % 5 === 3;
-                const locked = Boolean(promo.requiresAuth);
+                const birthday = Boolean(promo.cumpleanos || promo.isBirthday);
+                const birthdayLocked = birthday && !birthdayToday;
+                const alcoholLocked = Boolean(promo.requiresAuth);
+                const locked = alcoholLocked || birthdayLocked;
                 const target = locked
                   ? loggedIn
                     ? '/cerca'
                     : '/entrar'
                   : `/promos/${promo.slug || promo._id}`;
+                const lockReason = birthday ? 'birthday' : 'alcohol';
+                const lockLabel = birthday
+                  ? loggedIn
+                    ? t('offerBirthdayWait')
+                    : t('offerBirthdayLogin')
+                  : t('offerLocked');
                 return (
                   <li
                     key={promo._id}
@@ -525,12 +536,12 @@ export default function Cerca() {
                       to={target}
                       state={
                         locked && !loggedIn
-                          ? { from: '/cerca', reason: 'alcohol' }
+                          ? { from: '/cerca', reason: lockReason }
                           : undefined
                       }
                       className="cerca-collage-link"
                       viewTransition={!locked}
-                      aria-label={locked ? t('offerLocked') : title}
+                      aria-label={locked ? lockLabel : title}
                       onClick={
                         locked && loggedIn
                           ? (e) => e.preventDefault()
@@ -555,13 +566,17 @@ export default function Cerca() {
                         </span>
                       )}
                       <span className="cerca-collage-caption">
-                        <strong>{locked ? t('offerLocked') : title}</strong>
+                        <strong>{locked ? lockLabel : title}</strong>
                         {!locked ? <PromoPrice promo={promo} /> : null}
                         <em>
                           {locked
-                            ? loggedIn
-                              ? t('placeOffersEmpty')
-                              : t('placeOffersLoginCta')
+                            ? birthday
+                              ? loggedIn
+                                ? t('offerBirthdayWait')
+                                : t('placeOffersLoginCta')
+                              : loggedIn
+                                ? t('placeOffersEmpty')
+                                : t('placeOffersLoginCta')
                             : t('seeOfferDetails')}
                         </em>
                       </span>
