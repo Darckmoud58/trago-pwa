@@ -59,6 +59,10 @@ html {
   transform-origin: 50% 0%;
 }
 
+.page-motion[data-nav='push'] {
+  animation: page-dive 0.58s var(--ease-out) both;
+}
+
 @keyframes page-in {
   from {
     opacity: 0;
@@ -68,6 +72,19 @@ html {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes page-dive {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
     filter: blur(0);
   }
 }

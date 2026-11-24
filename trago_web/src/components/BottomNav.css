@@ -54,6 +54,18 @@
   background: radial-gradient(circle, rgba(216, 26, 28, 0.28), transparent 68%);
   pointer-events: none;
   z-index: 0;
+  animation: nav-glow 7s ease-in-out infinite alternate;
+}
+
+@keyframes nav-glow {
+  from {
+    transform: translateX(0);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(-18%);
+    opacity: 1;
+  }
 }
 
 .bottom-nav-item,

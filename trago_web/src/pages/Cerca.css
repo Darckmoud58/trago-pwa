@@ -137,7 +137,38 @@
   }
 }
 
+.cerca-stage-frame.is-focused {
+  box-shadow:
+    0 0 0 1px rgba(216, 26, 28, 0.55),
+    0 24px 54px rgba(59, 11, 19, 0.28);
+}
+
+.cerca-stage-frame.is-focused::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 40%,
+    transparent 0 30%,
+    rgba(59, 11, 19, 0.28) 100%
+  );
+  animation: cerca-focus-in 0.45s ease both;
+}
+
+@keyframes cerca-focus-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .cerca-company-hero {
+  position: relative;
+  overflow: hidden;
   display: grid;
   justify-items: start;
   gap: 0.35rem;
@@ -145,6 +176,64 @@
   border-radius: 1.35rem;
   color: #fff6e6;
   box-shadow: 0 16px 36px rgba(59, 11, 19, 0.22);
+}
+
+.cerca-company-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 28%,
+    rgba(255, 246, 230, 0.28) 48%,
+    transparent 66%
+  );
+  transform: translateX(-130%);
+  animation: cerca-sheen 1.35s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cerca-company-hero h1,
+.cerca-company-hero .cerca-place-mark {
+  animation: rise-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.cerca-company-hero .cerca-place-mark {
+  animation-delay: 0.05s;
+}
+
+@keyframes cerca-sheen {
+  to {
+    transform: translateX(130%);
+  }
+}
+
+.cerca-collage-tile {
+  animation: cerca-tile-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cerca-collage-tile:nth-child(1) { animation-delay: 0.04s; }
+.cerca-collage-tile:nth-child(2) { animation-delay: 0.08s; }
+.cerca-collage-tile:nth-child(3) { animation-delay: 0.12s; }
+.cerca-collage-tile:nth-child(4) { animation-delay: 0.16s; }
+.cerca-collage-tile:nth-child(5) { animation-delay: 0.2s; }
+.cerca-collage-tile:nth-child(6) { animation-delay: 0.24s; }
+.cerca-collage-tile:nth-child(n + 7) { animation-delay: 0.28s; }
+
+.cerca-collage-tile:active {
+  transform: scale(0.975);
+}
+
+@keyframes cerca-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .cerca-company-hero h1 {
@@ -188,8 +277,13 @@
 @media (prefers-reduced-motion: reduce) {
   .cerca-stage-frame.is-absorbing .near-map,
   .cerca-stage-frame.is-absorbing::after,
+  .cerca-stage-frame.is-focused::before,
   .cerca-absorb,
-  .cerca-offers-enter {
+  .cerca-offers-enter,
+  .cerca-company-hero::after,
+  .cerca-company-hero h1,
+  .cerca-company-hero .cerca-place-mark,
+  .cerca-collage-tile {
     animation: none;
     transition: none;
     transform: none;
