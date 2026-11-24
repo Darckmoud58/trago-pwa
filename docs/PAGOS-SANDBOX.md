@@ -45,7 +45,7 @@ APP_ORIGIN=http://localhost:5173
 
 ## Mercado Pago y PayPal (sandbox real)
 
-En el panel hay dos botones. Cada uno abre **su** checkout de prueba. El plan se activa solo cuando la pasarela confirma el mismo monto en MXN. Un token que no empieza por `TEST-`, o `PAYPAL_MODE` distinto de `sandbox`, no cobra.
+En el panel hay un botón, Pagar campo publicitario. La siguiente pantalla elige Mercado Pago o PayPal. El campo se activa solo cuando la pasarela confirma el mismo monto en MXN y el cobro es de prueba. `MP_MODE=live` o `PAYPAL_MODE` distinto de `sandbox` no cobra. El checkout de Mercado Pago solo acepta la dirección `sandbox.mercadopago`.
 
 Mercado Pago: credencial de **prueba** en [Developers MP](https://www.mercadopago.com.mx/developers). Al pagar, inicia sesión con el **comprador de prueba**.
 

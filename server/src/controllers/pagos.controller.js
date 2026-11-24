@@ -12,6 +12,7 @@ import {
   createCheckoutSession,
   gatewayStatus,
   moneyMatches,
+  mpSandboxReady,
   newSandboxToken,
   pagosConfigured,
   publicFrontOrigin,
@@ -270,7 +271,7 @@ export async function webhookMercadoPago(req, res) {
 
     // Ack rápido; procesamos si hay token
     const mpToken = String(process.env.MP_ACCESS_TOKEN || '');
-    if (!mpToken.startsWith('TEST-')) {
+    if (!mpSandboxReady()) {
       return res.status(200).json({ ok: true, skipped: 'sandbox_only' });
     }
 
@@ -282,7 +283,11 @@ export async function webhookMercadoPago(req, res) {
         }
       );
       const payment = await payRes.json().catch(() => ({}));
-      if (payment.status === 'approved' && payment.external_reference) {
+      if (
+        payment.status === 'approved' &&
+        payment.live_mode === false &&
+        payment.external_reference
+      ) {
         const pago = await Pago.findById(payment.external_reference);
         const amountOk =
           pago &&
