@@ -285,6 +285,9 @@ const messages = {
     chainLead:
       'Publica promos y sucursales. Sin sucursales no se publica; el catálogo solo muestra cadenas verificadas.',
     chainNeedRole: 'Necesitas cuenta. Registra tu cadena aquí o pide rol empresa.',
+    chainUsersDontRegister: 'Esta cuenta no da de alta cadenas',
+    chainUsersDontRegisterLead:
+      'El usuario busca la promo. La cadena se registra con su propia cuenta de empresa.',
     chainLoadError: 'No se pudo cargar el panel de cadena.',
     chainRegisterTitle: 'Registrar mi cadena',
     chainName: 'Nombre de la cadena',
@@ -366,13 +369,13 @@ const messages = {
     payGateLead:
       'Elige Mercado Pago o PayPal. Se abre la pasarela de prueba y ahí pagas con el comprador de prueba. No se cobra dinero real.',
     payGateChoose: 'Elige la pasarela',
-    payAnotherSlot: 'Comprar otro campo',
-    payOwned: 'Campos a tu disposición',
+    payAnotherSlot: 'Comprar la otra ventana',
+    payOwned: 'Ventanas a tu disposición',
     payFirstPrice:
-      'El primer campo cuesta $2,900 MXN, más $500 por cada sucursal extra. Dura 30 días.',
+      'La primera ventana cuesta $2,900 MXN, más $500 por cada sucursal extra. Dura 30 días.',
     payExtraPrice:
-      'Cada campo adicional cuesta $2,900 MXN. Los que ya pagaste siguen disponibles.',
-    payAllSlots: 'Ya tienes los cinco campos a tu disposición.',
+      'La otra ventana cuesta $2,900 MXN. La que ya pagaste sigue disponible.',
+    payAllSlots: 'Ya tienes Inicio y Explorar.',
     payThisSlot: 'Pagar este campo',
     payMpCta: 'Pagar campo publicitario · Mercado Pago',
     payPalCta: 'Pagar campo publicitario · PayPal',
@@ -416,8 +419,20 @@ const messages = {
     chainAdUploading: 'Subiendo el material…',
     chainAdUrl: 'URL de destino (opcional)',
     chainAdSlot: 'Slot',
+    chainAdSlotNone:
+      'Paga un campo publicitario para poder elegir dónde sale esta campaña.',
+    adWindow: 'Ventana',
+    adPosition: 'Posición',
+    adPosRandom: 'Aleatoria',
+    adPosHomeCard: 'Tarjeta de Inicio',
+    adPosExploreTop: 'Arriba del listado',
+    adPosSideLeft: 'Lateral izquierdo',
+    adPosSideRight: 'Lateral derecho',
+    adPosHint:
+      'Aleatoria entra donde haya lugar en esa ventana y ninguna empresa haya pagado esa posición. Elegir la posición cuesta $50 y tiene prioridad.',
+    payPositionCta: 'Pagar esta posición · $50',
     chainAdSlotHint:
-      'Este anuncio solo ocupa el slot que elijas. En el teléfono, al deslizar, rota con las otras cadenas que pagaron ese mismo espacio. No sale en las demás pantallas.',
+      'Solo ves los campos que ya pagaste. Este anuncio ocupa uno de ellos y, al deslizar, rota con las otras cadenas de ese mismo espacio.',
     chainAdSlotHome: 'Home',
     chainAdSlotExplore: 'Explorar',
     chainAdSlotNear: 'Cerca',
@@ -444,6 +459,20 @@ const messages = {
     until: 'hasta',
     gpsLabel: 'Cerca de ti',
     aroundTitle: 'Qué hay a tu alrededor',
+    cercaStageHint: 'Toca un pin con oferta: el mapa se mete en el local y abre sus promociones.',
+    cercaDockEmpty: 'Esta sucursal no tiene una oferta oficial ligada.',
+    cercaVoteNeedsLink:
+      'El voto de si sigue o ya no se abre cuando esta sucursal está ligada a la oferta.',
+    cercaCodeNote:
+      'El código de descuento lo publica la cadena y se canjea con los puntos que juntas por venir y consumir aquí.',
+    cercaPointsOnOffer: 'La cadena marca {n} puntos en esta oferta.',
+    cercaClose: 'Cerrar',
+    cercaOfferCount: '{n} con oferta',
+    cercaMapKicker: 'Mapa',
+    cercaMapTitle: 'Sucursales',
+    cercaMapAria: 'Mapa con las sucursales que TraGo detectó cerca',
+    cercaMapYou: 'Tú',
+    cercaMapPromos: '{n} promos',
     aroundBody:
       'Encuentra negocios registrados cerca de tu GPS en el mapa. Guarda lugares para verlos offline.',
     openNear: 'Abrir cerca',
@@ -946,6 +975,9 @@ const messages = {
     chainLead:
       'Publish deals and branches. No branches = not published; the catalog only shows verified chains.',
     chainNeedRole: 'You need an account. Register your chain here or ask for a business role.',
+    chainUsersDontRegister: 'This account does not register chains',
+    chainUsersDontRegisterLead:
+      'A user looks up the offer. The chain signs up with its own business account.',
     chainLoadError: 'Could not load the chain panel.',
     chainRegisterTitle: 'Register my chain',
     chainName: 'Chain name',
@@ -1027,13 +1059,13 @@ const messages = {
     payGateLead:
       'Choose Mercado Pago or PayPal. The test checkout opens and you pay with the sandbox buyer. No real money is charged.',
     payGateChoose: 'Choose the gateway',
-    payAnotherSlot: 'Buy another slot',
-    payOwned: 'Slots you already have',
+    payAnotherSlot: 'Buy the other window',
+    payOwned: 'Windows you already have',
     payFirstPrice:
-      'The first slot is $2,900 MXN, plus $500 for each extra branch. It lasts 30 days.',
+      'The first window is $2,900 MXN, plus $500 for each extra branch. It lasts 30 days.',
     payExtraPrice:
-      'Each additional slot is $2,900 MXN. The ones you already paid for stay available.',
-    payAllSlots: 'You already have all five slots.',
+      'The other window is $2,900 MXN. The one you already paid for stays available.',
+    payAllSlots: 'You already have Home and Explore.',
     payThisSlot: 'Pay for this slot',
     payMpCta: 'Pay for an ad slot · Mercado Pago',
     payPalCta: 'Pay for an ad slot · PayPal',
@@ -1076,8 +1108,20 @@ const messages = {
     chainAdUploading: 'Uploading the material…',
     chainAdUrl: 'Destination URL (optional)',
     chainAdSlot: 'Slot',
+    chainAdSlotNone:
+      'Pay for an advertising field before choosing where this campaign appears.',
+    adWindow: 'Window',
+    adPosition: 'Position',
+    adPosRandom: 'Random',
+    adPosHomeCard: 'Home card',
+    adPosExploreTop: 'Top of the list',
+    adPosSideLeft: 'Left side',
+    adPosSideRight: 'Right side',
+    adPosHint:
+      'Random fills an open spot in that window that no company has paid to reserve. Choosing the position costs $50 and gets priority.',
+    payPositionCta: 'Pay for this position · $50',
     chainAdSlotHint:
-      'This ad only fills the slot you pick. On the phone it rotates with the other chains that paid for that same space. It does not appear on the other screens.',
+      'You only see the fields you already paid for. This ad fills one of them and rotates with the other chains in that same space.',
     chainAdSlotHome: 'Home',
     chainAdSlotExplore: 'Explore',
     chainAdSlotNear: 'Near',
@@ -1104,6 +1148,20 @@ const messages = {
     until: 'until',
     gpsLabel: 'Near you',
     aroundTitle: 'What’s around you',
+    cercaStageHint: 'Tap a pin with an offer: the map pulls you into the place and opens its promos.',
+    cercaDockEmpty: 'This branch has no official offer linked.',
+    cercaVoteNeedsLink:
+      'The still-valid vote opens when this branch is linked to the offer.',
+    cercaCodeNote:
+      'The chain publishes the discount code, and it is redeemed with the points you earn by showing up and buying here.',
+    cercaPointsOnOffer: 'The chain lists {n} points on this offer.',
+    cercaClose: 'Close',
+    cercaOfferCount: '{n} with an offer',
+    cercaMapKicker: 'Map',
+    cercaMapTitle: 'Branches',
+    cercaMapAria: 'Map of the branches TraGo detected nearby',
+    cercaMapYou: 'You',
+    cercaMapPromos: '{n} promos',
     aroundBody:
       'Find businesses mapped near your GPS location. Save places to view them offline.',
     openNear: 'Open nearby',

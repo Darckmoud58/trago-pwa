@@ -34,8 +34,13 @@ const schema = new mongoose.Schema(
       default: 'solicitud',
     },
     notas: { type: String, default: '' },
-    /** Campos publicitarios ya pagados. Vacío en un plan viejo = Home. */
+    /** Campos / ventanas ya pagados. Vacío en un plan viejo = Inicio. */
     slots: {
+      type: [String],
+      default: [],
+    },
+    /** Posiciones concretas ya pagadas ($50). Aleatoria no se guarda aquí. */
+    posiciones: {
       type: [String],
       default: [],
     },

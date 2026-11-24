@@ -11,6 +11,11 @@ const SLOTS = [
   'cerca_top',
   'side_left',
   'side_right',
+  'inicio_side_left',
+  'inicio_side_right',
+  'explorar_side_left',
+  'explorar_side_right',
+  'aleatoria',
 ];
 
 const schema = new mongoose.Schema(
@@ -39,6 +44,14 @@ const schema = new mongoose.Schema(
       default: 'home_rail',
       index: true,
     },
+    /** inicio | explorar. Vacío en anuncios viejos: se lee del slot. */
+    ventana: {
+      type: String,
+      enum: ['', 'inicio', 'explorar'],
+      default: '',
+    },
+    /** aleatoria, o el id de una posición concreta. */
+    posicion: { type: String, default: '' },
     estatus: {
       type: String,
       enum: ['borrador', 'activo', 'pausado', 'vencido'],

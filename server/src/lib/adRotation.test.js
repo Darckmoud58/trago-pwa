@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isDemoAd, selectSlotRotation } from './adRotation.js';
+import { isDemoAd, selectPlacement, selectSlotRotation } from './adRotation.js';
 
 test('el creativo beta se reconoce como demostración', () => {
   assert.equal(isDemoAd({ slug: 'trago-beta-ads' }), true);
@@ -52,4 +52,38 @@ test('sin pagados, el demo sigue visible en su propio slot', () => {
   );
   assert.equal(picked.length, 1);
   assert.equal(picked[0].titulo, 'Beta · Cerca de ti');
+});
+
+test('quien pagó la posición tiene prioridad sobre la aleatoria', () => {
+  const empresas = {
+    fija: { slug: 'barra', nombre: 'Barra' },
+    libre: { slug: 'mesa', nombre: 'Mesa' },
+  };
+  const picked = selectPlacement(
+    [
+      { id_empresa: 'libre', titulo: 'Mesa aleatoria', posicion: 'aleatoria' },
+      { id_empresa: 'fija', titulo: 'Barra a la izquierda', posicion: 'inicio_side_left' },
+    ],
+    'inicio_side_left',
+    empresas
+  );
+  assert.deepEqual(
+    picked.map((row) => row.titulo),
+    ['Barra a la izquierda']
+  );
+});
+
+test('la aleatoria entra cuando esa posición nadie la pagó', () => {
+  const picked = selectPlacement(
+    [
+      { id_empresa: 'fija', titulo: 'Barra en la tarjeta', posicion: 'home_rail' },
+      { id_empresa: 'libre', titulo: 'Mesa aleatoria', posicion: 'aleatoria' },
+    ],
+    'inicio_side_left',
+    { fija: { slug: 'barra', nombre: 'Barra' }, libre: { slug: 'mesa', nombre: 'Mesa' } }
+  );
+  assert.deepEqual(
+    picked.map((row) => row.titulo),
+    ['Mesa aleatoria']
+  );
 });

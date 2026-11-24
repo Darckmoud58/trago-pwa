@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import Ubicacion from '../models/Ubicacion.js';
 import Pago from '../models/Pago.js';
 import {
+  ownedPositions,
+  ownedWindows,
+  quotePositionPurchase,
   quoteSlotPurchase,
   slotsFromLegacy,
 } from '../lib/pagosPricing.js';
@@ -63,20 +66,32 @@ export async function cotizarPago(req, res) {
     const sub = await findActivePautaSub(empresa._id);
     const owned = slotsFromLegacy(sub);
     const slot = String(req.query.slot || '');
+    const kind = String(req.query.kind || '');
     let quote = null;
     if (slot) {
       try {
-        quote = quoteSlotPurchase({ plan, sucursales, slot, owned });
+        quote =
+          kind === 'posicion'
+            ? quotePositionPurchase({
+                position: slot,
+                windows: ownedWindows(sub),
+                positions: ownedPositions(sub),
+              })
+            : quoteSlotPurchase({ plan, sucursales, slot, owned });
       } catch (err) {
         return res.status(err.status || 400).json({
           message: err.message,
           owned,
+          ventanas: ownedWindows(sub),
+          posiciones: ownedPositions(sub),
         });
       }
     }
     return res.json({
       ...(quote || { plan, sucursales, moneda: 'MXN' }),
       owned,
+      ventanas: ownedWindows(sub),
+      posiciones: ownedPositions(sub),
       provider: resolvePagosProvider(),
       configured: pagosConfigured(),
       gateways: gatewayStatus(),
@@ -122,14 +137,23 @@ export async function crearCheckout(req, res) {
     }
     const sub = await findActivePautaSub(empresa._id);
     const owned = slotsFromLegacy(sub);
+    const kind = String(req.body?.kind || '');
+    const requestedSlot = String(req.body.slot || '');
     let quote;
     try {
-      quote = quoteSlotPurchase({
-        plan: req.body.plan || 'basic',
-        sucursales,
-        slot: String(req.body.slot || ''),
-        owned,
-      });
+      quote =
+        kind === 'posicion'
+          ? quotePositionPurchase({
+              position: requestedSlot,
+              windows: ownedWindows(sub),
+              positions: ownedPositions(sub),
+            })
+          : quoteSlotPurchase({
+              plan: req.body.plan || 'basic',
+              sucursales,
+              slot: requestedSlot,
+              owned,
+            });
     } catch (err) {
       return res.status(err.status || 400).json({ message: err.message, owned });
     }
@@ -146,7 +170,10 @@ export async function crearCheckout(req, res) {
       estatus: 'pending',
       provider,
       sandbox_token,
-      meta: { empresaNombre: empresa.nombre },
+      meta: {
+        empresaNombre: empresa.nombre,
+        kind: quote.kind === 'posicion' ? 'posicion' : 'ventana',
+      },
     });
 
     const session = await createCheckoutSession({

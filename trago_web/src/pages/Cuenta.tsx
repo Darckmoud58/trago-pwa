@@ -266,10 +266,14 @@ export default function Cuenta() {
               <span>{t('settingsFavorites')}</span>
               <em>{favCount}</em>
             </Link>
-            <Link className="settings-row" to="/cadena" viewTransition>
-              <span>{t('titleChain')}</span>
-              <em>›</em>
-            </Link>
+            {['empresa', 'chain', 'admin'].includes(
+              String(user?.rol?.codigo || '')
+            ) && (
+              <Link className="settings-row" to="/cadena" viewTransition>
+                <span>{t('titleChain')}</span>
+                <em>›</em>
+              </Link>
+            )}
             <Link className="settings-row" to="/entrar-empresa" viewTransition>
               <span>{t('bizLoginNav')}</span>
               <em>›</em>

@@ -8,8 +8,14 @@ import {
   puedePauta,
 } from '../lib/pauta.js';
 import { acceptAdChunk, openAdMedia } from '../lib/adMedia.js';
-import { selectSlotRotation } from '../lib/adRotation.js';
-import { slotsFromLegacy } from '../lib/pagosPricing.js';
+import { selectPlacement } from '../lib/adRotation.js';
+import {
+  legacySlotsFor,
+  ownedPositions,
+  ownedWindows,
+  resolveCreativePlacement,
+  windowForPosition,
+} from '../lib/pagosPricing.js';
 import { sanitizeHttpUrl, sanitizeMediaUrl } from '../lib/safeUrl.js';
 
 function clipStr(raw, max = 500) {
@@ -31,6 +37,8 @@ function mapAnuncio(a, empresaById = {}) {
     termina: a.termina,
     zonas: a.zonas || [],
     slot: a.slot,
+    ventana: a.ventana || '',
+    posicion: a.posicion || '',
     estatus: a.estatus,
     alcohol: Boolean(a.alcohol),
     impresiones: a.impresiones || 0,
@@ -47,6 +55,33 @@ function assertOwnEmpresa(req) {
     throw err;
   }
   return req.empresa;
+}
+
+async function assertCanPublish(req, empresa, doc) {
+  if (req.isAdmin) return;
+  const sub = await findActivePautaSub(empresa._id);
+  const ventana =
+    (doc.ventana === 'inicio' || doc.ventana === 'explorar' ? doc.ventana : '') ||
+    windowForPosition(doc.posicion) ||
+    windowForPosition(doc.slot) ||
+    (doc.slot === 'side_left' || doc.slot === 'side_right' ? 'inicio' : '');
+  const posicion =
+    doc.posicion ||
+    (doc.slot && doc.slot !== 'aleatoria' ? doc.slot : 'aleatoria');
+  if (!ownedWindows(sub).includes(ventana)) {
+    const err = new Error(
+      'Esa ventana no está pagada. Puedes comprar Inicio o Explorar sin perder la otra.'
+    );
+    err.status = 402;
+    throw err;
+  }
+  if (posicion !== 'aleatoria' && !ownedPositions(sub).includes(posicion)) {
+    const err = new Error(
+      'Esa posición cuesta $50. Puedes dejar el anuncio en aleatoria o pagar la posición.'
+    );
+    err.status = 402;
+    throw err;
+  }
 }
 
 async function requirePauta(req) {
@@ -162,9 +197,7 @@ export async function createAnuncio(req, res) {
     if (!titulo) {
       return res.status(400).json({ message: 'titulo es requerido' });
     }
-    const slot = ANUNCIO_SLOTS.includes(req.body.slot)
-      ? req.body.slot
-      : 'home_rail';
+    const placement = resolveCreativePlacement(req.body);
     const zonasRaw = req.body.zonas;
     const zonas = Array.isArray(zonasRaw)
       ? zonasRaw.map((z) => clipStr(z, 32).toLowerCase()).filter(Boolean)
@@ -180,7 +213,9 @@ export async function createAnuncio(req, res) {
       inicia: req.body.inicia ? new Date(req.body.inicia) : null,
       termina: req.body.termina ? new Date(req.body.termina) : null,
       zonas: zonas.length ? zonas : ['gdl'],
-      slot,
+      slot: placement.slot,
+      ventana: placement.ventana,
+      posicion: placement.posicion,
       estatus: 'borrador',
       alcohol: Boolean(req.body.alcohol),
     });
@@ -194,8 +229,8 @@ export async function createAnuncio(req, res) {
     if (e.status === 404) {
       return res.status(404).json({ message: 'Registra tu cadena primero' });
     }
-    if (e.status === 402) {
-      return res.status(402).json({ message: e.message });
+    if (e.status === 400 || e.status === 402) {
+      return res.status(e.status).json({ message: e.message });
     }
     console.error('createAnuncio:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
@@ -242,8 +277,15 @@ export async function updateAnuncio(req, res) {
     if (req.body.termina !== undefined) {
       doc.termina = req.body.termina ? new Date(req.body.termina) : null;
     }
-    if (ANUNCIO_SLOTS.includes(req.body.slot)) {
-      doc.slot = req.body.slot;
+    if (req.body.ventana != null || req.body.posicion != null || req.body.slot != null) {
+      const placement = resolveCreativePlacement({
+        ventana: req.body.ventana || doc.ventana,
+        posicion: req.body.posicion || doc.posicion,
+        slot: req.body.slot || doc.slot,
+      });
+      doc.ventana = placement.ventana;
+      doc.posicion = placement.posicion;
+      doc.slot = placement.slot;
     }
     if (Array.isArray(req.body.zonas)) {
       const zonas = req.body.zonas
@@ -268,8 +310,8 @@ export async function updateAnuncio(req, res) {
     if (e.status === 404) {
       return res.status(404).json({ message: 'Registra tu cadena primero' });
     }
-    if (e.status === 402) {
-      return res.status(402).json({ message: e.message });
+    if (e.status === 400 || e.status === 402) {
+      return res.status(e.status).json({ message: e.message });
     }
     console.error('updateAnuncio:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
@@ -291,12 +333,7 @@ export async function activateAnuncio(req, res) {
     if (!doc.titulo) {
       return res.status(400).json({ message: 'El anuncio necesita título' });
     }
-    if (!req.isAdmin && !slotsFromLegacy(sub).includes(doc.slot)) {
-      return res.status(402).json({
-        message:
-          'Ese campo no está pagado. Puedes comprarlo sin perder los que ya tienes.',
-      });
-    }
+    if (!req.isAdmin) await assertCanPublish(req, empresa, doc);
     await Anuncio.updateMany(
       {
         id_empresa: empresa._id,
@@ -318,8 +355,8 @@ export async function activateAnuncio(req, res) {
     if (e.status === 404) {
       return res.status(404).json({ message: 'Registra tu cadena primero' });
     }
-    if (e.status === 402) {
-      return res.status(402).json({ message: e.message });
+    if (e.status === 400 || e.status === 402) {
+      return res.status(e.status).json({ message: e.message });
     }
     console.error('activateAnuncio:', e.message);
     return res.status(500).json({ message: 'Error del servidor' });
@@ -458,6 +495,8 @@ export async function serveAnuncios(req, res) {
     const zona = clipStr(req.query.zona || 'gdl', 32).toLowerCase() || 'gdl';
     const now = new Date();
 
+    const ventana = windowForPosition(slot);
+    const also = legacySlotsFor(slot);
     const filter = {
       estatus: 'activo',
       $and: [
@@ -466,9 +505,21 @@ export async function serveAnuncios(req, res) {
         {
           $or: [{ zonas: zona }, { zonas: { $size: 0 } }, { zonas: 'all' }],
         },
+        {
+          $or: [
+            { slot },
+            { posicion: slot },
+            ...also.map((legacy) => ({ slot: legacy })),
+            ...(ventana
+              ? [
+                  { posicion: 'aleatoria', ventana },
+                  { slot: 'aleatoria', ventana },
+                ]
+              : []),
+          ],
+        },
       ],
     };
-    filter.slot = slot;
 
     const rows = await Anuncio.find(filter)
       .sort({ updatedAt: -1 })
@@ -515,7 +566,7 @@ export async function serveAnuncios(req, res) {
       eligible.push(row);
     }
 
-    const rotation = selectSlotRotation(eligible, empresaById);
+    const rotation = selectPlacement(eligible, slot, empresaById);
     return res.json({
       slot,
       anuncios: rotation.slice(0, 12).map((row) => mapAnuncio(row, empresaById)),
