@@ -1,10 +1,62 @@
 .app-shell {
+  position: relative;
+  isolation: isolate;
   min-height: 100svh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--bg);
   transition: background-color 0.45s ease, color 0.35s ease;
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: '';
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(36px);
+}
+
+.app-shell::before {
+  width: 22rem;
+  height: 22rem;
+  top: -6rem;
+  right: -7rem;
+  background: radial-gradient(circle, rgba(216, 26, 28, 0.34), transparent 68%);
+  animation: ambient-drift 16s ease-in-out infinite alternate;
+}
+
+.app-shell::after {
+  width: 18rem;
+  height: 18rem;
+  bottom: 5rem;
+  left: -7rem;
+  background: radial-gradient(circle, rgba(247, 229, 181, 0.55), transparent 70%);
+  animation: ambient-drift 20s ease-in-out infinite alternate-reverse;
+}
+
+.app-body {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-18px, 24px, 0) scale(1.08);
+  }
+}
+
+html[data-theme='night'] .app-shell::before {
+  opacity: 0.7;
+}
+
+html[data-theme='night'] .app-shell::after {
+  opacity: 0.22;
 }
 
 .app-shell.is-day {
@@ -40,6 +92,11 @@
 
 @media (prefers-reduced-motion: reduce) {
   .app-shell.is-offline .app-main {
+    animation: none;
+  }
+
+  .app-shell::before,
+  .app-shell::after {
     animation: none;
   }
 }

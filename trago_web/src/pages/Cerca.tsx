@@ -829,7 +829,7 @@ export default function Cerca() {
               )}
             </p>
           </div>
-          <div className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
+          <div className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${selectedSpot && !absorbingId ? ' is-focused' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
             <NearMap
               places={spots}
               you={originKind === 'gps' ? userOrigin : null}
