@@ -57,10 +57,14 @@ type AnuncioRow = {
   video_url?: string;
   url_destino?: string;
   slot?: string;
+  ventana?: string;
+  posicion?: string;
   estatus?: string;
   impresiones?: number;
   clics?: number;
 };
+
+const MAX_AD_DRAFTS = 10;
 
 type SuscripcionRow = {
   _id?: string;
@@ -302,6 +306,11 @@ export default function Cadena() {
     return vigencia.filter((r) => r.crowdStatus === mapFilter);
   }, [vigencia, mapFilter]);
 
+  const draftCount = useMemo(
+    () => anuncios.filter((a) => a.estatus === 'borrador').length,
+    [anuncios]
+  );
+
   if (!token) {
     return <Navigate to="/entrar" replace />;
   }
@@ -453,12 +462,47 @@ export default function Cadena() {
     }
   }
 
-  async function onCreateAnuncio(e: FormEvent) {
-    e.preventDefault();
+  function canPublishPlacement() {
+    const vents = suscripcion?.ventanas || [];
+    if (!puedePauta || !vents.includes(adVentana)) return false;
+    if (adPosicion === 'aleatoria') return true;
+    return (suscripcion?.posiciones || []).includes(adPosicion);
+  }
+
+  async function submitAnuncio(mode: 'borrador' | 'publicar') {
     setBusy(true);
     setError('');
     setInfo('');
     try {
+      if (!adTitulo.trim()) {
+        setError(t('chainAdTitleRequired'));
+        return;
+      }
+      if (mode === 'borrador' && draftCount >= MAX_AD_DRAFTS) {
+        setError(
+          t('chainAdDraftLimit')
+            .replace('{max}', String(MAX_AD_DRAFTS))
+        );
+        return;
+      }
+      if (mode === 'publicar') {
+        if (!puedePauta) {
+          setError(t('chainAdPublishNeedPauta'));
+          return;
+        }
+        if (!(suscripcion?.ventanas || []).includes(adVentana)) {
+          setError(t('chainAdPublishNeedWindow'));
+          return;
+        }
+        if (
+          adPosicion !== 'aleatoria' &&
+          !(suscripcion?.posiciones || []).includes(adPosicion)
+        ) {
+          setError(t('chainAdPublishNeedPosition'));
+          return;
+        }
+      }
+
       let imagen = adImagen.trim();
       let video = adVideo.trim();
       if (adPosterFile || adVideoFile) setInfo(t('chainAdUploading'));
@@ -486,6 +530,7 @@ export default function Cadena() {
         zonas: ['gdl'],
         inicia: adInicia || null,
         termina: adTermina || null,
+        publicar: mode === 'publicar',
       });
       setAdTitulo('');
       setAdCopy('');
@@ -498,7 +543,7 @@ export default function Cadena() {
       setCreativeKey((key) => key + 1);
       setAdInicia('');
       setAdTermina('');
-      setInfo(t('chainAdSave'));
+      setInfo(mode === 'publicar' ? t('chainAdPublishOk') : t('chainAdDraftOk'));
       await load();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
@@ -508,6 +553,11 @@ export default function Cadena() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onCreateAnuncio(e: FormEvent) {
+    e.preventDefault();
+    await submitAnuncio('borrador');
   }
 
   async function onActivateAnuncio(id: string) {
@@ -850,6 +900,11 @@ export default function Cadena() {
             )}
             <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
                 <p className="muted">{t('chainAdDraftHint')}</p>
+                <p className="meta">
+                  {t('chainAdDraftCount')
+                    .replace('{n}', String(draftCount))
+                    .replace('{max}', String(MAX_AD_DRAFTS))}
+                </p>
                 <label>
                   {t('chainAdTitle')}
                   <input
@@ -977,9 +1032,26 @@ export default function Cadena() {
                       {t('payPositionCta')}
                     </button>
                   )}
-                <button className="btn primary" type="submit" disabled={busy}>
-                  {t('chainAdSave')}
-                </button>
+                {!canPublishPlacement() && (
+                  <p className="meta">{t('chainAdPublishHint')}</p>
+                )}
+                <div className="cadena-row">
+                  <button
+                    className="btn ghost"
+                    type="submit"
+                    disabled={busy || draftCount >= MAX_AD_DRAFTS}
+                  >
+                    {t('chainAdSave')}
+                  </button>
+                  <button
+                    className="btn primary"
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void submitAnuncio('publicar')}
+                  >
+                    {t('chainAdPublish')}
+                  </button>
+                </div>
               </form>
             {anuncios.length === 0 ? (
               <p className="muted">{t('chainAdsEmpty')}</p>
@@ -1009,7 +1081,7 @@ export default function Cadena() {
                           disabled={busy}
                           onClick={() => void onActivateAnuncio(a._id)}
                         >
-                          {t('chainAdActivate')}
+                          {t('chainAdPublish')}
                         </button>
                       )}
                       {a.estatus === 'activo' && puedePauta && (

@@ -438,7 +438,22 @@ const messages = {
     payBranchMany: 'sucursales',
     payDays: 'días',
     chainAdDraftHint:
-      'Puedes guardar varias campañas en borrador sin pagar de nuevo. Activarlas sí exige el campo pagado.',
+      'Puedes guardar hasta 10 campañas en borrador sin pagar de nuevo. Publicar sí exige ventana y posición pagadas.',
+    chainAdDraftCount: 'Borradores: {n} de {max}',
+    chainAdDraftOk: 'Borrador guardado. Puedes crear otro cuando quieras.',
+    chainAdDraftLimit:
+      'Llegaste al máximo de {max} borradores. Publica o elimina uno para crear otro.',
+    chainAdTitleRequired: 'El anuncio necesita un título.',
+    chainAdPublish: 'Publicar',
+    chainAdPublishOk: 'Campaña publicada en el campo pagado.',
+    chainAdPublishHint:
+      'Para publicar necesitas la ventana pagada. Si elegiste una posición concreta, también esos $50.',
+    chainAdPublishNeedPauta:
+      'Necesitas un campo publicitario activo para publicar. Puedes guardar borrador sin pagar.',
+    chainAdPublishNeedWindow:
+      'Esa ventana no está pagada. Compra Inicio o Explorar, o guarda el borrador.',
+    chainAdPublishNeedPosition:
+      'Esa posición cuesta $50. Págala, elige Aleatoria, o guarda el borrador.',
     bizBranchOptional: 'Primera sucursal (opcional)',
     bizBranchName: 'Nombre del local',
     bizBranchStreet: 'Calle y número',
@@ -478,7 +493,7 @@ const messages = {
     chainAdSlotSideLeft: 'Lateral izquierdo',
     chainAdSlotSideRight: 'Lateral derecho',
     chainAdSave: 'Guardar borrador',
-    chainAdActivate: 'Activar',
+    chainAdActivate: 'Publicar',
     chainAdPause: 'Pausar',
     chainAdsEmpty: 'Aún no tienes anuncios.',
     chainAdDraft: 'Borrador',
@@ -1168,7 +1183,22 @@ const messages = {
     payBranchMany: 'branches',
     payDays: 'days',
     chainAdDraftHint:
-      'You can save several draft campaigns without paying again. Activating them still needs a paid slot.',
+      'You can save up to 10 draft campaigns without paying again. Publishing still needs a paid window and position.',
+    chainAdDraftCount: 'Drafts: {n} of {max}',
+    chainAdDraftOk: 'Draft saved. You can create another whenever you want.',
+    chainAdDraftLimit:
+      'You reached the {max}-draft limit. Publish or remove one to create another.',
+    chainAdTitleRequired: 'The ad needs a title.',
+    chainAdPublish: 'Publish',
+    chainAdPublishOk: 'Campaign published on the paid placement.',
+    chainAdPublishHint:
+      'Publishing needs a paid window. A concrete position also needs the $50 add-on.',
+    chainAdPublishNeedPauta:
+      'You need an active ad plan to publish. You can still save a draft without paying.',
+    chainAdPublishNeedWindow:
+      'That window is not paid. Buy Home or Explore, or save the draft.',
+    chainAdPublishNeedPosition:
+      'That position costs $50. Pay for it, pick Random, or save the draft.',
     bizBranchOptional: 'First branch (optional)',
     bizBranchName: 'Branch name',
     bizBranchStreet: 'Street and number',
@@ -1208,7 +1238,7 @@ const messages = {
     chainAdSlotSideLeft: 'Left rail',
     chainAdSlotSideRight: 'Right rail',
     chainAdSave: 'Save draft',
-    chainAdActivate: 'Activate',
+    chainAdActivate: 'Publish',
     chainAdPause: 'Pause',
     chainAdsEmpty: 'No ads yet.',
     chainAdDraft: 'Draft',
