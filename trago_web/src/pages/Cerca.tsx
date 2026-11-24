@@ -8,7 +8,7 @@ import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
 import NearMap from '../components/NearMap';
 import ValidityVote from '../components/ValidityVote';
-import SponsoredSlot, { useSlotAds } from '../components/SponsoredSlot';
+import SponsoredSlot, { useSlotAds, weaveAdAt } from '../components/SponsoredSlot';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
@@ -919,8 +919,7 @@ export default function Cerca() {
                 originLng: userOrigin?.lng,
                 distanceMeters: b.distanceMeters,
               });
-              const nextAd = cercaAds[Math.floor((index + 1) / 6)];
-              const showNextAd = (index + 1) % 6 === 0 && Boolean(nextAd);
+              const nextAd = weaveAdAt(cercaAds, index, 6);
               return (
                 <Fragment key={id}>
                 <li
@@ -1007,7 +1006,7 @@ export default function Cerca() {
                     </div>
                   </div>
                 </li>
-                {showNextAd && nextAd ? (
+                {nextAd ? (
                   <li className="cerca-place-ad">
                     <SponsoredSlot
                       slot="cerca_top"

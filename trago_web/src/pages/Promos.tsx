@@ -4,7 +4,7 @@ import { api } from '../api';
 import OfflineState from '../components/OfflineState';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
-import SponsoredSlot, { useSlotAds } from '../components/SponsoredSlot';
+import SponsoredSlot, { useSlotAds, weaveAdAt } from '../components/SponsoredSlot';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import {
@@ -419,8 +419,7 @@ export default function Promos() {
           const end = p.termina_en || p.endsAt;
           const left = daysLeft(end);
           const img = resolveMediaUrl(p.imagen || p.imageUrl);
-          const nextAd = exploreAds[Math.floor((index + 1) / 6)];
-          const showNextAd = (index + 1) % 6 === 0 && Boolean(nextAd);
+          const nextAd = weaveAdAt(exploreAds, index, 6);
 
           return (
             <Fragment key={p._id}>
@@ -479,7 +478,7 @@ export default function Promos() {
                 </div>
               </div>
             </article>
-            {showNextAd && nextAd ? (
+            {nextAd ? (
               <SponsoredSlot
                 slot="explorar_mid"
                 fixedAd={nextAd}
