@@ -4,12 +4,15 @@ import { api } from '../api';
 import { useI18n } from '../lib/i18n';
 import './Cadena.css';
 
-const SLOT_LABEL: Record<string, 'chainAdSlotHome' | 'chainAdSlotExplore' | 'chainAdSlotNear' | 'chainAdSlotSideLeft' | 'chainAdSlotSideRight'> = {
-  home_rail: 'chainAdSlotHome',
-  explorar_mid: 'chainAdSlotExplore',
-  cerca_top: 'chainAdSlotNear',
-  side_left: 'chainAdSlotSideLeft',
-  side_right: 'chainAdSlotSideRight',
+const SLOT_LABEL: Record<string, string> = {
+  inicio: 'chainAdSlotHome',
+  explorar: 'chainAdSlotExplore',
+  home_rail: 'adPosHomeCard',
+  inicio_side_left: 'adPosSideLeft',
+  inicio_side_right: 'adPosSideRight',
+  explorar_mid: 'adPosExploreTop',
+  explorar_side_left: 'adPosSideLeft',
+  explorar_side_right: 'adPosSideRight',
 };
 
 type Quote = {
@@ -25,6 +28,7 @@ export default function PagarCampo() {
   const { t } = useI18n();
   const [params] = useSearchParams();
   const slot = params.get('slot') || '';
+  const kind = params.get('kind') === 'posicion' ? 'posicion' : 'ventana';
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState<'mercadopago' | 'paypal' | ''>('');
@@ -34,7 +38,7 @@ export default function PagarCampo() {
     setError('');
     setQuote(null);
     void api
-      .get('/api/cadena/pagos/cotizar', { params: { plan: 'basic', slot } })
+      .get('/api/cadena/pagos/cotizar', { params: { plan: 'basic', slot, kind } })
       .then((res) => {
         if (!cancelled) setQuote(res.data as Quote);
       })
@@ -46,7 +50,7 @@ export default function PagarCampo() {
     return () => {
       cancelled = true;
     };
-  }, [slot, t]);
+  }, [slot, kind, t]);
 
   async function pay(provider: 'mercadopago' | 'paypal') {
     setBusy(provider);
@@ -55,6 +59,7 @@ export default function PagarCampo() {
       const res = await api.post('/api/cadena/pagos/checkout', {
         plan: 'basic',
         slot,
+        kind,
         provider,
       });
       const url = String(res.data.checkout_url || '');
@@ -71,14 +76,14 @@ export default function PagarCampo() {
     }
   }
 
-  const slotName = SLOT_LABEL[slot] ? t(SLOT_LABEL[slot]) : slot;
+  const slotName = SLOT_LABEL[slot] ? t(SLOT_LABEL[slot] as 'chainAdSlotHome') : slot;
 
   return (
     <section className="cadena-page">
       <p className="meta">
         <Link to="/cadena">← {t('chainTitle')}</Link>
       </p>
-      <h1>{t('payGateTitle')}</h1>
+      <h1>{kind === 'posicion' ? t('payPositionCta') : t('payGateTitle')}</h1>
       <p className="lead">{t('payGateLead')}</p>
 
       {error && <p className="error">{error}</p>}

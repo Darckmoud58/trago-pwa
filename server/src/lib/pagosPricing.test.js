@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import {
   quoteSubscription,
   quoteSlotPurchase,
+  quotePositionPurchase,
   slotsFromLegacy,
+  resolveCreativePlacement,
   PLAN_BASE_MXN,
+  POSITION_EXTRA_MXN,
 } from './pagosPricing.js';
 import {
   resolvePagosProvider,
@@ -47,26 +50,27 @@ describe('quoteSlotPurchase', () => {
     assert.equal(q.monto, PLAN_BASE_MXN.basic + 500);
   });
 
-  it('un campo extra cuesta el base y no repite las sucursales', () => {
+  it('la otra ventana cuesta el base y no repite las sucursales', () => {
     const q = quoteSlotPurchase({
       plan: 'basic',
       sucursales: 2,
-      slot: 'cerca_top',
+      slot: 'explorar',
       owned: ['home_rail'],
     });
     assert.equal(q.kind, 'campo_extra');
+    assert.equal(q.slot, 'explorar');
     assert.equal(q.monto, PLAN_BASE_MXN.basic);
     assert.equal(q.extra, 0);
   });
 
-  it('no vuelve a cobrar un campo que ya está pagado', () => {
+  it('no vuelve a cobrar una ventana que ya está pagada', () => {
     assert.throws(
       () =>
         quoteSlotPurchase({
-          slot: 'home_rail',
+          slot: 'inicio',
           owned: ['home_rail'],
         }),
-      /ya está pagado/
+      /ya está pagada/
     );
   });
 
@@ -75,6 +79,41 @@ describe('quoteSlotPurchase', () => {
       slotsFromLegacy({ activo: true, estatus: 'activo', slots: [] }),
       ['home_rail']
     );
+  });
+});
+
+describe('quotePositionPurchase', () => {
+  it('elegir posición cuesta 50 pesos si la ventana ya está pagada', () => {
+    const q = quotePositionPurchase({
+      position: 'inicio_side_left',
+      windows: ['inicio'],
+      positions: ['home_rail'],
+    });
+    assert.equal(q.kind, 'posicion');
+    assert.equal(q.monto, POSITION_EXTRA_MXN);
+  });
+
+  it('no cobra la posición sin la ventana', () => {
+    assert.throws(
+      () => quotePositionPurchase({ position: 'explorar_mid', windows: ['inicio'] }),
+      /Primero paga la ventana/
+    );
+  });
+});
+
+describe('resolveCreativePlacement', () => {
+  it('permite varios borradores, uno aleatorio y otro en otra ventana', () => {
+    const first = resolveCreativePlacement({
+      ventana: 'inicio',
+      posicion: 'aleatoria',
+    });
+    const second = resolveCreativePlacement({
+      ventana: 'explorar',
+      posicion: 'explorar_mid',
+    });
+    assert.equal(first.slot, 'aleatoria');
+    assert.equal(second.ventana, 'explorar');
+    assert.equal(second.slot, 'explorar_mid');
   });
 });
 

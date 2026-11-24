@@ -40,3 +40,46 @@ export function selectSlotRotation(rows, empresaById = {}) {
   }
   return out;
 }
+
+/**
+ * Quien pagó una posición concreta se queda con ella.
+ * Aleatoria solo entra si esa posición nadie la reservó.
+ * @param {Array<{ id_empresa?: unknown, titulo?: string, slot?: string, posicion?: string }>} rows
+ * @param {string} position
+ * @param {Record<string, { slug?: string, nombre?: string }>} empresaById
+ */
+export function selectPlacement(rows, position, empresaById = {}) {
+  const reserved = [];
+  const randoms = [];
+  for (const row of rows || []) {
+    const chosen = chosenPlacement(row);
+    if (chosen === 'aleatoria') randoms.push(row);
+    else if (chosen === position) reserved.push(row);
+  }
+  const reservedPaid = reserved.filter((row) => !rowIsDemo(row, empresaById));
+  const randomPaid = randoms.filter((row) => !rowIsDemo(row, empresaById));
+  const pool = reservedPaid.length
+    ? reservedPaid
+    : randomPaid.length
+      ? randomPaid
+      : rows || [];
+  return selectSlotRotation(pool, empresaById);
+}
+
+function chosenPlacement(row) {
+  const posicion = String(row?.posicion || '');
+  if (posicion === 'aleatoria') return 'aleatoria';
+  if (posicion) return posicion;
+  const slot = String(row?.slot || '');
+  if (!slot || slot === 'aleatoria') return 'aleatoria';
+  return slot;
+}
+
+function rowIsDemo(row, empresaById) {
+  const emp = empresaById[String(row?.id_empresa)] || {};
+  return isDemoAd({
+    titulo: row?.titulo,
+    slug: emp.slug,
+    nombre: emp.nombre,
+  });
+}

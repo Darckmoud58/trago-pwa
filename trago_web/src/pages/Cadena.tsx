@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, readToken, saveToken, setAuth } from '../api';
+import { api, readToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
-import { useI18n } from '../lib/i18n';
+import { useI18n, type MessageKey } from '../lib/i18n';
 import { uploadCreative } from '../lib/uploadCreative';
 import './Cadena.css';
 
@@ -69,15 +69,41 @@ type SuscripcionRow = {
   activo?: boolean;
   termina?: string | null;
   slots?: string[];
+  ventanas?: string[];
+  posiciones?: string[];
 };
 
-const PAY_SLOTS = [
-  ['home_rail', 'chainAdSlotHome'],
-  ['explorar_mid', 'chainAdSlotExplore'],
-  ['cerca_top', 'chainAdSlotNear'],
-  ['side_left', 'chainAdSlotSideLeft'],
-  ['side_right', 'chainAdSlotSideRight'],
+const WINDOWS = [
+  ['inicio', 'chainAdSlotHome'],
+  ['explorar', 'chainAdSlotExplore'],
 ] as const;
+
+const POSITIONS = {
+  inicio: [
+    ['aleatoria', 'adPosRandom'],
+    ['home_rail', 'adPosHomeCard'],
+    ['inicio_side_left', 'adPosSideLeft'],
+    ['inicio_side_right', 'adPosSideRight'],
+  ],
+  explorar: [
+    ['aleatoria', 'adPosRandom'],
+    ['explorar_mid', 'adPosExploreTop'],
+    ['explorar_side_left', 'adPosSideLeft'],
+    ['explorar_side_right', 'adPosSideRight'],
+  ],
+} as const;
+
+function placementName(
+  ad: { ventana?: string; posicion?: string; slot?: string },
+  t: (key: MessageKey) => string
+) {
+  const ventana = ad.ventana === 'explorar' ? 'explorar' : 'inicio';
+  const posicion =
+    ad.posicion || (ad.slot && ad.slot !== 'aleatoria' ? ad.slot : 'aleatoria');
+  const row = (POSITIONS[ventana] || POSITIONS.inicio).find(([id]) => id === posicion);
+  const windowLabel = t(ventana === 'explorar' ? 'chainAdSlotExplore' : 'chainAdSlotHome');
+  return `${windowLabel} · ${row ? t(row[1]) : t('adPosRandom')}`;
+}
 
 export default function Cadena() {
   const { t } = useI18n();
@@ -91,9 +117,6 @@ export default function Cadena() {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const [regNombre, setRegNombre] = useState('');
-  const [regDesc, setRegDesc] = useState('');
 
   const [sucNombre, setSucNombre] = useState('');
   const [sucCalle, setSucCalle] = useState('');
@@ -130,8 +153,9 @@ export default function Cadena() {
   const [adImagen, setAdImagen] = useState('');
   const [adVideo, setAdVideo] = useState('');
   const [adUrl, setAdUrl] = useState('');
-  const [adSlot, setAdSlot] = useState('home_rail');
-  const [paySlot, setPaySlot] = useState('cerca_top');
+  const [adVentana, setAdVentana] = useState<'inicio' | 'explorar'>('inicio');
+  const [adPosicion, setAdPosicion] = useState('aleatoria');
+  const [paySlot, setPaySlot] = useState('inicio');
   const [adPosterFile, setAdPosterFile] = useState<File | null>(null);
   const [adVideoFile, setAdVideoFile] = useState<File | null>(null);
   const [adInicia, setAdInicia] = useState('');
@@ -258,11 +282,17 @@ export default function Cadena() {
   }, [adVideoFile]);
 
   useEffect(() => {
-    const owned = suscripcion?.slots || [];
+    const owned = suscripcion?.ventanas || [];
     if (!owned.includes(paySlot)) return;
-    const next = PAY_SLOTS.find(([id]) => !owned.includes(id));
+    const next = WINDOWS.find(([id]) => !owned.includes(id));
     if (next) setPaySlot(next[0]);
   }, [suscripcion, paySlot]);
+
+  useEffect(() => {
+    const options = POSITIONS[adVentana];
+    if (options.some(([id]) => id === adPosicion)) return;
+    setAdPosicion('aleatoria');
+  }, [adVentana, adPosicion]);
 
   const filteredVigencia = useMemo(() => {
     if (mapFilter === 'all') return vigencia;
@@ -271,31 +301,6 @@ export default function Cadena() {
 
   if (!token) {
     return <Navigate to="/entrar" replace />;
-  }
-
-  async function onRegister(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    setInfo('');
-    try {
-      const res = await api.post('/api/cadena/registro', {
-        nombre: regNombre,
-        descripcion: regDesc,
-      });
-      if (res.data.token) {
-        saveToken(res.data.token);
-      }
-      setInfo(res.data.message || t('chainRegistered'));
-      setRegNombre('');
-      setRegDesc('');
-      await load();
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || t('chainRegisterError'));
-    } finally {
-      setBusy(false);
-    }
   }
 
   function elegirLugar(item: Lugar) {
@@ -472,7 +477,9 @@ export default function Cadena() {
         imagen_url: imagen,
         video_url: video,
         url_destino: adUrl,
-        slot: adSlot,
+        slot: adPosicion,
+        ventana: adVentana,
+        posicion: adPosicion,
         zonas: ['gdl'],
         inicia: adInicia || null,
         termina: adTermina || null,
@@ -482,7 +489,7 @@ export default function Cadena() {
       setAdImagen('');
       setAdVideo('');
       setAdUrl('');
-      setAdSlot('home_rail');
+      setAdPosicion('aleatoria');
       setAdPosterFile(null);
       setAdVideoFile(null);
       setCreativeKey((key) => key + 1);
@@ -553,34 +560,11 @@ export default function Cadena() {
 
       {!loading && !empresa && (
         <article className="cadena-card">
-          <h2>{t('bizRegisterTitle')}</h2>
-          <p className="muted">{t('bizRegisterLead')}</p>
-          <p className="meta">{t('chainNeedRole')}</p>
-          <Link className="btn primary" to="/registro-empresa" viewTransition>
-            {t('bizRegisterSubmit')}
+          <h2>{t('chainUsersDontRegister')}</h2>
+          <p className="muted">{t('chainUsersDontRegisterLead')}</p>
+          <Link className="btn ghost" to="/cuenta" viewTransition>
+            {t('titleAccount')}
           </Link>
-          <form className="cadena-ad-form" onSubmit={onRegister}>
-            <p className="muted">{t('chainRegisterTitle')}</p>
-            <label>
-              {t('chainName')}
-              <input
-                value={regNombre}
-                onChange={(e) => setRegNombre(e.target.value)}
-                required
-              />
-            </label>
-            <label>
-              {t('chainDesc')}
-              <textarea
-                value={regDesc}
-                onChange={(e) => setRegDesc(e.target.value)}
-                rows={3}
-              />
-            </label>
-            <button className="btn ghost" type="submit" disabled={busy}>
-              {t('chainRegisterCta')}
-            </button>
-          </form>
         </article>
       )}
 
@@ -806,18 +790,17 @@ export default function Cadena() {
                   : t('chainAdsNeedPlan')}
               {suscripcion?.plan ? ` · ${suscripcion.plan}` : ''}
             </p>
-            {(suscripcion?.slots || []).length > 0 && (
+            {(suscripcion?.ventanas || []).length > 0 && (
               <p className="meta">
                 {t('payOwned')}:{' '}
-                {(suscripcion?.slots || [])
-                  .map((id) => {
-                    const row = PAY_SLOTS.find(([slot]) => slot === id);
-                    return row ? t(row[1]) : id;
-                  })
+                {(suscripcion?.ventanas || [])
+                  .map((id) =>
+                    t(id === 'explorar' ? 'chainAdSlotExplore' : 'chainAdSlotHome')
+                  )
                   .join(' · ')}
               </p>
             )}
-            {PAY_SLOTS.some(([id]) => !(suscripcion?.slots || []).includes(id)) ? (
+            {WINDOWS.some(([id]) => !(suscripcion?.ventanas || []).includes(id)) ? (
               <>
                 <label>
                   {puedePauta ? t('payAnotherSlot') : t('payCheckoutCta')}
@@ -825,8 +808,8 @@ export default function Cadena() {
                     value={paySlot}
                     onChange={(e) => setPaySlot(e.target.value)}
                   >
-                    {PAY_SLOTS.filter(
-                      ([id]) => !(suscripcion?.slots || []).includes(id)
+                    {WINDOWS.filter(
+                      ([id]) => !(suscripcion?.ventanas || []).includes(id)
                     ).map(([id, label]) => (
                       <option key={id} value={id}>
                         {t(label)}
@@ -841,7 +824,9 @@ export default function Cadena() {
                   type="button"
                   className="btn primary"
                   onClick={() =>
-                    navigate(`/cadena/pagar?slot=${encodeURIComponent(paySlot)}`)
+                    navigate(
+                      `/cadena/pagar?slot=${encodeURIComponent(paySlot)}&kind=ventana`
+                    )
                   }
                 >
                   {t('payCheckoutCta')}
@@ -946,19 +931,48 @@ export default function Cadena() {
                   />
                 </label>
                 <label>
-                  {t('chainAdSlot')}
+                  {t('adWindow')}
                   <select
-                    value={adSlot}
-                    onChange={(e) => setAdSlot(e.target.value)}
+                    value={adVentana}
+                    onChange={(e) =>
+                      setAdVentana(e.target.value === 'explorar' ? 'explorar' : 'inicio')
+                    }
                   >
-                    <option value="home_rail">{t('chainAdSlotHome')}</option>
-                    <option value="explorar_mid">{t('chainAdSlotExplore')}</option>
-                    <option value="cerca_top">{t('chainAdSlotNear')}</option>
-                    <option value="side_left">{t('chainAdSlotSideLeft')}</option>
-                    <option value="side_right">{t('chainAdSlotSideRight')}</option>
+                    {WINDOWS.map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {t(label)}
+                      </option>
+                    ))}
                   </select>
-                  <span className="meta">{t('chainAdSlotHint')}</span>
                 </label>
+                <label>
+                  {t('adPosition')}
+                  <select
+                    value={adPosicion}
+                    onChange={(e) => setAdPosicion(e.target.value)}
+                  >
+                    {POSITIONS[adVentana].map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {t(label)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="meta">{t('adPosHint')}</span>
+                </label>
+                {adPosicion !== 'aleatoria' &&
+                  !(suscripcion?.posiciones || []).includes(adPosicion) && (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() =>
+                        navigate(
+                          `/cadena/pagar?slot=${encodeURIComponent(adPosicion)}&kind=posicion`
+                        )
+                      }
+                    >
+                      {t('payPositionCta')}
+                    </button>
+                  )}
                 <button className="btn primary" type="submit" disabled={busy}>
                   {t('chainAdSave')}
                 </button>
@@ -977,7 +991,7 @@ export default function Cadena() {
                           ? t('chainAdPaused')
                           : t('chainAdDraft')}
                       {' · '}
-                      {a.slot}
+                      {placementName(a, t)}
                       {' · '}
                       {t('chainAdStats')
                         .replace('{imp}', String(a.impresiones ?? 0))

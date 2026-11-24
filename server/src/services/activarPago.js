@@ -1,7 +1,11 @@
 import Empresa from '../models/Empresa.js';
 import Pago from '../models/Pago.js';
 import Suscripcion from '../models/Suscripcion.js';
-import { AD_SLOTS, slotsFromLegacy } from '../lib/pagosPricing.js';
+import {
+  AD_SLOTS,
+  normalizeWindow,
+  slotsFromLegacy,
+} from '../lib/pagosPricing.js';
 import { findActivePautaSub } from '../lib/pauta.js';
 
 /**
@@ -30,7 +34,16 @@ export async function activarPagoAprobado(pago, { notas = '' } = {}) {
   const inicia = new Date();
   const dias = Number(pago.dias) || 30;
   const termina = new Date(inicia.getTime() + dias * 24 * 60 * 60 * 1000);
-  const slot = AD_SLOTS.includes(pago.slot) ? pago.slot : 'home_rail';
+  const kind = pago.meta?.kind === 'posicion' ? 'posicion' : 'ventana';
+  const ventana = normalizeWindow(pago.slot);
+  const slot =
+    kind === 'posicion'
+      ? String(pago.slot || '')
+      : kind === 'ventana' && ventana
+        ? ventana
+        : AD_SLOTS.includes(pago.slot)
+          ? pago.slot
+          : 'home_rail';
 
   await Suscripcion.updateMany(
     { id_empresa: empresa._id, estatus: 'pending' },
@@ -38,8 +51,27 @@ export async function activarPagoAprobado(pago, { notas = '' } = {}) {
   );
 
   const current = await findActivePautaSub(empresa._id);
+  if (kind === 'posicion' && !current) {
+    const err = new Error('Primero paga la ventana. La posición es un extra.');
+    err.status = 402;
+    throw err;
+  }
   let sub;
-  if (current) {
+  if (current && kind === 'posicion') {
+    const posiciones = [...new Set([...(current.posiciones || []), slot])];
+    sub = await Suscripcion.findByIdAndUpdate(
+      current._id,
+      {
+        $set: {
+          posiciones,
+          notas:
+            notas ||
+            `Posición ${slot} · pago ${pago.provider} ${pago.provider_ref || pago._id}`,
+        },
+      },
+      { new: true }
+    );
+  } else if (current) {
     const slots = [...new Set([...slotsFromLegacy(current), slot])];
     const currentEnd = current.termina ? new Date(current.termina) : null;
     const nextEnd = currentEnd && currentEnd > termina ? currentEnd : termina;
@@ -53,7 +85,7 @@ export async function activarPagoAprobado(pago, { notas = '' } = {}) {
           estatus: 'activo',
           notas:
             notas ||
-            `Campo ${slot} · pago ${pago.provider} ${pago.provider_ref || pago._id}`,
+            `Ventana ${slot} · pago ${pago.provider} ${pago.provider_ref || pago._id}`,
         },
       },
       { new: true }

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
@@ -6,6 +6,8 @@ import OfflineState from '../components/OfflineState';
 import PlaceBrandMark from '../components/PlaceBrandMark';
 import PromoMediaImg from '../components/PromoMediaImg';
 import PromoPrice from '../components/PromoPrice';
+import NearMap from '../components/NearMap';
+import ValidityVote from '../components/ValidityVote';
 import SponsoredSlot, { useSlotAds } from '../components/SponsoredSlot';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
@@ -113,6 +115,20 @@ function placeHasOffers(branch: Branch, promos: Promo[]) {
   return promosForPlace(branch, promos).length > 0;
 }
 
+function isMongoId(id: string) {
+  return /^[a-f\d]{24}$/i.test(id);
+}
+
+/** El voto solo cabe si esta sucursal está ligada de verdad a la oferta. */
+function linkedBranchId(branch: Branch, promo: Promo) {
+  const id = String(branch._id || '');
+  if (!isMongoId(id)) return '';
+  const hit = (promo.ubicacionesCercanas || []).find(
+    (place) => String(place._id) === id && place.participacionConfirmada !== false
+  );
+  return hit ? String(hit._id) : '';
+}
+
 function brandTone(name: string) {
   let h = 0;
   for (let i = 0; i < name.length; i += 1) h = (h * 33 + name.charCodeAt(i)) >>> 0;
@@ -140,7 +156,13 @@ export default function Cerca() {
     lat: number;
     lng: number;
   } | null>(null);
+  const [originKind, setOriginKind] = useState<'gps' | 'zone' | 'cache' | null>(
+    null
+  );
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [absorbingId, setAbsorbingId] = useState<string | null>(null);
   const bootstrapped = useRef(false);
+  const absorbTimer = useRef<number | null>(null);
   const catalogPromos = promos.filter(
     (promo) => !isLandingPromoTitle(promo) && !promo.requiresAuth
   );
@@ -162,6 +184,13 @@ export default function Cerca() {
     if (!openOffersId) return;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [openOffersId]);
+
+  useEffect(
+    () => () => {
+      if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     const on = () => setOnline(true);
@@ -209,6 +238,7 @@ export default function Cerca() {
     setError('');
     if (cached.data.lat != null && cached.data.lng != null) {
       setUserOrigin({ lat: cached.data.lat, lng: cached.data.lng });
+      setOriginKind('cache');
     }
     return true;
   }
@@ -295,6 +325,7 @@ export default function Cerca() {
     try {
       const pos = await readGpsCached({ maximumAge: 30_000 });
       void trackGps(true, pos.lat, pos.lng);
+      setOriginKind('gps');
       await loadNear(pos.lng, pos.lat, t('usingLocation'));
     } catch (err) {
       void trackGps(false);
@@ -307,6 +338,7 @@ export default function Cerca() {
       setFromCache(false);
       setCacheSavedAt(null);
       setUserOrigin(null);
+      setOriginKind(null);
       setError(
         err instanceof Error && err.message === 'no-geo'
           ? t('noGeo')
@@ -320,6 +352,7 @@ export default function Cerca() {
     const zone = resolveZone(prefs.zona);
     const zoneName = t(zone.labelKey);
     const label = t('manualZoneNote').replace('{zone}', zoneName);
+    setOriginKind('zone');
     void track({
       tipo: 'cerca_open',
       lat: zone.lat,
@@ -348,25 +381,106 @@ export default function Cerca() {
     t(k as 'cacheAgeJustNow', vars)
   );
 
+  const spots = useMemo(
+    () =>
+      branches.flatMap((b) => {
+        const lat = b.lat;
+        const lng = b.lng ?? b.long;
+        if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return [];
+        }
+        const promoCount = promosForPlace(b, promos).length;
+        const bits: string[] = [];
+        if (typeof b.distanceMeters === 'number') {
+          bits.push(
+            b.distanceMeters < 1000
+              ? `${Math.round(b.distanceMeters)} m`
+              : `${(b.distanceMeters / 1000).toFixed(2)} km`
+          );
+        }
+        return [{
+          id: String(b._id),
+          name: b.nombre || b.name || t('branchFallback'),
+          chain: b.chainName || '',
+          detail: bits.join(' · '),
+          lat,
+          lng,
+          hasOffer: promoCount > 0,
+          promoCount,
+          branch: b,
+        }];
+      }),
+    [branches, promos, t]
+  );
+  const offerSpots = spots.filter((spot) => spot.hasOffer);
+  const selectedSpot = spots.find((spot) => spot.id === selectedPlaceId) || null;
+
+  function focusPlace(id: string, scroll: boolean) {
+    setSelectedPlaceId(id);
+    const spot = spots.find((place) => place.id === id);
+    if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
+    if (spot?.hasOffer) {
+      setAbsorbingId(id);
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      absorbTimer.current = window.setTimeout(() => {
+        setOpenOffersId(id);
+        setAbsorbingId(null);
+      }, reduce ? 0 : 820);
+    } else {
+      setAbsorbingId(null);
+    }
+    if (!scroll) return;
+    window.setTimeout(() => {
+      document.getElementById(`cerca-place-${id}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }, 180);
+  }
+
   if (offersBranch) {
     const placeName = offersBranch.label
       ? `${offersBranch.nombre || offersBranch.name || offersLabel} · ${offersBranch.label}`
       : offersBranch.nombre || offersBranch.name || offersLabel;
+    const tone = brandTone(offersLabel);
+    const meters =
+      typeof offersBranch.distanceMeters === 'number'
+        ? offersBranch.distanceMeters < 1000
+          ? `${Math.round(offersBranch.distanceMeters)} m`
+          : `${(offersBranch.distanceMeters / 1000).toFixed(1)} km`
+        : '';
+    const votePromo = offersList.find((promo) => linkedBranchId(offersBranch, promo));
+    const voteId = votePromo ? linkedBranchId(offersBranch, votePromo) : '';
+    const branchLat = offersBranch.lat;
+    const branchLng = offersBranch.lng ?? offersBranch.long;
     return (
-      <section className="cerca-page cerca-offers-page">
-        <header className="cerca-offers-page-head rise">
+      <section className="cerca-page cerca-offers-page cerca-offers-enter">
+        <header className="cerca-company-hero" style={{ background: tone }}>
           <button
             type="button"
-            className="btn ghost btn-sm"
+            className="cerca-company-back"
             onClick={() => setOpenOffersId(null)}
           >
             ‹ {t('back')}
           </button>
-          <div>
-            <p className="cerca-kicker">{t('seePlaceOffers')}</p>
-            <h1>{t('offersOfChain').replace('{chain}', offersLabel)}</h1>
-            <p className="cerca-soft">{placeName}</p>
-          </div>
+          <PlaceBrandMark
+            label={offersLabel}
+            initials={initials(offersLabel)}
+            tone={tone}
+            logoUrl={offersBranch.logoUrl}
+            officialBrand={offersBranch.officialBrand}
+            chainName={offersBranch.chainName}
+            nombre={offersBranch.nombre}
+            name={offersBranch.name}
+            website={offersBranch.website}
+          />
+          <p className="cerca-kicker">{offersLabel}</p>
+          <h1>{placeName}</h1>
+          <p className="cerca-company-meta">
+            {[meters, t('offersOfChain').replace('{chain}', offersLabel)]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
         </header>
         {offersList.length === 0 ? (
           <p className="cerca-place-offers-empty">{t('placeOffersEmpty')}</p>
@@ -451,6 +565,35 @@ export default function Cerca() {
             </ul>
           </>
         )}
+        <footer className="cerca-company-foot">
+          {voteId &&
+          votePromo &&
+          Number.isFinite(branchLat) &&
+          Number.isFinite(branchLng) ? (
+            <ValidityVote
+              promoId={votePromo._id}
+              ubicacionId={voteId}
+              branchLat={Number(branchLat)}
+              branchLng={Number(branchLng)}
+              reportsVigente={0}
+              reportsCaduco={0}
+              crowdStatus="vigente"
+              officialActive
+            />
+          ) : (
+            offersList.length > 0 && (
+              <p className="cerca-dock-note">{t('cercaVoteNeedsLink')}</p>
+            )
+          )}
+          <p className="cerca-dock-note">{t('cercaCodeNote')}</p>
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => openExactPlace(offersBranch, placeName, userOrigin)}
+          >
+            {t('seeOnMap')} ↗
+          </button>
+        </footer>
       </section>
     );
   }
@@ -651,10 +794,63 @@ export default function Cerca() {
       {!loading && branches.length > 0 && (
         <section className="cerca-places" data-reveal data-reveal-delay="1">
           <div className="cerca-section-head">
-            <h2>{t('aroundTitle')}</h2>
+            <div>
+              <h2>{t('aroundTitle')}</h2>
+              <p className="cerca-stage-hint">{t('cercaStageHint')}</p>
+            </div>
             <p className="cerca-count">
               {branches.length} {t('locations').toLowerCase()}
+              {offerSpots.length > 0 && (
+                <span className="cerca-offer-count">
+                  {t('cercaOfferCount').replace('{n}', String(offerSpots.length))}
+                </span>
+              )}
             </p>
+          </div>
+          <div className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
+            <NearMap
+              places={spots}
+              you={originKind === 'gps' ? userOrigin : null}
+              selectedId={selectedPlaceId}
+              onSelect={(id) => focusPlace(id, false)}
+            />
+            {absorbingId && selectedSpot && (
+              <div className="cerca-absorb" aria-hidden>
+                <strong>{selectedSpot.chain}</strong>
+                <span>{selectedSpot.name}</span>
+              </div>
+            )}
+            {selectedSpot && !selectedSpot.hasOffer && !absorbingId && (
+              <article className="cerca-float" key={selectedSpot.id}>
+                <p className="cerca-float-chain">{selectedSpot.chain}</p>
+                <h3>{selectedSpot.name}</h3>
+                {selectedSpot.detail && <p className="meta">{selectedSpot.detail}</p>}
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() =>
+                    openExactPlace(selectedSpot.branch, selectedSpot.name, userOrigin)
+                  }
+                >
+                  {t('seeOnMap')} ↗
+                </button>
+              </article>
+            )}
+            {offerSpots.length > 0 && (
+              <div className="cerca-spot-rail">
+                {offerSpots.map((spot) => (
+                  <button
+                    key={spot.id}
+                    type="button"
+                    className={`cerca-spot${selectedPlaceId === spot.id ? ' is-on' : ''}`}
+                    onClick={() => focusPlace(spot.id, false)}
+                  >
+                    <strong>{spot.name}</strong>
+                    <span>{spot.detail}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <ul className="cerca-place-list stagger">
             {branches.map((b, index) => {
@@ -680,7 +876,13 @@ export default function Cerca() {
               const showNextAd = (index + 1) % 6 === 0 && Boolean(nextAd);
               return (
                 <Fragment key={id}>
-                <li className="cerca-place-card">
+                <li
+                  id={`cerca-place-${id}`}
+                  className={`cerca-place-card${
+                    placeHasOffers(b, promos) ? ' has-offer' : ''
+                  }${selectedPlaceId === id ? ' is-on-map' : ''}`}
+                  onClick={() => focusPlace(id, false)}
+                >
                   <PlaceBrandMark
                     label={chain || nombre}
                     initials={initials(chain || nombre)}

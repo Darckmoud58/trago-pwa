@@ -9,7 +9,7 @@ import Rol from '../models/Rol.js';
 import Nivel from '../models/Nivel.js';
 import { uniqueSlug } from '../lib/slugify.js';
 import { crowdStatus } from '../lib/validity.js';
-import { bandFromAge, resolveUserAge } from '../lib/ageGate.js';
+import { bandFromAge } from '../lib/ageGate.js';
 import {
   ageFromBirthDateStrict,
   registerEmpresaSchema,
@@ -58,7 +58,7 @@ export async function getCadenaMe(req, res) {
     if (!empresa) {
       return res.json({
         empresa: null,
-        message: 'Aún no tienes cadena. Regístrala en POST /api/cadena/registro.',
+        message: 'Esta cuenta es de usuario. La cadena entra con su propia cuenta de empresa.',
         promociones: [],
         sucursales: [],
         suscripcion: null,
@@ -301,72 +301,14 @@ export async function registerEmpresaCompleto(req, res) {
 
 /**
  * POST /api/cadena/registro
- * Crea empresa y asigna rol empresa al usuario (si aún es user).
+ * Una cuenta de usuario no se convierte en cadena.
+ * La cadena se da de alta en POST /api/cadena/registro-empresa.
  */
-export async function registerCadena(req, res) {
-  try {
-    const existing = await Empresa.findOne({ id_dueno: req.userId }).lean();
-    if (existing) {
-      return res.status(409).json({
-        message: 'Ya tienes una cadena registrada',
-        empresa: mapEmpresa(existing),
-      });
-    }
-
-    const nombre = clipStr(req.body.nombre || req.body.name, 120);
-    if (!nombre) {
-      return res.status(400).json({ message: 'nombre de la cadena es requerido' });
-    }
-
-    const slug = await uniqueSlug(Empresa, req.body.slug || nombre);
-    const autoVerify =
-      process.env.TRAGO_AUTO_VERIFY_CHAIN === 'true' ||
-      process.env.TRAGO_AUTO_VERIFY_CHAIN === '1';
-
-    const empresa = await Empresa.create({
-      nombre,
-      descripcion: clipStr(req.body.descripcion || req.body.description, 2000),
-      sitio_web: sanitizeHttpUrl(req.body.sitio_web || req.body.website),
-      imagen: sanitizeHttpUrl(req.body.imagen),
-      slug,
-      id_dueno: req.userId,
-      verificada: autoVerify,
-      plan: 'freemium',
-      estatus: 'activo',
-    });
-
-    const roleEmpresa = await Rol.findOne({
-      codigo: { $in: ['empresa', 'chain'] },
-      estatus: 'activo',
-    });
-    let token = null;
-    if (roleEmpresa) {
-      await Usuario.findByIdAndUpdate(req.userId, { id_rol: roleEmpresa._id });
-      const owner = await Usuario.findById(req.userId).select(
-        'tokenVersion edad fecha_nacimiento'
-      );
-      token = signAccessToken({
-        id: req.userId,
-        role: roleEmpresa.codigo,
-        band: bandFromAge(resolveUserAge(owner)) || 'minor',
-        tv: Number(owner?.tokenVersion || 0),
-      });
-    }
-
-    return res.status(201).json({
-      empresa: mapEmpresa(empresa.toObject()),
-      token,
-      message: autoVerify
-        ? 'Cadena creada y verificada (auto).'
-        : 'Cadena creada. Un admin debe verificarla para que sus promos entren al catálogo público.',
-    });
-  } catch (e) {
-    if (e?.code === 11000) {
-      return res.status(409).json({ message: 'Slug de cadena ya existe' });
-    }
-    console.error('registerCadena:', e.message);
-    return res.status(500).json({ message: 'Error del servidor' });
-  }
+export async function registerCadena(_req, res) {
+  return res.status(403).json({
+    message:
+      'La cuenta de usuario no da de alta cadenas. La cadena se registra con su propia cuenta de empresa.',
+  });
 }
 
 /** GET /api/cadena/direcciones?calle=&numero=&cp= */

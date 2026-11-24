@@ -9,7 +9,11 @@ export type AdSlot =
   | 'explorar_mid'
   | 'cerca_top'
   | 'side_left'
-  | 'side_right';
+  | 'side_right'
+  | 'inicio_side_left'
+  | 'inicio_side_right'
+  | 'explorar_side_left'
+  | 'explorar_side_right';
 
 type ServedAd = {
   _id: string;

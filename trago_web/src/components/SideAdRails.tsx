@@ -14,20 +14,25 @@ export default function SideAdRails() {
     pathname.startsWith('/cadena') ||
     pathname.startsWith('/legal');
 
-  if (hide) return null;
+  const inicio = pathname === '/';
+  const explorar = pathname.startsWith('/promos');
+  if (hide || (!inicio && !explorar)) return null;
+
+  const left = inicio ? 'inicio_side_left' : 'explorar_side_left';
+  const right = inicio ? 'inicio_side_right' : 'explorar_side_right';
 
   return (
     <>
       <aside className="app-ad-col app-ad-col--left" aria-label="Patrocinado">
         <SponsoredSlot
-          slot="side_left"
+          slot={left}
           variant="side"
           className="side-ad-slot"
         />
       </aside>
       <aside className="app-ad-col app-ad-col--right" aria-label="Patrocinado">
         <SponsoredSlot
-          slot="side_right"
+          slot={right}
           variant="side"
           className="side-ad-slot"
         />

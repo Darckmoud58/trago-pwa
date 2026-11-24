@@ -1,5 +1,5 @@
 import Suscripcion from '../models/Suscripcion.js';
-import { slotsFromLegacy } from './pagosPricing.js';
+import { slotsFromLegacy, ownedWindows, ownedPositions } from './pagosPricing.js';
 
 const PAUTA_PLANS = new Set(['basic', 'campaign', 'premium', 'pro']);
 
@@ -55,5 +55,7 @@ export function mapSuscripcion(s) {
     origen: s.origen,
     notas: s.notas || '',
     slots: slotsFromLegacy(s),
+    ventanas: ownedWindows(s),
+    posiciones: ownedPositions(s),
   };
 }
