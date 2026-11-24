@@ -22,22 +22,6 @@
   align-items: flex-start;
 }
 
-.home-cache-badge {
-  display: inline-flex;
-  align-items: center;
-  max-width: 12rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: 999px;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  line-height: 1.25;
-  color: color-mix(in srgb, var(--fg) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--rojo) 35%, transparent);
-  background: color-mix(in srgb, var(--rojo) 10%, transparent);
-}
-
 .home-for-you-grid {
   display: grid;
   gap: 0.85rem;

@@ -32,7 +32,6 @@ import {
   replayOnboarding,
   SPLASH_CLOSED,
 } from '../lib/onboarding';
-import { formatCacheAge } from '../lib/userPrefs';
 import type { Promo } from '../types';
 import OfflineState from '../components/OfflineState';
 import './Home.css';
@@ -179,8 +178,6 @@ export default function Home() {
   const [nearLoading, setNearLoading] = useState(true);
   const [nearGpsError, setNearGpsError] = useState(false);
   const [nearFailKind, setNearFailKind] = useState<NearFailKind>(null);
-  const [fromCache, setFromCache] = useState(false);
-  const [cacheSavedAt, setCacheSavedAt] = useState<number | null>(null);
   const reloadNearRef = useRef<(opts?: LoadNearOpts) => void>(() => {});
 
   const [bdayPhase, setBdayPhase] = useState<BdayPhase>('welcome');
@@ -315,15 +312,11 @@ export default function Home() {
         .sort((a, b) => promoMeters(a) - promoMeters(b));
       if (fromNear.length) {
         setNearPromos(fromNear.slice(0, 10));
-        setFromCache(true);
-        setCacheSavedAt(nearCached?.savedAt ?? null);
         return true;
       }
       if (promoCached?.data?.length) {
         const active = filterGuestSafePromos(promoCached.data);
         setCatalogPromos(active.slice(0, 8));
-        setFromCache(true);
-        setCacheSavedAt(promoCached.savedAt);
         return true;
       }
       return false;
@@ -340,8 +333,6 @@ export default function Home() {
       setNearLoading(true);
       setNearGpsError(false);
       setNearFailKind(null);
-      setFromCache(false);
-      setCacheSavedAt(null);
 
       if (!navigator.onLine) {
         await applyCachedNear();
@@ -363,7 +354,6 @@ export default function Home() {
           const destacadas = list.filter((p) => p.featured || p.destacada);
           setCatalogPromos((destacadas.length ? destacadas : list).slice(0, 8));
           await cacheSet(CACHE_KEYS.promos, list);
-          setCacheSavedAt(Date.now());
         } catch {
           /* sin red ni caché */
         }
@@ -409,7 +399,6 @@ export default function Home() {
         const safeForDisk = filterGuestSafePromos(list).slice(0, 20);
         await cacheSet(CACHE_KEYS.promos, safeForDisk);
         await cacheSet(CACHE_KEYS.lastNear, { promos: safeForDisk });
-        setCacheSavedAt(Date.now());
         void track({
           tipo: 'cerca_open',
           lat: pos.lat,
@@ -676,9 +665,6 @@ export default function Home() {
         : t('bdaySeeGifts');
   const greet = t(greetingKey() as 'helloMorning');
   const greetLine = firstName ? `${greet}, ${firstName}` : greet;
-  const cacheAgeLabel = formatCacheAge(cacheSavedAt, (k, vars) =>
-    t(k as 'cacheAgeJustNow', vars)
-  );
   const densityClass =
     prefs.densidad === 'compacta' ? ' is-dense' : ' is-comfy';
   const offlineEmpty =
@@ -781,12 +767,6 @@ export default function Home() {
               <h2 id="home-for-you-title">{t('homeForYou')}</h2>
               <p className="home-section-lead">{t('homeForYouLead')}</p>
             </div>
-            {fromCache || !online ? (
-              <span className="home-cache-badge" title={cacheAgeLabel || undefined}>
-                {t('offlineCache')}
-                {cacheAgeLabel ? ` · ${cacheAgeLabel}` : ''}
-              </span>
-            ) : null}
           </div>
           {nearLoading && forYou.length === 0 ? (
             <div className="home-skel" aria-busy>
@@ -813,7 +793,7 @@ export default function Home() {
               </button>
             </div>
           ) : null}
-          {offlineEmpty ? <OfflineState cacheAge={cacheAgeLabel} /> : null}
+          {offlineEmpty ? <OfflineState /> : null}
           {forYou.length > 0 ? (
             <div className="home-for-you-grid stagger">
               {forYou.map((p, i) =>
@@ -1037,8 +1017,6 @@ export default function Home() {
               {t('seeAll')}
             </Link>
           </div>
-          {/* CTAs de GPS ya están en «Para ti ahora»; aquí solo el rail de catálogo. */}
-          {fromCache && <p className="cache-hint">{t('cacheHint')}</p>}
           {catalogPromos.length > 0 ? (
             <div className="home-deal-rail scroll-rail stagger">
               {catalogPromos.map((p) => renderPromoCard(p))}

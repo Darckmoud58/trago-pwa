@@ -57,6 +57,52 @@
   gap: 0.75rem;
 }
 
+.cadena-address {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cadena-suggest {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  border: 1px solid rgba(130, 8, 8, 0.2);
+  border-radius: 12px;
+  background: #fffaf3;
+}
+
+.cadena-suggest button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  cursor: pointer;
+  color: #3b0b13;
+}
+
+.cadena-suggest button span {
+  color: rgba(59, 11, 19, 0.72);
+  font-size: 0.82rem;
+}
+
+.cadena-suggest button:hover,
+.cadena-suggest button:focus-visible {
+  background: rgba(216, 26, 28, 0.08);
+}
+
+.cadena-place {
+  margin: 0;
+  color: #820808;
+  font-size: 0.92rem;
+}
+
 .cadena-check {
   flex-direction: row !important;
   align-items: center;
@@ -154,4 +200,18 @@ html[data-theme='night'] .cadena-card textarea {
   background: #1a060a;
   border-color: rgba(255, 246, 230, 0.22);
   color: #fff6e6;
+}
+
+html[data-theme='night'] .cadena-suggest {
+  background: #1a060a;
+  border-color: rgba(255, 246, 230, 0.22);
+}
+
+html[data-theme='night'] .cadena-suggest button,
+html[data-theme='night'] .cadena-place {
+  color: #fff6e6;
+}
+
+html[data-theme='night'] .cadena-suggest button span {
+  color: rgba(255, 246, 230, 0.72);
 }
