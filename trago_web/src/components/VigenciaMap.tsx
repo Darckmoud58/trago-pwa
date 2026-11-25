@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useI18n } from '../lib/i18n';
+import { OSM_CARTO_TILE_OPTIONS, OSM_CARTO_TILE_URL } from '../lib/leafletTiles';
 import './VigenciaMap.css';
 
 export type VigenciaMapRow = {
@@ -64,11 +65,7 @@ export default function VigenciaMap({ rows, selectedKey, onSelect }: Props) {
       attributionControl: true,
     }).setView(GDL, 12);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(map);
+    L.tileLayer(OSM_CARTO_TILE_URL, OSM_CARTO_TILE_OPTIONS).addTo(map);
 
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
