@@ -70,39 +70,33 @@ html {
 @keyframes page-in {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.985);
-    filter: blur(4px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
+    transform: none;
   }
 }
 
 @keyframes page-dive {
   from {
     opacity: 0;
-    transform: translateY(36px) scale(0.94);
-    filter: blur(10px);
+    transform: translateY(18px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: blur(0);
   }
 }
 
 @keyframes page-pop {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(1.02);
-    filter: blur(4px);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
     transform: none;
-    filter: blur(0);
   }
 }
 

@@ -59,8 +59,9 @@ export function useImmersiveScroll(shellSelector = '.app-shell') {
       },
       {
         root: null,
-        rootMargin: '0px 0px -10% 0px',
-        threshold: 0.08,
+        /* Margen menos agresivo: -10% dejaba listas bajo el fold borrosas. */
+        rootMargin: '0px 0px -4% 0px',
+        threshold: 0.02,
       }
     );
 
@@ -81,11 +82,12 @@ export function useImmersiveScroll(shellSelector = '.app-shell') {
     }
 
     const boot = window.setTimeout(scan, 40);
+    /* Failsafe corto: no dejar contenido opaco/corrido varios segundos. */
     const safety = window.setTimeout(() => {
       document
         .querySelectorAll<HTMLElement>('[data-reveal], .scroll-reveal')
         .forEach((el) => el.classList.add('is-inview'));
-    }, 4200);
+    }, 1200);
 
     const root = document.getElementById('main') || document.body;
     const mo = new MutationObserver(() => scan());
