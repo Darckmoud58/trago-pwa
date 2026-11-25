@@ -3,15 +3,94 @@
   margin: 0.75rem 0 1rem;
 }
 
+.vigencia-map-stage {
+  position: relative;
+}
+
 .vigencia-map {
   width: 100%;
-  height: min(52vh, 360px);
-  min-height: 220px;
+  height: min(58vh, 420px);
+  min-height: 260px;
   border-radius: 0.85rem;
   overflow: hidden;
   border: 1px solid rgba(130, 8, 8, 0.12);
-  background: #e8efe8;
+  background: #d4dde3;
   z-index: 0;
+}
+
+.vigencia-float {
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 500;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, #fff8f6 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rojo, #d81a1c) 22%, transparent);
+  box-shadow: 0 14px 32px color-mix(in srgb, #3b0b13 18%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.vigencia-float-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rojo, #d81a1c);
+}
+
+.vigencia-float h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #820808;
+}
+
+.vigencia-float p {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+  color: #5c3a3a;
+}
+
+.vigencia-popup-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #d81a1c;
+}
+
+.vigencia-popup-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: #6b4a4a;
+}
+
+.vigencia-leaflet-popup .leaflet-popup-content-wrapper {
+  border-radius: 0.85rem;
+  box-shadow: 0 12px 28px rgba(59, 11, 19, 0.18);
+}
+
+.vigencia-pin-wrap {
+  position: relative;
+  display: block;
+  width: calc(var(--size) + 16px);
+  height: calc(var(--size) + 16px);
+}
+
+.vigencia-pin-halo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--size) + 10px);
+  height: calc(var(--size) + 10px);
+  margin: calc((var(--size) + 10px) / -2) 0 0 calc((var(--size) + 10px) / -2);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pin) 28%, transparent);
 }
 
 .vigencia-map-legend {
@@ -42,23 +121,26 @@
 }
 
 .vigencia-pin-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   display: block;
-  width: var(--size, 14px);
-  height: var(--size, 14px);
-  border-radius: 50%;
+  width: var(--size, 16px);
+  height: var(--size, 16px);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  border-radius: 50% 50% 50% 0;
   background: var(--pin, #6b7280);
-  box-shadow:
-    0 0 0 2px #fff,
-    0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 2px solid #fff6e6;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(59, 11, 19, 0.28);
   transition: transform 0.15s ease;
 }
 
 .vigencia-pin-dot.is-selected {
-  transform: scale(1.25);
+  transform: rotate(-45deg) scale(1.2);
   box-shadow:
-    0 0 0 3px #fff,
-    0 0 0 5px var(--pin, #6b7280),
-    0 4px 10px rgba(0, 0, 0, 0.4);
+    0 0 0 3px #fff6e6,
+    0 4px 12px rgba(59, 11, 19, 0.4);
 }
 
 .vigencia-map-empty {

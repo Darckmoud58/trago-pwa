@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, readToken, setAuth } from '../api';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
@@ -152,6 +159,9 @@ export default function Cadena() {
   const [anuncios, setAnuncios] = useState<AnuncioRow[]>([]);
   const [puedePauta, setPuedePauta] = useState(false);
   const [suscripcion, setSuscripcion] = useState<SuscripcionRow | null>(null);
+  const [adsError, setAdsError] = useState('');
+  const [adsInfo, setAdsInfo] = useState('');
+  const adsAlertRef = useRef<HTMLDivElement | null>(null);
   const [adTitulo, setAdTitulo] = useState('');
   const [adCopy, setAdCopy] = useState('');
   const [adImagen, setAdImagen] = useState('');
@@ -469,43 +479,62 @@ export default function Cadena() {
     return (suscripcion?.posiciones || []).includes(adPosicion);
   }
 
+  function flashAdsAlert(kind: 'error' | 'info', message: string) {
+    if (kind === 'error') {
+      setAdsError(message);
+      setAdsInfo('');
+      setError(message);
+    } else {
+      setAdsInfo(message);
+      setAdsError('');
+      setInfo(message);
+    }
+    requestAnimationFrame(() => {
+      adsAlertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
   async function submitAnuncio(mode: 'borrador' | 'publicar') {
     setBusy(true);
+    setAdsError('');
+    setAdsInfo('');
     setError('');
     setInfo('');
     try {
       if (!adTitulo.trim()) {
-        setError(t('chainAdTitleRequired'));
+        flashAdsAlert('error', t('chainAdTitleRequired'));
         return;
       }
       if (mode === 'borrador' && draftCount >= MAX_AD_DRAFTS) {
-        setError(
-          t('chainAdDraftLimit')
-            .replace('{max}', String(MAX_AD_DRAFTS))
+        flashAdsAlert(
+          'error',
+          t('chainAdDraftLimit').replace('{max}', String(MAX_AD_DRAFTS))
         );
         return;
       }
       if (mode === 'publicar') {
         if (!puedePauta) {
-          setError(t('chainAdPublishNeedPauta'));
+          flashAdsAlert('error', t('chainAdPublishNeedPauta'));
           return;
         }
         if (!(suscripcion?.ventanas || []).includes(adVentana)) {
-          setError(t('chainAdPublishNeedWindow'));
+          flashAdsAlert('error', t('chainAdPublishNeedWindow'));
           return;
         }
         if (
           adPosicion !== 'aleatoria' &&
           !(suscripcion?.posiciones || []).includes(adPosicion)
         ) {
-          setError(t('chainAdPublishNeedPosition'));
+          flashAdsAlert('error', t('chainAdPublishNeedPosition'));
           return;
         }
       }
 
       let imagen = adImagen.trim();
       let video = adVideo.trim();
-      if (adPosterFile || adVideoFile) setInfo(t('chainAdUploading'));
+      if (adPosterFile || adVideoFile) {
+        flashAdsAlert('info', t('chainAdUploading'));
+      }
       if (adPosterFile) {
         imagen = await uploadCreative(adPosterFile, async (body) => {
           const res = await api.post('/api/cadena/anuncios/medios', body);
@@ -543,12 +572,21 @@ export default function Cadena() {
       setCreativeKey((key) => key + 1);
       setAdInicia('');
       setAdTermina('');
-      setInfo(mode === 'publicar' ? t('chainAdPublishOk') : t('chainAdDraftOk'));
+      flashAdsAlert(
+        'info',
+        mode === 'publicar' ? t('chainAdPublishOk') : t('chainAdDraftOk')
+      );
       await load();
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(
-        axiosErr.response?.data?.message || axiosErr.message || t('chainAdsError')
+      const axiosErr = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      flashAdsAlert(
+        'error',
+        axiosErr.response?.data?.message ||
+          axiosErr.message ||
+          t('chainAdsError')
       );
     } finally {
       setBusy(false);
@@ -562,13 +600,19 @@ export default function Cadena() {
 
   async function onActivateAnuncio(id: string) {
     setBusy(true);
+    setAdsError('');
+    setAdsInfo('');
     setError('');
     try {
       await api.post(`/api/cadena/anuncios/${id}/activar`);
+      flashAdsAlert('info', t('chainAdPublishOk'));
       await load();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+      flashAdsAlert(
+        'error',
+        axiosErr.response?.data?.message || t('chainAdsError')
+      );
     } finally {
       setBusy(false);
     }
@@ -576,13 +620,19 @@ export default function Cadena() {
 
   async function onPauseAnuncio(id: string) {
     setBusy(true);
+    setAdsError('');
+    setAdsInfo('');
     setError('');
     try {
       await api.put(`/api/cadena/anuncios/${id}`, { estatus: 'pausado' });
+      flashAdsAlert('info', t('chainAdPausedOk'));
       await load();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr.response?.data?.message || t('chainAdsError'));
+      flashAdsAlert(
+        'error',
+        axiosErr.response?.data?.message || t('chainAdsError')
+      );
     } finally {
       setBusy(false);
     }
@@ -898,6 +948,10 @@ export default function Cadena() {
             ) : (
               <p className="meta">{t('payAllSlots')}</p>
             )}
+            <div ref={adsAlertRef}>
+              {adsError ? <p className="error">{adsError}</p> : null}
+              {adsInfo ? <p className="cadena-info">{adsInfo}</p> : null}
+            </div>
             <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
                 <p className="muted">{t('chainAdDraftHint')}</p>
                 <p className="meta">
@@ -1035,13 +1089,14 @@ export default function Cadena() {
                 {!canPublishPlacement() && (
                   <p className="meta">{t('chainAdPublishHint')}</p>
                 )}
+                <p className="meta">{t('chainAdServingHint')}</p>
                 <div className="cadena-row">
                   <button
                     className="btn ghost"
                     type="submit"
                     disabled={busy || draftCount >= MAX_AD_DRAFTS}
                   >
-                    {t('chainAdSave')}
+                    {busy ? t('loading') : t('chainAdSave')}
                   </button>
                   <button
                     className="btn primary"
@@ -1049,7 +1104,7 @@ export default function Cadena() {
                     disabled={busy}
                     onClick={() => void submitAnuncio('publicar')}
                   >
-                    {t('chainAdPublish')}
+                    {busy ? t('loading') : t('chainAdPublish')}
                   </button>
                 </div>
               </form>
@@ -1073,8 +1128,11 @@ export default function Cadena() {
                         .replace('{imp}', String(a.impresiones ?? 0))
                         .replace('{clk}', String(a.clics ?? 0))}
                     </span>
+                    {a.estatus === 'activo' ? (
+                      <p className="meta">{t('chainAdLiveHint')}</p>
+                    ) : null}
                     <div className="cadena-vigencia-actions">
-                      {a.estatus !== 'activo' && puedePauta && (
+                      {a.estatus !== 'activo' && (
                         <button
                           type="button"
                           className="btn primary"
@@ -1084,7 +1142,7 @@ export default function Cadena() {
                           {t('chainAdPublish')}
                         </button>
                       )}
-                      {a.estatus === 'activo' && puedePauta && (
+                      {a.estatus === 'activo' && (
                         <button
                           type="button"
                           className="btn ghost"
@@ -1145,6 +1203,7 @@ export default function Cadena() {
           <article className="cadena-card">
             <h2>{t('chainVigenciaTitle')}</h2>
             <p className="muted">{t('chainVigenciaLead')}</p>
+            <p className="meta">{t('chainVigenciaMapHint')}</p>
             {vigencia.length === 0 ? (
               <p className="muted">{t('chainVigenciaEmpty')}</p>
             ) : (
