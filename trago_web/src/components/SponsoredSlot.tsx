@@ -226,6 +226,19 @@ export default function SponsoredSlot({
     </span>
   );
 
+  /** Solo el CTA abre externo; el creativo no debe robar taps del feed/nav en móvil. */
+  const cta = href ? (
+    <a
+      className="sponsored-cta"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer sponsored"
+      onClick={onClick}
+    >
+      {t('adOpen')}
+    </a>
+  ) : null;
+
   const copy = (
     <span className="sponsored-copy">
       <span className="sponsored-title">{ad.titulo}</span>
@@ -233,7 +246,7 @@ export default function SponsoredSlot({
       {ad.chainName ? (
         <span className="sponsored-chain">{ad.chainName}</span>
       ) : null}
-      {href ? <span className="sponsored-cta">{t('adOpen')}</span> : null}
+      {cta}
     </span>
   );
 
@@ -268,25 +281,11 @@ export default function SponsoredSlot({
     video ? 'sponsored-slot--video' : '',
     isFeature ? 'sponsored-slot--feature' : 'sponsored-slot--inline',
     isSide ? 'sponsored-slot--side' : '',
+    href ? 'sponsored-slot--has-cta' : '',
     className,
   ]
     .filter(Boolean)
     .join(' ');
-
-  if (href) {
-    return (
-      <a
-        className={cls}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        onClick={onClick}
-        data-slot={slot}
-      >
-        {inner}
-      </a>
-    );
-  }
 
   return (
     <aside className={cls} data-slot={slot} aria-label={adBadge}>
