@@ -148,6 +148,9 @@ export default function Cerca() {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(true);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [offersUnavailable, setOffersUnavailable] = useState(false);
+  const nearRequest = useRef<AbortController | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [cacheSavedAt, setCacheSavedAt] = useState<number | null>(null);
   const [online, setOnline] = useState(
@@ -247,7 +250,12 @@ export default function Cerca() {
   }
 
   async function loadNear(lng: number, lat: number, label: string) {
+    nearRequest.current?.abort();
+    const request = new AbortController();
+    nearRequest.current = request;
     setLoading(true);
+    setOffersLoading(false);
+    setOffersUnavailable(false);
     setError('');
     setNote(label);
     setBranches([]);
@@ -265,30 +273,20 @@ export default function Cerca() {
       return;
     }
 
+    const options = {
+      params: { lng, lat, maxMeters: NEAR_RADIUS_M },
+      signal: request.signal,
+      timeout: 12_000,
+    };
+    setOffersLoading(true);
+    const offers = api.get('/api/promociones/cerca', options)
+      .then(({ data }) => (data.promos ?? []) as Promo[])
+      .catch(() => null);
+
     try {
-      const { data } = await api.get('/api/sucursales/cerca', {
-        params: { lng, lat, maxMeters: NEAR_RADIUS_M },
-      });
+      const { data } = await api.get('/api/sucursales/cerca', options);
+      if (request.signal.aborted) return;
       const list = (data.branches ?? data.ubicaciones ?? []) as Branch[];
-      setBranches(list);
-      setFromCache(false);
-      setCacheSavedAt(Date.now());
-      if (data.partial && data.searchedRadiusMeters) {
-        const km = (data.searchedRadiusMeters / 1000).toFixed(1);
-        setNote(t('osmReducedRadius').replace('{km}', km));
-      } else {
-        setNote(label);
-      }
-      let nearPromos: Promo[] = [];
-      try {
-        const promoRes = await api.get('/api/promociones/cerca', {
-          params: { lng, lat, maxMeters: NEAR_RADIUS_M },
-        });
-        nearPromos = (promoRes.data.promos ?? []) as Promo[];
-      } catch {
-        nearPromos = [];
-      }
-      setPromos(nearPromos);
       const savedNote =
         data.partial && data.searchedRadiusMeters
           ? t('osmReducedRadius').replace(
@@ -296,29 +294,38 @@ export default function Cerca() {
               (data.searchedRadiusMeters / 1000).toFixed(1)
             )
           : label;
-      await cacheSet(CACHE_KEYS.lastNear, {
-        branches: list,
-        promos: filterGuestSafePromos(nearPromos),
-        note: savedNote,
-        lat,
-        lng,
-      });
+      setBranches(list);
+      setCacheSavedAt(Date.now());
+      setNote(savedNote);
+      setLoading(false);
+      const nearPromos = await offers;
+      if (request.signal.aborted) return;
+      setPromos(nearPromos ?? []);
+      setOffersUnavailable(nearPromos === null);
+      if (nearPromos !== null) {
+        await cacheSet(CACHE_KEYS.lastNear, {
+          branches: list,
+          promos: filterGuestSafePromos(nearPromos),
+          note: savedNote,
+          lat,
+          lng,
+        });
+      }
     } catch {
-      const ok = await applyLastNearCache({
-        lat,
-        lng,
-        requireSameArea: true,
-      });
+      if (request.signal.aborted) return;
+      const ok = await applyLastNearCache({ lat, lng, requireSameArea: true });
       if (!ok) {
         setError(t('nearError'));
         setBranches([]);
         setPromos([]);
         setNote('');
-        setFromCache(false);
         setCacheSavedAt(null);
       }
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) {
+        setLoading(false);
+        setOffersLoading(false);
+      }
     }
   }
 
@@ -384,9 +391,9 @@ export default function Cerca() {
     t(k as 'cacheAgeJustNow', vars)
   );
 
-  const shownBranches = useMemo(() => offersOnly
+  const shownBranches = useMemo(() => offersOnly && !offersLoading && !offersUnavailable
     ? branches.filter((branch) => String(branch._id) === selectedPlaceId || placeHasOffers(branch, promos))
-    : branches, [branches, offersOnly, promos, selectedPlaceId]);
+    : branches, [branches, offersOnly, offersLoading, offersUnavailable, promos, selectedPlaceId]);
 
   const spots = useMemo(
     () =>
@@ -835,7 +842,8 @@ export default function Cerca() {
           </div>
           <div className="cerca-place-foot">
             <button
-              type="button" className="btn ghost cerca-map-focus" aria-pressed={offersOnly}
+              type="button" className="btn ghost cerca-map-focus" aria-pressed={offersOnly && !offersLoading && !offersUnavailable}
+              disabled={offersLoading || offersUnavailable}
               onClick={() => setOffersOnly((active) => !active)}
             >
               {t('nearWithActiveOffers')}
@@ -846,6 +854,8 @@ export default function Cerca() {
               </a>
             )}
           </div>
+          {offersLoading && <p className="meta" role="status">{t('searching')}</p>}
+          {offersUnavailable && <p className="meta" role="status">{t('nearOffersUnavailable')}</p>}
           {!shownBranches.length && <p className="meta">{t('nearNoActiveOffers')}</p>}
           {shownBranches.length > 0 && <div id="cerca-mapa" className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${selectedSpot && !absorbingId ? ' is-focused' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
             <NearMap

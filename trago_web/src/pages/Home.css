@@ -754,7 +754,14 @@
     linear-gradient(165deg, #6a1822 0%, #3a0c14 45%, #140408 100%);
 }
 
-.home-bday-title-hero {
+.home-brand.home-bday-title-hero {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  font-size: clamp(2rem, 9.5vw, 4.5rem);
+  line-height: 1.04;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
   background: linear-gradient(120deg, #fff6e6 0%, #fff6d8 45%, #f0c96a 100%);
   -webkit-background-clip: text;
   background-clip: text;

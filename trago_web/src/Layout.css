@@ -131,9 +131,7 @@ html[data-theme='night'] .app-shell::after {
 }
 
 .app-shell.is-bday-day .app-body,
-.app-shell.is-bday-day .app-main,
-.app-shell.is-bday-day .bottom-nav,
-.app-shell.is-bday-day .app-header {
+.app-shell.is-bday-day .app-main {
   position: relative;
   z-index: 1;
 }
