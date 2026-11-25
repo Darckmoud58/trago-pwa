@@ -50,7 +50,7 @@ export async function consumeRateLimit(key, max, windowMs, now = new Date()) {
 export function rateLimit({ name, max, windowMs, keyFn, failClosed } = {}) {
   const closed =
     failClosed ??
-    ['login', 'register', 'vote', 'cadena-registro'].includes(name);
+    ['login', 'login-ip', 'register', 'vote', 'cadena-registro'].includes(name);
   return async (req, res, next) => {
     try {
       const ip = clientIp(req);
@@ -78,6 +78,8 @@ export function rateLimit({ name, max, windowMs, keyFn, failClosed } = {}) {
 
 export const LIMITS = {
   login: { max: 5, windowMs: 15 * 60 * 1000 },
+  /** Techo por IP además del bucket IP+correo (anti-rotación de emails). */
+  loginIp: { max: 20, windowMs: 15 * 60 * 1000 },
   register: { max: 5, windowMs: 60 * 60 * 1000 },
   cerca: { max: 20, windowMs: 60 * 1000 },
   api: { max: 120, windowMs: 60 * 1000 },
