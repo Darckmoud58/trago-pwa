@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthUser } from '../hooks/useAuthUser';
 import {
   birthdaySplashKey,
@@ -65,6 +65,7 @@ const STEPS: {
 export default function LocationSplash() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { birthdayToday, user, loading } = useAuthUser();
   const userId = user?.id || user?._id || '';
   const dialog = useRef<HTMLDialogElement>(null);
@@ -164,7 +165,7 @@ export default function LocationSplash() {
 
   function skip() {
     // Primera visita: catálogo sin GPS. Repetición: quédate donde estabas.
-    close(replay ? undefined : 'catalog');
+    close(replay || pathname !== '/' ? undefined : 'catalog');
   }
 
   /** Cierra el tutorial y abre la política elegida. */

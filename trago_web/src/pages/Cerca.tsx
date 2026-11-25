@@ -32,6 +32,8 @@ import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
 const NEAR_RADIUS_M = 2000;
+const BRANCH_PAGE_SIZE = 24;
+const MAP_PIN_LIMIT = 44;
 
 function openExactPlace(
   branch: Branch,
@@ -156,6 +158,7 @@ export default function Cerca() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const [branchLimit, setBranchLimit] = useState(BRANCH_PAGE_SIZE);
   const [offersOnly, setOffersOnly] = useState(false);
   const [openOffersId, setOpenOffersId] = useState<string | null>(null);
   const [userOrigin, setUserOrigin] = useState<{
@@ -259,6 +262,8 @@ export default function Cerca() {
     setError('');
     setNote(label);
     setBranches([]);
+    setBranchLimit(BRANCH_PAGE_SIZE);
+    setSelectedPlaceId(null);
     setPromos([]);
     setOpenOffersId(null);
     setFromCache(false);
@@ -427,7 +432,16 @@ export default function Cerca() {
     [shownBranches, promos, t]
   );
   const offerSpots = spots.filter((spot) => spot.hasOffer);
+  const mapSpots = [...offerSpots, ...spots.filter((spot) => !spot.hasOffer)].slice(0, MAP_PIN_LIMIT);
+  const selectedIndex = shownBranches.findIndex((branch) => String(branch._id) === selectedPlaceId);
+  const shownLimit = Math.max(branchLimit, selectedIndex + 1);
+  const listedBranches = shownBranches.slice(0, shownLimit);
   const selectedSpot = spots.find((spot) => spot.id === selectedPlaceId) || null;
+
+  if (selectedSpot && !mapSpots.some((spot) => spot.id === selectedSpot.id)) {
+    if (mapSpots.length === MAP_PIN_LIMIT) mapSpots.pop();
+    mapSpots.push(selectedSpot);
+  }
 
   function focusPlace(id: string, revealMap = false) {
     if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
@@ -825,7 +839,7 @@ export default function Cerca() {
       )}
 
       {!loading && branches.length > 0 && (
-        <section className="cerca-places" data-reveal data-reveal-delay="1">
+        <section className="cerca-places">
           <div className="cerca-section-head">
             <div>
               <h2>{t('aroundTitle')}</h2>
@@ -859,7 +873,7 @@ export default function Cerca() {
           {!shownBranches.length && <p className="meta">{t('nearNoActiveOffers')}</p>}
           {shownBranches.length > 0 && <div id="cerca-mapa" className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${selectedSpot && !absorbingId ? ' is-focused' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
             <NearMap
-              places={spots}
+              places={mapSpots}
               you={originKind === 'gps' ? userOrigin : null}
               selectedId={selectedPlaceId}
               dive={Boolean(absorbingId)}
@@ -919,7 +933,7 @@ export default function Cerca() {
             )}
             {offerSpots.length > 0 && (
               <div className="cerca-spot-rail">
-                {offerSpots.map((spot) => (
+                {offerSpots.slice(0, 12).map((spot) => (
                   <button
                     key={spot.id}
                     type="button"
@@ -935,8 +949,8 @@ export default function Cerca() {
             )}
           </div>
           }
-          <ul className="cerca-place-list stagger">
-            {shownBranches.map((b, index) => {
+          <ul className="cerca-place-list">
+            {listedBranches.map((b, index) => {
               const id = String(b._id);
               const nombre = b.nombre || b.name || t('branchFallback');
               const chain = b.chainName || t('businessFallback');
@@ -1069,6 +1083,11 @@ export default function Cerca() {
               );
             })}
           </ul>
+          {shownBranches.length > shownLimit && (
+            <button type="button" className="btn ghost" onClick={() => setBranchLimit(shownLimit + BRANCH_PAGE_SIZE)}>
+              {t('showMoreBranches')}
+            </button>
+          )}
           <p className="cerca-attribution">
             ©{' '}
             <a

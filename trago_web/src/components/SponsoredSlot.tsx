@@ -145,7 +145,8 @@ export default function SponsoredSlot({
   const slotRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
   const video = !videoFailed ? resolveMediaUrl(ad?.video_url) : '';
-  const deferVideo = slot === 'explorar_mid' && typeof IntersectionObserver !== 'undefined';
+  const deferVideo = (slot === 'explorar_mid' || slot === 'cerca_top') &&
+    typeof IntersectionObserver !== 'undefined';
   const locked = fixedAd !== undefined;
 
   useEffect(() => {
