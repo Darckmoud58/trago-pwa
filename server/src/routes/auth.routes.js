@@ -22,6 +22,13 @@ router.post(
 
 router.post(
   '/login',
+  // Tope por IP: evita fuerza bruta rotando correos (cada uno reiniciaba el bucket).
+  rateLimit({
+    name: 'login-ip',
+    max: LIMITS.loginIp.max,
+    windowMs: LIMITS.loginIp.windowMs,
+    failClosed: true,
+  }),
   rateLimit({
     name: 'login',
     max: LIMITS.login.max,
