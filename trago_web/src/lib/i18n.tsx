@@ -454,6 +454,13 @@ const messages = {
       'Esa ventana no está pagada. Compra Inicio o Explorar, o guarda el borrador.',
     chainAdPublishNeedPosition:
       'Esa posición cuesta $50. Págala, elige Aleatoria, o guarda el borrador.',
+    chainAdPausedOk: 'Campaña pausada. Ya no se muestra a los usuarios.',
+    chainAdServingHint:
+      'Al publicar (estatus Activo) el creativo sale en Inicio o Explorar según la ventana pagada. Si el botón no hace nada visible, el mensaje de error aparece aquí arriba.',
+    chainAdLiveHint:
+      'Visible para usuarios en esa ventana/posición (si la pauta sigue activa).',
+    chainVigenciaMapHint:
+      'Toca un pin: zoom a la sucursal y ficha con la promo guardada. Igual que en Cerca, con tus ubicaciones.',
     bizBranchOptional: 'Primera sucursal (opcional)',
     bizBranchName: 'Nombre del local',
     bizBranchStreet: 'Calle y número',
@@ -1199,6 +1206,13 @@ const messages = {
       'That window is not paid. Buy Home or Explore, or save the draft.',
     chainAdPublishNeedPosition:
       'That position costs $50. Pay for it, pick Random, or save the draft.',
+    chainAdPausedOk: 'Campaign paused. It no longer shows to users.',
+    chainAdServingHint:
+      'When published (Active), the creative appears on Home or Explore for the paid window. If a button seems quiet, the error shows in the alert above.',
+    chainAdLiveHint:
+      'Visible to users on that window/position while the plan stays active.',
+    chainVigenciaMapHint:
+      'Tap a pin: zooms to the branch and shows the saved promo — like Near, with your locations.',
     bizBranchOptional: 'First branch (optional)',
     bizBranchName: 'Branch name',
     bizBranchStreet: 'Street and number',
