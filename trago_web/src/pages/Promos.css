@@ -453,3 +453,11 @@ html[data-theme='night'] .promo-rich {
   background: linear-gradient(160deg, #451018 0%, #2e0a12 100%);
   border-color: color-mix(in srgb, #fff6e6 12%, transparent);
 }
+
+
+/* El feed completo puede tener decenas de tarjetas y anuncios en móviles. */
+@media (pointer: coarse) {
+  .promos-grid.stagger > * {
+    animation: none;
+  }
+}

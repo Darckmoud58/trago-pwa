@@ -412,7 +412,7 @@ export default function Promos() {
         <OfflineState cacheAge={cacheAgeLabel} />
       ) : null}
 
-      <div className="promo-grid promos-grid stagger" data-reveal data-reveal-delay="1">
+      <div className="promo-grid promos-grid stagger">
         {visible.map((p, index) => {
           const title = p.nombre || p.title || t('promoFallback');
           const desc = p.descripcion || p.subtitle;

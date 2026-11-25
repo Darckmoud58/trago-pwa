@@ -138,6 +138,10 @@ export default function SponsoredSlot({
   const [videoFailed, setVideoFailed] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
   const tracked = useRef(false);
+  const slotRef = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(false);
+  const video = !videoFailed ? resolveMediaUrl(ad?.video_url) : '';
+  const deferVideo = slot === 'explorar_mid' && typeof IntersectionObserver !== 'undefined';
   const locked = fixedAd !== undefined;
 
   useEffect(() => {
@@ -179,9 +183,20 @@ export default function SponsoredSlot({
       .catch(() => {});
   }, [ad]);
 
+  useEffect(() => {
+    const element = slotRef.current;
+    if (!deferVideo || !video || !element) return;
+    // El catálogo puede repetir un creativo en muchas posiciones.
+    const observer = new IntersectionObserver(([entry]) => {
+      setInView(entry.isIntersecting);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [deferVideo, video]);
+
   if (!ad) return null;
 
-  const video = !videoFailed ? resolveMediaUrl(ad.video_url) : '';
+  const showVideo = video && (!deferVideo || inView);
   const img = !imgFailed ? resolveMediaUrl(ad.imagen_url) : '';
   const href = ad.url_destino || undefined;
   const isSide = variant === 'side';
@@ -200,7 +215,7 @@ export default function SponsoredSlot({
       .catch(() => {});
   }
 
-  const mediaInner = video ? (
+  const mediaInner = showVideo ? (
     <video
       src={video}
       poster={img || undefined}
@@ -288,7 +303,7 @@ export default function SponsoredSlot({
     .join(' ');
 
   return (
-    <aside className={cls} data-slot={slot} aria-label={adBadge}>
+    <aside ref={slotRef} className={cls} data-slot={slot} aria-label={adBadge}>
       {inner}
     </aside>
   );
