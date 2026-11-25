@@ -1,13 +1,25 @@
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import SponsoredSlot from './SponsoredSlot';
 import './SideAdRails.css';
 
 /**
  * Columnas Patrocinado a izquierda/derecha del contenido (desktop ≥900px).
- * En móvil se ocultan; el slot home_rail sigue en el flujo.
+ * En móvil no se montan: evita <video> ocultos que igual decodifican y tumbaron Explorar en iOS.
  */
 export default function SideAdRails() {
   const { pathname } = useLocation();
+  const [desktop, setDesktop] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 900px)');
+    const apply = () => setDesktop(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
   const hide =
     pathname.startsWith('/entrar') ||
     pathname.startsWith('/registro') ||
@@ -16,7 +28,7 @@ export default function SideAdRails() {
 
   const inicio = pathname === '/';
   const explorar = pathname.startsWith('/promos');
-  if (hide || (!inicio && !explorar)) return null;
+  if (!desktop || hide || (!inicio && !explorar)) return null;
 
   const left = inicio ? 'inicio_side_left' : 'explorar_side_left';
   const right = inicio ? 'inicio_side_right' : 'explorar_side_right';

@@ -8,10 +8,15 @@ import {
 } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, readToken, setAuth } from '../api';
-import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
+import VigenciaMap, {
+  STATUS_COLOR,
+  type VigenciaMapRow,
+  vigenciaRowKey,
+} from '../components/VigenciaMap';
 import { useI18n, type MessageKey } from '../lib/i18n';
 import { uploadCreative } from '../lib/uploadCreative';
 import './Cadena.css';
+import '../components/VigenciaMap.css';
 
 type Empresa = {
   _id: string;
@@ -145,6 +150,8 @@ export default function Cadena() {
   const [vigencia, setVigencia] = useState<VigenciaMapRow[]>([]);
   const [mapFilter, setMapFilter] = useState<'all' | string>('all');
   const [selectedVigencia, setSelectedVigencia] = useState<string | null>(null);
+  const [vigenciaDive, setVigenciaDive] = useState(false);
+  const vigenciaDiveTimer = useRef<number | null>(null);
   const [metricas, setMetricas] = useState<{
     days: number;
     sessions: {
@@ -228,6 +235,14 @@ export default function Cadena() {
     setAuth(token);
     void load();
   }, [token, load]);
+
+  useEffect(() => {
+    return () => {
+      if (vigenciaDiveTimer.current != null) {
+        window.clearTimeout(vigenciaDiveTimer.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const calle = sucCalle.trim();
@@ -409,6 +424,18 @@ export default function Cadena() {
     );
   }
 
+  function pulseVigenciaDive(key: string) {
+    setSelectedVigencia(key);
+    setVigenciaDive(true);
+    if (vigenciaDiveTimer.current != null) {
+      window.clearTimeout(vigenciaDiveTimer.current);
+    }
+    vigenciaDiveTimer.current = window.setTimeout(() => {
+      setVigenciaDive(false);
+      vigenciaDiveTimer.current = null;
+    }, 900);
+  }
+
   async function reafirmar(promoId: string, ubicacionId: string) {
     setBusy(true);
     setError('');
@@ -419,6 +446,7 @@ export default function Cadena() {
         ubicacionId,
       });
       setInfo(res.data.message || t('chainReaffirmOk'));
+      pulseVigenciaDive(`${promoId}-${ubicacionId}`);
       await load();
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { message?: string } } };
@@ -646,8 +674,16 @@ export default function Cadena() {
   }
 
   function vigenciaKey(row: VigenciaMapRow) {
-    return `${row.promoId}-${row.ubicacionId}`;
+    return vigenciaRowKey(row);
   }
+
+  const selectedVigenciaRow = useMemo(
+    () =>
+      selectedVigencia
+        ? vigencia.find((r) => vigenciaRowKey(r) === selectedVigencia) ?? null
+        : null,
+    [vigencia, selectedVigencia]
+  );
 
   return (
     <section className="cadena-page">
@@ -1232,11 +1268,102 @@ export default function Cadena() {
                   ))}
                 </div>
 
-                <VigenciaMap
-                  rows={filteredVigencia}
-                  selectedKey={selectedVigencia}
-                  onSelect={(row) => setSelectedVigencia(vigenciaKey(row))}
-                />
+                <div className="vigencia-map-wrap">
+                  <div className="vigencia-map-legend" aria-hidden>
+                    {(
+                      [
+                        ['vigente', t('statusVigente')],
+                        ['en_duda', t('statusEnDuda')],
+                        ['caduco', t('statusCaduco')],
+                        ['fuera', t('statusFuera')],
+                      ] as const
+                    ).map(([id, label]) => (
+                      <span key={id}>
+                        <i style={{ background: STATUS_COLOR[id] }} />
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                  <div
+                    className={`vigencia-stage-frame${
+                      selectedVigenciaRow ? ' is-focused' : ''
+                    }`}
+                  >
+                    <VigenciaMap
+                      rows={filteredVigencia}
+                      selectedKey={selectedVigencia}
+                      dive={vigenciaDive}
+                      onSelect={(row) =>
+                        setSelectedVigencia(vigenciaRowKey(row))
+                      }
+                    />
+                    {selectedVigenciaRow && (
+                      <article
+                        className="vigencia-float"
+                        key={vigenciaRowKey(selectedVigenciaRow)}
+                      >
+                        <p
+                          className="vigencia-float-kicker"
+                          style={{
+                            color:
+                              STATUS_COLOR[selectedVigenciaRow.crowdStatus] ||
+                              STATUS_COLOR.fuera,
+                          }}
+                        >
+                          {crowdLabel(selectedVigenciaRow.crowdStatus)}
+                        </p>
+                        <h3>{selectedVigenciaRow.sucursalNombre}</h3>
+                        <p>
+                          {selectedVigenciaRow.promoNombre}
+                          {' · '}
+                          {t('voteCounts')
+                            .replace(
+                              '{yes}',
+                              String(selectedVigenciaRow.reportsVigente)
+                            )
+                            .replace(
+                              '{no}',
+                              String(selectedVigenciaRow.reportsCaduco)
+                            )}
+                          {!selectedVigenciaRow.activaOficial
+                            ? ` · ${t('chainPaused')}`
+                            : ''}
+                        </p>
+                        <div className="vigencia-float-actions">
+                          <button
+                            type="button"
+                            className="btn primary"
+                            disabled={busy}
+                            onClick={() =>
+                              void reafirmar(
+                                selectedVigenciaRow.promoId,
+                                selectedVigenciaRow.ubicacionId
+                              )
+                            }
+                          >
+                            {t('chainReaffirm')}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn ghost"
+                            disabled={busy}
+                            onClick={() =>
+                              void toggleParticipacion(
+                                selectedVigenciaRow.promoId,
+                                selectedVigenciaRow.ubicacionId,
+                                !selectedVigenciaRow.activaOficial
+                              )
+                            }
+                          >
+                            {selectedVigenciaRow.activaOficial
+                              ? t('chainPauseBranch')
+                              : t('chainResumeBranch')}
+                          </button>
+                        </div>
+                      </article>
+                    )}
+                  </div>
+                </div>
 
                 <ul className="cadena-list">
                   {filteredVigencia.map((row) => {
@@ -1248,6 +1375,15 @@ export default function Cadena() {
                           selectedVigencia === key ? 'is-map-selected' : undefined
                         }
                         onClick={() => setSelectedVigencia(key)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setSelectedVigencia(key);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={selectedVigencia === key}
                       >
                         <strong>
                           {row.promoNombre} · {row.sucursalNombre}
@@ -1263,36 +1399,6 @@ export default function Cadena() {
                             ? ` · ${t('chainReaffirmed')}`
                             : ''}
                         </span>
-                        <div className="cadena-vigencia-actions">
-                          <button
-                            type="button"
-                            className="btn primary"
-                            disabled={busy}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void reafirmar(row.promoId, row.ubicacionId);
-                            }}
-                          >
-                            {t('chainReaffirm')}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn ghost"
-                            disabled={busy}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void toggleParticipacion(
-                                row.promoId,
-                                row.ubicacionId,
-                                !row.activaOficial
-                              );
-                            }}
-                          >
-                            {row.activaOficial
-                              ? t('chainPauseBranch')
-                              : t('chainResumeBranch')}
-                          </button>
-                        </div>
                       </li>
                     );
                   })}

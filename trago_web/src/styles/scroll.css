@@ -242,18 +242,24 @@ html {
     }
   }
 
-  /* Cards en listados: settle ligero sin blur */
-  .promo-card,
-  .feed-card,
-  .cerca-offer-card,
-  .cerca-place-card,
-  .fav-card,
-  .detail-branch,
-  .legal-section,
-  .settings-row {
-    animation: view-settle linear both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 32%;
+  /*
+    Cards en listados: settle ligero sin blur.
+    Solo puntero fino — en touch (iOS) animation-timeline:view() × ~100
+    fichas de Explorar ha tumado WebKit («Ocurrió un problema varias veces»).
+  */
+  @media (hover: hover) and (pointer: fine) {
+    .promo-card,
+    .feed-card,
+    .cerca-offer-card,
+    .cerca-place-card,
+    .fav-card,
+    .detail-branch,
+    .legal-section,
+    .settings-row {
+      animation: view-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 32%;
+    }
   }
 
   @keyframes view-settle {
