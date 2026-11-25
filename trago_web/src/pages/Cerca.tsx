@@ -13,7 +13,7 @@ import { useUserPrefs } from '../hooks/useUserPrefs';
 import { useAuthUser } from '../hooks/useAuthUser';
 import { CACHE_KEYS, cacheGet, cacheSet, filterGuestSafePromos, isPromoActive } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
-import { readGpsCached } from '../lib/lastKnownGps';
+import { getLastKnownGps, readGpsCached } from '../lib/lastKnownGps';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { track, trackGps } from '../lib/metrics';
 import {
@@ -24,10 +24,10 @@ import {
 import { resolveOfficialPromoUrl } from '../lib/officialUrl';
 import { formatCacheAge } from '../lib/userPrefs';
 import {
+  hasGeolocationGranted,
   isOnboardingOpen,
   SPLASH_CLOSED,
 } from '../lib/onboarding';
-import { resolveZone } from '../lib/zones';
 import type { Branch, Promo } from '../types';
 import './Cerca.css';
 
@@ -149,7 +149,8 @@ export default function Cerca() {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [needsLocation, setNeedsLocation] = useState(true);
   const [offersLoading, setOffersLoading] = useState(false);
   const [offersUnavailable, setOffersUnavailable] = useState(false);
   const nearRequest = useRef<AbortController | null>(null);
@@ -165,12 +166,13 @@ export default function Cerca() {
     lat: number;
     lng: number;
   } | null>(null);
-  const [originKind, setOriginKind] = useState<'gps' | 'zone' | 'cache' | null>(
+  const [originKind, setOriginKind] = useState<'gps' | 'cache' | null>(
     null
   );
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
   const [absorbingId, setAbsorbingId] = useState<string | null>(null);
   const bootstrapped = useRef(false);
+  const locationRequested = useRef(false);
   const absorbTimer = useRef<number | null>(null);
   const catalogPromos = promos.filter(
     (promo) => !isLandingPromoTitle(promo) && !promo.requiresAuth
@@ -334,11 +336,17 @@ export default function Cerca() {
     }
   }
 
-  async function locateNear() {
+  async function locateNear(forceDevice = false) {
+    locationRequested.current = true;
+    setNeedsLocation(false);
     setLoading(true);
     setError('');
     try {
-      const pos = await readGpsCached({ maximumAge: 30_000 });
+      const pos = await readGpsCached({
+        forceDevice,
+        maximumAge: forceDevice ? 0 : 30_000,
+        enableHighAccuracy: false,
+      });
       void trackGps(true, pos.lat, pos.lng);
       setOriginKind('gps');
       await loadNear(pos.lng, pos.lat, t('usingLocation'));
@@ -354,42 +362,37 @@ export default function Cerca() {
       setCacheSavedAt(null);
       setUserOrigin(null);
       setOriginKind(null);
+      const code = (err as { code?: number } | null)?.code;
       setError(
         err instanceof Error && err.message === 'no-geo'
           ? t('noGeo')
-          : t('locationPermissionError')
+          : code === 1 ? t('locationPermissionError') : t('nearDeviceLocationUnavailable')
       );
     }
-  }
-
-  /** Demo explícita: no escribe lastKnownGps ni finge GPS real. */
-  async function applyManualZone() {
-    const zone = resolveZone(prefs.zona);
-    const zoneName = t(zone.labelKey);
-    const label = t('manualZoneNote').replace('{zone}', zoneName);
-    setOriginKind('zone');
-    void track({
-      tipo: 'cerca_open',
-      lat: zone.lat,
-      lng: zone.lng,
-      meta: { label, source: 'manual_zone', zone: zone.id },
-    });
-    await loadNear(zone.lng, zone.lat, label);
   }
 
   useEffect(() => {
     const start = () => {
       if (bootstrapped.current) return;
       bootstrapped.current = true;
-      void locateNear();
+      if (!navigator.onLine) {
+        setNeedsLocation(false);
+        setLoading(true);
+        void applyLastNearCache().then((ok) => {
+          if (!ok) setError(t('nearError'));
+          setLoading(false);
+        });
+      } else if (getLastKnownGps()) {
+        void locateNear();
+      } else {
+        void hasGeolocationGranted().then((granted) => {
+          if (granted && !locationRequested.current) void locateNear();
+        });
+      }
     };
-    const onTourClosed = () => {
-      start();
-    };
-    // Pedir GPS al entrar (como antes). Solo esperar si Traguito está abierto.
     if (!isOnboardingOpen()) start();
-    window.addEventListener(SPLASH_CLOSED, onTourClosed);
-    return () => window.removeEventListener(SPLASH_CLOSED, onTourClosed);
+    window.addEventListener(SPLASH_CLOSED, start);
+    return () => window.removeEventListener(SPLASH_CLOSED, start);
   }, []);
 
   const cacheAgeLabel = formatCacheAge(cacheSavedAt, (k, vars) =>
@@ -663,12 +666,16 @@ export default function Cerca() {
         <button
           type="button"
           className="btn ghost btn-sm cerca-refresh"
-          onClick={() => void locateNear()}
+          onClick={() => void locateNear(true)}
           disabled={loading}
         >
-          {loading ? t('searching') : t('retryLocation')}
+          {loading ? t('searching') : needsLocation || fromCache ? t('nearUseDeviceLocation') : t('retryLocation')}
         </button>
       </header>
+
+      {needsLocation && online && (
+        <p className="cerca-gps-help">{t('nearDeviceLocationHint')}</p>
+      )}
 
       {loading && (
         <div
@@ -738,19 +745,9 @@ export default function Cerca() {
                 <button
                   type="button"
                   className="btn primary cerca-retry"
-                  onClick={() => void locateNear()}
+                  onClick={() => void locateNear(true)}
                 >
                   {t('retryLocation')}
-                </button>
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => void applyManualZone()}
-                >
-                  {t('useManualZone').replace(
-                    '{zone}',
-                    t(resolveZone(prefs.zona).labelKey)
-                  )}
                 </button>
                 <Link className="btn ghost" to="/promos" viewTransition>
                   {t('goCatalog')}
@@ -1101,7 +1098,7 @@ export default function Cerca() {
         </section>
       )}
 
-      {!loading && !error && branches.length === 0 && (
+      {!needsLocation && !loading && !error && branches.length === 0 && (
         <div className="empty-state cerca-empty">
           <p>{t('nearEmpty')}</p>
           <p className="muted">
@@ -1118,7 +1115,7 @@ export default function Cerca() {
           <button
             type="button"
             className="btn primary"
-            onClick={() => void locateNear()}
+            onClick={() => void locateNear(true)}
           >
             {t('retryLocation')}
           </button>

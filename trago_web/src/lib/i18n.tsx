@@ -572,6 +572,9 @@ const messages = {
     openNear: 'Abrir cerca',
     useMyLocation: 'Usar mi ubicación',
     demoCenter: 'Demo Centro GDL',
+    nearUseDeviceLocation: 'Usar ubicación del dispositivo',
+    nearDeviceLocationHint: 'Toca el botón y permite el acceso a tu ubicación para buscar sucursales a tu alrededor.',
+    nearDeviceLocationUnavailable: 'No pudimos obtener tu ubicación. Comprueba que esté activada y vuelve a intentarlo.',
     retryLocation: 'Reintentar ubicación',
     usingLocation: 'Cerca de ti · 2 km',
     locationPermissionError:
@@ -786,8 +789,6 @@ const messages = {
       'Publicada por la marca. La vigencia en piso y la sucursal hay que confirmarlas.',
     cercaGpsHelp:
       'Necesitamos tu ubicación para mostrar locales cercanos. No sustituimos tu GPS por otra zona.',
-    useManualZone:
-      'Usar zona {zone} (demo explícita · no es tu GPS)',
     manualZoneNote: 'Demo · {zone} · 2 km',
     goCatalog: 'Ver catálogo',
     branchDistance: 'A {m} m de ti',
@@ -1357,6 +1358,9 @@ const messages = {
     openNear: 'Open nearby',
     useMyLocation: 'Use my location',
     demoCenter: 'Demo Downtown GDL',
+    nearUseDeviceLocation: 'Use device location',
+    nearDeviceLocationHint: 'Tap the button and allow location access to find nearby locations.',
+    nearDeviceLocationUnavailable: 'We couldn’t get your location. Check that it is enabled and try again.',
     retryLocation: 'Retry location',
     usingLocation: 'Near you · 2 km',
     locationPermissionError:
@@ -1568,7 +1572,6 @@ const messages = {
       'Published by the brand. Floor validity and the store still need confirmation.',
     cercaGpsHelp:
       'We need your location to show nearby places. We never silently replace your GPS.',
-    useManualZone: 'Use {zone} zone (explicit demo · not your GPS)',
     manualZoneNote: 'Demo · {zone} · 2 km',
     goCatalog: 'Browse catalog',
     branchDistance: '{m} m from you',

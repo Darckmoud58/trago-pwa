@@ -58,6 +58,7 @@ export function getLastKnownGps(opts?: {
 }
 
 export type ReadGpsCachedOptions = {
+  forceDevice?: boolean;
   enableHighAccuracy?: boolean;
   timeout?: number;
   maximumAge?: number;
@@ -75,7 +76,7 @@ export function readGpsCached(
   const cached = getLastKnownGps({
     maxAgeMs: options.cacheMaxAgeMs ?? MEMORY_MAX_AGE_MS,
   });
-  if (cached) return Promise.resolve(cached);
+  if (cached && !options.forceDevice) return Promise.resolve(cached);
 
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
