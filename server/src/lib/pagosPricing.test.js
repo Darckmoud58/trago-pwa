@@ -6,6 +6,7 @@ import {
   quotePositionPurchase,
   slotsFromLegacy,
   resolveCreativePlacement,
+  competingAdPlacement,
   PLAN_BASE_MXN,
   POSITION_EXTRA_MXN,
 } from './pagosPricing.js';
@@ -243,5 +244,18 @@ describe('pagosProvider', () => {
       ),
       false
     );
+  });
+});
+
+describe('competingAdPlacement', () => {
+  it('limita el reemplazo aleatorio a la ventana pagada', () => {
+    for (const ventana of ['inicio', 'explorar']) {
+      const placement = resolveCreativePlacement({ ventana, posicion: 'aleatoria' });
+      assert.deepEqual(competingAdPlacement(placement), { slot: 'aleatoria', ventana });
+    }
+  });
+
+  it('conserva el reemplazo por slot en una posición fija o antigua', () => {
+    assert.deepEqual(competingAdPlacement({ slot: 'home_rail' }), { slot: 'home_rail' });
   });
 });

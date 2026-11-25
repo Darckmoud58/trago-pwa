@@ -8,8 +8,10 @@ import {
   puedePauta,
 } from '../lib/pauta.js';
 import { acceptAdChunk, openAdMedia } from '../lib/adMedia.js';
+import { assertAdSchedule, parseAdDate } from '../lib/adSchedule.js';
 import { selectPlacement } from '../lib/adRotation.js';
 import {
+  competingAdPlacement,
   legacySlotsFor,
   ownedPositions,
   ownedWindows,
@@ -228,7 +230,10 @@ export async function createAnuncio(req, res) {
       await assertCanPublish(req, empresa, placement);
     }
 
-    const inicia = req.body.inicia ? new Date(req.body.inicia) : null;
+    const now = new Date();
+    const inicia = parseAdDate(req.body.inicia) || (publicar ? now : null);
+    const termina = parseAdDate(req.body.termina, true);
+    assertAdSchedule(inicia, termina, { publish: publicar, now });
     const doc = await Anuncio.create({
       id_empresa: empresa._id,
       titulo,
@@ -236,8 +241,8 @@ export async function createAnuncio(req, res) {
       imagen_url: sanitizeMediaUrl(req.body.imagen_url || req.body.imagen),
       video_url: sanitizeMediaUrl(req.body.video_url || req.body.video),
       url_destino: sanitizeHttpUrl(req.body.url_destino || req.body.url),
-      inicia: publicar && !inicia ? new Date() : inicia,
-      termina: req.body.termina ? new Date(req.body.termina) : null,
+      inicia,
+      termina,
       zonas: zonas.length ? zonas : ['gdl'],
       slot: placement.slot,
       ventana: placement.ventana,
@@ -250,7 +255,7 @@ export async function createAnuncio(req, res) {
       await Anuncio.updateMany(
         {
           id_empresa: empresa._id,
-          slot: doc.slot,
+          ...competingAdPlacement(doc),
           estatus: 'activo',
           _id: { $ne: doc._id },
         },
@@ -275,6 +280,30 @@ export async function createAnuncio(req, res) {
   }
 }
 
+/** DELETE /api/cadena/anuncios/:id — solo borradores de la empresa. */
+export async function deleteAnuncioDraft(req, res) {
+  const { id } = req.params;
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({ message: 'id inválido' });
+  }
+  try {
+    const empresa = assertOwnEmpresa(req);
+    const own = { _id: id, id_empresa: empresa._id };
+    const result = await Anuncio.deleteOne({ ...own, estatus: 'borrador' });
+    if (result.deletedCount) return res.status(204).end();
+    if (await Anuncio.exists(own)) {
+      return res.status(409).json({ message: 'Solo puedes eliminar anuncios en borrador.' });
+    }
+    return res.status(404).json({ message: 'Anuncio no encontrado' });
+  } catch (e) {
+    if (e.status === 404) {
+      return res.status(404).json({ message: 'Registra tu cadena primero' });
+    }
+    console.error('deleteAnuncioDraft:', e.message);
+    return res.status(500).json({ message: 'Error del servidor' });
+  }
+}
+
 /** PUT /api/cadena/anuncios/:id — editar/pausar borrador no exige pauta paga */
 export async function updateAnuncio(req, res) {
   try {
@@ -286,6 +315,10 @@ export async function updateAnuncio(req, res) {
     const doc = await Anuncio.findOne({ _id: id, id_empresa: empresa._id });
     if (!doc) {
       return res.status(404).json({ message: 'Anuncio no encontrado' });
+    }
+    const draftOnly = req.body.soloBorrador === true;
+    if (draftOnly && doc.estatus !== 'borrador') {
+      return res.status(409).json({ message: 'El anuncio ya no está en borrador.' });
     }
     if (req.body.estatus === 'activo') {
       return res.status(400).json({
@@ -316,10 +349,10 @@ export async function updateAnuncio(req, res) {
       doc.url_destino = sanitizeHttpUrl(req.body.url_destino || req.body.url);
     }
     if (req.body.inicia !== undefined) {
-      doc.inicia = req.body.inicia ? new Date(req.body.inicia) : null;
+      doc.inicia = parseAdDate(req.body.inicia);
     }
     if (req.body.termina !== undefined) {
-      doc.termina = req.body.termina ? new Date(req.body.termina) : null;
+      doc.termina = parseAdDate(req.body.termina, true);
     }
     if (req.body.ventana != null || req.body.posicion != null || req.body.slot != null) {
       const placement = resolveCreativePlacement({
@@ -340,10 +373,14 @@ export async function updateAnuncio(req, res) {
     if (req.body.alcohol != null) {
       doc.alcohol = Boolean(req.body.alcohol);
     }
-    if (req.body.estatus === 'pausado' || req.body.estatus === 'borrador') {
+    if (!draftOnly && (req.body.estatus === 'pausado' || req.body.estatus === 'borrador')) {
       doc.estatus = req.body.estatus;
     }
 
+    if (req.body.inicia !== undefined || req.body.termina !== undefined) {
+      assertAdSchedule(doc.inicia, doc.termina, { publish: doc.estatus === 'activo' });
+    }
+    if (draftOnly) doc.$where = { estatus: 'borrador' };
     await doc.save();
     return res.json({
       anuncio: mapAnuncio(doc.toObject(), {
@@ -351,6 +388,9 @@ export async function updateAnuncio(req, res) {
       }),
     });
   } catch (e) {
+    if (e.name === 'DocumentNotFoundError') {
+      return res.status(409).json({ message: 'El anuncio cambió o ya no existe.' });
+    }
     if (e.status === 404) {
       return res.status(404).json({ message: 'Registra tu cadena primero' });
     }
@@ -378,18 +418,20 @@ export async function activateAnuncio(req, res) {
       return res.status(400).json({ message: 'El anuncio necesita título' });
     }
     if (!req.isAdmin) await assertCanPublish(req, empresa, doc);
+    const now = new Date();
+    assertAdSchedule(doc.inicia || now, doc.termina, { publish: true, now });
+    doc.estatus = 'activo';
+    if (!doc.inicia) doc.inicia = now;
+    await doc.save();
     await Anuncio.updateMany(
       {
         id_empresa: empresa._id,
-        slot: doc.slot,
+        ...competingAdPlacement(doc),
         estatus: 'activo',
         _id: { $ne: doc._id },
       },
       { $set: { estatus: 'pausado' } }
     );
-    doc.estatus = 'activo';
-    if (!doc.inicia) doc.inicia = new Date();
-    await doc.save();
     return res.json({
       anuncio: mapAnuncio(doc.toObject(), {
         [String(empresa._id)]: empresa,

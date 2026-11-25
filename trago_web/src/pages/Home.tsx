@@ -14,7 +14,6 @@ import PromoPrice from '../components/PromoPrice';
 import SponsoredSlot, {
   useSlotAds,
   weaveAdAtSafe,
-  weaveAdCount,
 } from '../components/SponsoredSlot';
 import { isBirthdayFreebie, useAuthUser } from '../hooks/useAuthUser';
 import { useUserPrefs } from '../hooks/useUserPrefs';
@@ -315,7 +314,7 @@ export default function Home() {
     async function applyCachedNear() {
       const nearCached = await cacheGet<{
         promos?: Promo[];
-      }>(CACHE_KEYS.lastNear);
+      }>(CACHE_KEYS.homeNearPromos) ?? await cacheGet<{ promos?: Promo[] }>(CACHE_KEYS.lastNear);
       const promoCached = await cacheGet<Promo[]>(CACHE_KEYS.promos);
       if (cancelled) return false;
       const fromNear = filterGuestSafePromos(
@@ -418,7 +417,7 @@ export default function Home() {
         setNearFailKind(null);
         const safeForDisk = filterGuestSafePromos(list).slice(0, 20);
         await cacheSet(CACHE_KEYS.promos, safeForDisk);
-        await cacheSet(CACHE_KEYS.lastNear, { promos: safeForDisk });
+        await cacheSet(CACHE_KEYS.homeNearPromos, { promos: safeForDisk });
         void track({
           tipo: 'cerca_open',
           lat: pos.lat,
@@ -673,8 +672,13 @@ export default function Home() {
   const railNear = nearPromos.slice(6);
   /** Misma cadencia que Explorar/Cerca: no pegar Patrocinado al primer bloque. */
   const HOME_AD_EVERY = 6;
-  const forYouWoveSponsored =
-    homeAds.length > 0 && weaveAdCount(forYou.length, HOME_AD_EVERY) > 0;
+  const lastForYou = forYou[HOME_AD_EVERY - 1];
+  const forYouSponsored = lastForYou
+    ? weaveAdAtSafe(homeAds, HOME_AD_EVERY - 1, HOME_AD_EVERY, {
+        title: lastForYou.nombre || lastForYou.title,
+        image: lastForYou.imagen || lastForYou.imageUrl,
+      })
+    : null;
   const showNearFeed = !birthdayToday && nearPromos.length > 0;
   const showCatalog = !birthdayToday && catalogPromos.length > 0;
   const nearChains = useMemo(() => {
@@ -893,10 +897,7 @@ export default function Home() {
           {forYou.length > 0 ? (
             <div className="home-for-you-grid stagger">
               {forYou.map((p, i) => {
-                const ad = weaveAdAtSafe(homeAds, i, HOME_AD_EVERY, {
-                  title: p.nombre || p.title,
-                  image: p.imagen || p.imageUrl,
-                });
+                const ad = i === HOME_AD_EVERY - 1 ? forYouSponsored : null;
                 return (
                   <Fragment key={p._id}>
                     {renderPromoCard(p, { featured: i === 0 })}
@@ -1145,7 +1146,7 @@ export default function Home() {
       </section>
 
       {/* Después de Explorar: no pegar dos Patrocinado al bloque «Para ti». */}
-      {homeAds[0] && !forYouWoveSponsored ? (
+      {homeAds[0] && !forYouSponsored ? (
         <div data-reveal>
           <SponsoredSlot
             slot="home_rail"

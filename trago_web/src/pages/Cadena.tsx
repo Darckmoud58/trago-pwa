@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, readToken, setAuth } from '../api';
+import AdPlacementPreview from '../components/AdPlacementPreview';
+import { resolveMediaUrl } from '../lib/mediaUrl';
 import VigenciaMap, { type VigenciaMapRow } from '../components/VigenciaMap';
 import { useI18n, type MessageKey } from '../lib/i18n';
 import { uploadCreative } from '../lib/uploadCreative';
@@ -67,6 +69,8 @@ type AnuncioRow = {
   ventana?: string;
   posicion?: string;
   estatus?: string;
+  inicia?: string | null;
+  termina?: string | null;
   impresiones?: number;
   clics?: number;
 };
@@ -108,7 +112,9 @@ function placementName(
   ad: { ventana?: string; posicion?: string; slot?: string },
   t: (key: MessageKey) => string
 ) {
-  const ventana = ad.ventana === 'explorar' ? 'explorar' : 'inicio';
+  const isExplore = ad.ventana === 'explorar' ||
+    (!ad.ventana && ad.slot?.startsWith('explorar_'));
+  const ventana = isExplore ? 'explorar' : 'inicio';
   const posicion =
     ad.posicion || (ad.slot && ad.slot !== 'aleatoria' ? ad.slot : 'aleatoria');
   const row = (POSITIONS[ventana] || POSITIONS.inicio).find(([id]) => id === posicion);
@@ -116,8 +122,26 @@ function placementName(
   return `${windowLabel} · ${row ? t(row[1]) : t('adPosRandom')}`;
 }
 
+function vigenciaKey(row: VigenciaMapRow) {
+  return `${row.promoId}-${row.ubicacionId}`;
+}
+
+function adStatus(ad: AnuncioRow, puedePauta: boolean, now: number): MessageKey {
+  if (
+    ad.estatus === 'vencido' ||
+    (ad.estatus === 'activo' && ad.termina && Date.parse(ad.termina) < now)
+  ) {
+    return 'chainAdExpired';
+  }
+  if (ad.estatus === 'pausado') return 'chainAdPaused';
+  if (ad.estatus !== 'activo') return 'chainAdDraft';
+  if (!puedePauta) return 'chainAdInactivePlan';
+  if (ad.inicia && Date.parse(ad.inicia) > now) return 'chainAdScheduled';
+  return 'chainAdLive';
+}
+
 export default function Cadena() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [token] = useState(() => readToken());
@@ -161,7 +185,10 @@ export default function Cadena() {
   const [suscripcion, setSuscripcion] = useState<SuscripcionRow | null>(null);
   const [adsError, setAdsError] = useState('');
   const [adsInfo, setAdsInfo] = useState('');
+  const [publishedAdId, setPublishedAdId] = useState<string | null>(null);
   const adsAlertRef = useRef<HTMLDivElement | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const draftTitleRef = useRef<HTMLInputElement>(null);
   const [adTitulo, setAdTitulo] = useState('');
   const [adCopy, setAdCopy] = useState('');
   const [adImagen, setAdImagen] = useState('');
@@ -315,6 +342,21 @@ export default function Cadena() {
     if (mapFilter === 'all') return vigencia;
     return vigencia.filter((r) => r.crowdStatus === mapFilter);
   }, [vigencia, mapFilter]);
+
+  const now = Date.now();
+  const adRows = anuncios.map((ad) => ({ ad, status: adStatus(ad, puedePauta, now) }));
+  const adGroups = [
+    {
+      heading: 'chainAdsLiveTitle',
+      empty: 'chainAdsLiveEmpty',
+      rows: adRows.filter(({ status }) => status === 'chainAdLive'),
+    },
+    {
+      heading: 'chainAdsOtherTitle',
+      empty: 'chainAdsOtherEmpty',
+      rows: adRows.filter(({ status }) => status !== 'chainAdLive'),
+    },
+  ] as const;
 
   const draftCount = useMemo(
     () => anuncios.filter((a) => a.estatus === 'borrador').length,
@@ -494,6 +536,65 @@ export default function Cadena() {
     });
   }
 
+  function resetAdForm() {
+    setEditingDraftId(null);
+    setAdTitulo('');
+    setAdCopy('');
+    setAdImagen('');
+    setAdVideo('');
+    setAdUrl('');
+    setAdPosicion('aleatoria');
+    setAdPosterFile(null);
+    setAdVideoFile(null);
+    setCreativeKey((key) => key + 1);
+    setAdInicia('');
+    setAdTermina('');
+  }
+
+  function editDraft(ad: AnuncioRow, reuse = false) {
+    resetAdForm();
+    const target = ad.ventana === 'explorar' ||
+      (!ad.ventana && ad.slot?.startsWith('explorar_')) ? 'explorar' : 'inicio';
+    if (!reuse) setEditingDraftId(ad._id);
+    setAdTitulo(ad.titulo ?? '');
+    setAdCopy(ad.copy ?? '');
+    setAdImagen(ad.imagen_url ?? '');
+    setAdVideo(ad.video_url ?? '');
+    setAdUrl(ad.url_destino ?? '');
+    setAdVentana(target);
+    setAdPosicion(ad.posicion || ad.slot || 'aleatoria');
+    if (!reuse) {
+      const dateInput = (date?: string | null) => {
+        if (!date) return '';
+        // Las fechas anteriores se guardaban a medianoche UTC desde el calendario.
+        if (date.endsWith('T00:00:00.000Z')) return date.slice(0, 10);
+        const parts = new Intl.DateTimeFormat('en', {
+          timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit',
+        }).formatToParts(new Date(date));
+        return ['year', 'month', 'day'].map((kind) => parts.find((part) => part.type === kind)?.value).join('-');
+      };
+      setAdInicia(dateInput(ad.inicia));
+      setAdTermina(dateInput(ad.termina));
+    }
+    requestAnimationFrame(() => draftTitleRef.current?.focus());
+  }
+
+  async function deleteDraft(ad: AnuncioRow) {
+    if (!window.confirm(t('chainAdDeleteConfirm').replace('{title}', ad.titulo ?? ''))) return;
+    setBusy(true);
+    try {
+      await api.delete(`/api/cadena/anuncios/${ad._id}`);
+      if (editingDraftId === ad._id) resetAdForm();
+      setAnuncios((rows) => rows.filter((row) => row._id !== ad._id));
+      flashAdsAlert('info', t('chainAdDeleted'));
+    } catch (err: unknown) {
+      const failure = err as { response?: { data?: { message?: string } } };
+      flashAdsAlert('error', failure.response?.data?.message || t('chainAdsError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function submitAnuncio(mode: 'borrador' | 'publicar') {
     setBusy(true);
     setAdsError('');
@@ -505,7 +606,7 @@ export default function Cadena() {
         flashAdsAlert('error', t('chainAdTitleRequired'));
         return;
       }
-      if (mode === 'borrador' && draftCount >= MAX_AD_DRAFTS) {
+      if (mode === 'borrador' && !editingDraftId && draftCount >= MAX_AD_DRAFTS) {
         flashAdsAlert(
           'error',
           t('chainAdDraftLimit').replace('{max}', String(MAX_AD_DRAFTS))
@@ -547,7 +648,7 @@ export default function Cadena() {
           return res.data as { url?: string };
         });
       }
-      await api.post('/api/cadena/anuncios', {
+      const payload = {
         titulo: adTitulo,
         copy: adCopy,
         imagen_url: imagen,
@@ -560,21 +661,18 @@ export default function Cadena() {
         inicia: adInicia || null,
         termina: adTermina || null,
         publicar: mode === 'publicar',
-      });
-      setAdTitulo('');
-      setAdCopy('');
-      setAdImagen('');
-      setAdVideo('');
-      setAdUrl('');
-      setAdPosicion('aleatoria');
-      setAdPosterFile(null);
-      setAdVideoFile(null);
-      setCreativeKey((key) => key + 1);
-      setAdInicia('');
-      setAdTermina('');
+      };
+      const res = editingDraftId
+        ? await api.put<{ anuncio?: AnuncioRow }>(`/api/cadena/anuncios/${editingDraftId}`, {
+            ...payload,
+            soloBorrador: true,
+          })
+        : await api.post<{ anuncio?: AnuncioRow }>('/api/cadena/anuncios', payload);
+      setPublishedAdId(mode === 'publicar' ? res.data.anuncio?._id ?? null : null);
+      resetAdForm();
       flashAdsAlert(
         'info',
-        mode === 'publicar' ? t('chainAdPublishOk') : t('chainAdDraftOk')
+        mode === 'publicar' ? t('chainAdPublishOk') : t(editingDraftId ? 'chainAdDraftUpdated' : 'chainAdDraftOk')
       );
       await load();
     } catch (err: unknown) {
@@ -605,6 +703,7 @@ export default function Cadena() {
     setError('');
     try {
       await api.post(`/api/cadena/anuncios/${id}/activar`);
+      setPublishedAdId(id);
       flashAdsAlert('info', t('chainAdPublishOk'));
       await load();
     } catch (err: unknown) {
@@ -645,8 +744,16 @@ export default function Cadena() {
     return t('crowdLive');
   }
 
-  function vigenciaKey(row: VigenciaMapRow) {
-    return `${row.promoId}-${row.ubicacionId}`;
+  const selectVigenciaPin = useCallback((row: VigenciaMapRow) => {
+    setSelectedVigencia(vigenciaKey(row));
+  }, []);
+
+  function showVigenciaOnMap(row: VigenciaMapRow) {
+    selectVigenciaPin(row);
+    document.getElementById('cadena-mapa-vigencia')?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'center',
+    });
   }
 
   return (
@@ -949,11 +1056,93 @@ export default function Cadena() {
               <p className="meta">{t('payAllSlots')}</p>
             )}
             <div ref={adsAlertRef}>
-              {adsError ? <p className="error">{adsError}</p> : null}
-              {adsInfo ? <p className="cadena-info">{adsInfo}</p> : null}
+              {adsError ? <p className="error" role="alert">{adsError}</p> : null}
+              {adsInfo ? <p className="cadena-info" role="status">{adsInfo}</p> : null}
             </div>
+            {adGroups.map(({ heading, empty, rows }) => (
+              <section key={heading} className="cadena-ad-group" aria-label={t(heading)}>
+                <h3>{t(heading)}</h3>
+                {rows.length === 0 ? (
+                  <p className="muted">{t(empty)}</p>
+                ) : (
+                  <ul className="cadena-list">
+                    {rows.map(({ ad: a, status }) => (
+                      <li
+                        key={a._id}
+                        className={a._id === publishedAdId ? 'cadena-ad-published' : undefined}
+                        onAnimationEnd={() => setPublishedAdId((id) => id === a._id ? null : id)}
+                      >
+                        <div className="cadena-ad-heading">
+                          <strong>{a.titulo}</strong>
+                          <span className="cadena-ad-status" data-active={status === 'chainAdLive'}>
+                            {t(status)}
+                          </span>
+                        </div>
+                        <span className="meta">
+                          {placementName(a, t)}
+                          {' · '}
+                          {t('chainAdStats')
+                            .replace('{imp}', String(a.impresiones ?? 0))
+                            .replace('{clk}', String(a.clics ?? 0))}
+                        </span>
+                        {(a.posicion || a.slot)?.includes('side_') ? (
+                          <p className="meta">{t('chainAdDesktopOnly')}</p>
+                        ) : null}
+                        {status === 'chainAdExpired' && a.termina && (
+                          <p className="meta">
+                            {t('chainAdEnd')} · {new Date(a.termina).toLocaleString(locale, { timeZone: 'America/Mexico_City' })}
+                          </p>
+                        )}
+                        {status === 'chainAdScheduled' && a.inicia ? (
+                          <p className="meta">
+                            {t('chainAdStart')} · {new Date(a.inicia).toLocaleString(locale, { timeZone: 'America/Mexico_City' })}
+                          </p>
+                        ) : null}
+                        <div className="cadena-vigencia-actions">
+                          {(status === 'chainAdDraft' || status === 'chainAdPaused') && editingDraftId !== a._id && (
+                            <button
+                              type="button"
+                              className="btn primary"
+                              disabled={busy}
+                              onClick={() => void onActivateAnuncio(a._id)}
+                            >
+                              {t('chainAdPublish')}
+                            </button>
+                          )}
+                          {status === 'chainAdDraft' && (
+                            <>
+                              <button type="button" className="btn ghost" disabled={busy} onClick={() => editDraft(a)}>
+                                {t('chainAdEditDraft')}
+                              </button>
+                              <button type="button" className="btn ghost" disabled={busy} onClick={() => void deleteDraft(a)}>
+                                {t('chainAdDeleteDraft')}
+                              </button>
+                            </>
+                          )}
+                          {status === 'chainAdExpired' && (
+                            <button type="button" className="btn ghost" disabled={busy} onClick={() => editDraft(a, true)}>
+                              {t('chainAdReuse')}
+                            </button>
+                          )}
+                          {a.estatus === 'activo' && status !== 'chainAdExpired' && (
+                            <button
+                              type="button"
+                              className="btn ghost"
+                              disabled={busy}
+                              onClick={() => void onPauseAnuncio(a._id)}
+                            >
+                              {t('chainAdPause')}
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ))}
             <form onSubmit={onCreateAnuncio} className="cadena-ad-form">
-                <p className="muted">{t('chainAdDraftHint')}</p>
+                <p className="muted">{t(editingDraftId ? 'chainAdEditHint' : 'chainAdDraftHint')}</p>
                 <p className="meta">
                   {t('chainAdDraftCount')
                     .replace('{n}', String(draftCount))
@@ -962,6 +1151,7 @@ export default function Cadena() {
                 <label>
                   {t('chainAdTitle')}
                   <input
+                    ref={draftTitleRef}
                     value={adTitulo}
                     onChange={(e) => setAdTitulo(e.target.value)}
                     required
@@ -985,9 +1175,6 @@ export default function Cadena() {
                     onChange={(e) => setAdVideoFile(e.target.files?.[0] || null)}
                   />
                 </label>
-                {adVideoPreview ? (
-                  <video className="cadena-creative" src={adVideoPreview} controls muted />
-                ) : null}
                 <label>
                   {t('chainAdImage')}
                   <input
@@ -997,9 +1184,6 @@ export default function Cadena() {
                     onChange={(e) => setAdPosterFile(e.target.files?.[0] || null)}
                   />
                 </label>
-                {adPosterPreview ? (
-                  <img className="cadena-creative" src={adPosterPreview} alt="" />
-                ) : null}
                 <p className="meta">{t('chainAdOrUrl')}</p>
                 <label>
                   {t('chainAdImage')}
@@ -1072,6 +1256,14 @@ export default function Cadena() {
                   </select>
                   <span className="meta">{t('adPosHint')}</span>
                 </label>
+                <AdPlacementPreview
+                  window={adVentana}
+                  position={adPosicion}
+                  title={adTitulo}
+                  copy={adCopy}
+                  image={adPosterPreview || resolveMediaUrl(adImagen)}
+                  video={adVideoPreview || resolveMediaUrl(adVideo)}
+                />
                 {adPosicion !== 'aleatoria' &&
                   !(suscripcion?.posiciones || []).includes(adPosicion) && (
                     <button
@@ -1094,69 +1286,26 @@ export default function Cadena() {
                   <button
                     className="btn ghost"
                     type="submit"
-                    disabled={busy || draftCount >= MAX_AD_DRAFTS}
+                    disabled={busy || (!editingDraftId && draftCount >= MAX_AD_DRAFTS)}
                   >
-                    {busy ? t('loading') : t('chainAdSave')}
+                    {busy ? t('loading') : t(editingDraftId ? 'chainAdSaveChanges' : 'chainAdSave')}
                   </button>
-                  <button
-                    className="btn primary"
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void submitAnuncio('publicar')}
-                  >
-                    {busy ? t('loading') : t('chainAdPublish')}
-                  </button>
+                  {editingDraftId ? (
+                    <button type="button" className="btn ghost" disabled={busy} onClick={resetAdForm}>
+                      {t('chainAdCancelEdit')}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn primary"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void submitAnuncio('publicar')}
+                    >
+                      {busy ? t('loading') : t('chainAdPublish')}
+                    </button>
+                  )}
                 </div>
               </form>
-            {anuncios.length === 0 ? (
-              <p className="muted">{t('chainAdsEmpty')}</p>
-            ) : (
-              <ul className="cadena-list">
-                {anuncios.map((a) => (
-                  <li key={a._id}>
-                    <strong>{a.titulo}</strong>
-                    <span className="meta">
-                      {a.estatus === 'activo'
-                        ? t('chainAdLive')
-                        : a.estatus === 'pausado'
-                          ? t('chainAdPaused')
-                          : t('chainAdDraft')}
-                      {' · '}
-                      {placementName(a, t)}
-                      {' · '}
-                      {t('chainAdStats')
-                        .replace('{imp}', String(a.impresiones ?? 0))
-                        .replace('{clk}', String(a.clics ?? 0))}
-                    </span>
-                    {a.estatus === 'activo' ? (
-                      <p className="meta">{t('chainAdLiveHint')}</p>
-                    ) : null}
-                    <div className="cadena-vigencia-actions">
-                      {a.estatus !== 'activo' && (
-                        <button
-                          type="button"
-                          className="btn primary"
-                          disabled={busy}
-                          onClick={() => void onActivateAnuncio(a._id)}
-                        >
-                          {t('chainAdPublish')}
-                        </button>
-                      )}
-                      {a.estatus === 'activo' && (
-                        <button
-                          type="button"
-                          className="btn ghost"
-                          disabled={busy}
-                          onClick={() => void onPauseAnuncio(a._id)}
-                        >
-                          {t('chainAdPause')}
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
             <p className="meta">{t('adLegalNote')}</p>
           </article>
 
@@ -1222,7 +1371,11 @@ export default function Cadena() {
                       key={id}
                       type="button"
                       className={mapFilter === id ? 'is-active' : ''}
-                      onClick={() => setMapFilter(id)}
+                      aria-pressed={mapFilter === id}
+                      onClick={() => {
+                        setMapFilter(id);
+                        setSelectedVigencia(null);
+                      }}
                     >
                       {label}
                       {id !== 'all'
@@ -1232,11 +1385,14 @@ export default function Cadena() {
                   ))}
                 </div>
 
-                <VigenciaMap
-                  rows={filteredVigencia}
-                  selectedKey={selectedVigencia}
-                  onSelect={(row) => setSelectedVigencia(vigenciaKey(row))}
-                />
+                <div id="cadena-mapa-vigencia">
+                  <VigenciaMap
+                    rows={filteredVigencia}
+                    selectedKey={selectedVigencia}
+                    onSelect={selectVigenciaPin}
+                    onClear={() => setSelectedVigencia(null)}
+                  />
+                </div>
 
                 <ul className="cadena-list">
                   {filteredVigencia.map((row) => {
@@ -1247,7 +1403,6 @@ export default function Cadena() {
                         className={
                           selectedVigencia === key ? 'is-map-selected' : undefined
                         }
-                        onClick={() => setSelectedVigencia(key)}
                       >
                         <strong>
                           {row.promoNombre} · {row.sucursalNombre}
@@ -1264,6 +1419,16 @@ export default function Cadena() {
                             : ''}
                         </span>
                         <div className="cadena-vigencia-actions">
+                          {row.lat != null && row.lng != null && (
+                            <button
+                              type="button"
+                              className="btn ghost cerca-map-focus"
+                              aria-pressed={selectedVigencia === key}
+                              onClick={() => showVigenciaOnMap(row)}
+                            >
+                              {t('focusBranchOnMap')}
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn primary"

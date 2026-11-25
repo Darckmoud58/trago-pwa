@@ -149,22 +149,17 @@ export default function NearMap({ places, you, selectedId, dive = false, onSelec
     const picked = placesRef.current.find((place) => place.id === selectedId);
     if (!picked) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (dive) {
-      if (reduce) map.setView([picked.lat, picked.lng], 19, { animate: false });
-      else map.flyTo([picked.lat, picked.lng], 19, { duration: 0.82 });
-    } else if (reduce) {
-      map.panTo([picked.lat, picked.lng], { animate: false });
-    } else {
-      map.panTo([picked.lat, picked.lng], { animate: true, duration: 0.45 });
-    }
-    window.setTimeout(() => map.invalidateSize(), 80);
+    const zoom = dive ? 19 : Math.max(16, map.getZoom());
+    map.stop();
+    if (reduce) map.setView([picked.lat, picked.lng], zoom, { animate: false });
+    else map.flyTo([picked.lat, picked.lng], zoom, { duration: dive ? 0.82 : 0.5 });
   }, [selectedId, dive]);
 
   return (
     <div
       id={mapId}
       className="near-map"
-      role="img"
+      role="region"
       aria-label={t('cercaMapAria')}
     />
   );

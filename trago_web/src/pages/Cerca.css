@@ -1276,3 +1276,44 @@ html[data-theme='night'] .cerca-skel-bone {
   );
   background-size: 220% 100%;
 }
+
+
+.cerca-float-close {
+  position: absolute;
+  inset: 0.25rem 0.25rem auto auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.cerca-float > h3,
+.cerca-float > .cerca-float-chain { padding-inline-end: 2.5rem; }
+
+.cerca-map-focus { min-height: 44px; }
+
+
+@media (pointer: coarse) {
+  .cerca-stage-frame.is-focused .cerca-float {
+    position: relative;
+    inset: auto;
+    width: auto;
+    margin: 0.55rem;
+    background: var(--surface);
+    backdrop-filter: none;
+  }
+
+  .cerca-stage-frame.is-focused .cerca-spot-rail {
+    position: relative;
+    background: transparent;
+  }
+
+  .cerca-spot, .cerca-float-actions button { min-height: 44px; }
+}

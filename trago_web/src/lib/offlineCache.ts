@@ -193,5 +193,6 @@ export const CACHE_KEYS = {
   negocios: 'negocios',
   /** Sucursales + promos de la última búsqueda Cerca (no inventa). */
   lastNear: 'cerca_sucursales_y_promos_v2',
+  homeNearPromos: 'inicio_promos_cercanas',
   promoDetail: (id: string) => `promo_detalle_${id}`,
 } as const;

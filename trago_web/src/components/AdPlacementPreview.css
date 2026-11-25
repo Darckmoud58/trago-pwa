@@ -1,0 +1,99 @@
+.ad-preview {
+  display: grid;
+  gap: 0.75rem;
+  padding: clamp(0.7rem, 4vw, 1rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+.ad-preview-toolbar, .ad-preview-screen header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.ad-preview-toolbar h3 { margin: 0; font-size: 1rem; }
+
+.ad-preview-switch {
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.ad-preview-switch button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.4rem 0.72rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ad-preview-switch button[aria-pressed='true'] {
+  background: #a91e2a;
+  color: white;
+}
+
+.ad-preview-screen {
+  width: 100%;
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid #653640;
+  border-radius: 1rem;
+  background: #230b12;
+  color: #fff6e6;
+}
+
+.ad-preview-screen[data-device='mobile'] { max-width: 19rem; border-radius: 1.5rem; }
+.ad-preview-screen header { padding: 0.65rem 0.85rem; background: #43121c; }
+.ad-preview-screen header span { font-size: 0.82rem; }
+.ad-preview-layout { display: grid; align-items: start; gap: 0.55rem; padding: 0.55rem; }
+[data-device='desktop'] .ad-preview-layout[data-side='left'] { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+[data-device='desktop'] .ad-preview-layout[data-side='right'] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.ad-preview-feed { min-width: 0; display: grid; gap: 0.55rem; }
+.ad-preview-feed > .meta { color: inherit; margin: 0.35rem; }
+.ad-preview-context { display: flex; gap: 0.45rem; }
+.ad-preview-context i { flex: 1; height: 1.7rem; border-radius: 0.45rem; background: #49202b; }
+
+.ad-preview-creative {
+  min-width: 0;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  border: 1px solid #98505d;
+  border-radius: 0.7rem;
+  background: #4a1420;
+}
+
+.ad-preview-creative > div { display: grid; gap: 0.3rem; padding: 0.6rem; }
+.ad-preview-creative p, .ad-preview > .meta { margin: 0; }
+.ad-preview-label { font-size: 0.72rem; color: #ffdcad; }
+.ad-preview-creative img, .ad-preview-creative video {
+  display: block;
+  width: 100%;
+  max-height: 12rem;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #1a060a;
+}
+
+.ad-preview-home-indicator {
+  width: 4rem;
+  height: 0.2rem;
+  margin: 0.2rem auto 0.45rem;
+  border-radius: 999px;
+  background: #e9cfd0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ad-preview-screen { animation: ad-screen-in 220ms ease-out; }
+}
+
+@keyframes ad-screen-in {
+  from { opacity: 0.65; transform: translateY(5px); }
+}

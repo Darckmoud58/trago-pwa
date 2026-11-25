@@ -11,7 +11,7 @@ import ValidityVote from '../components/ValidityVote';
 import SponsoredSlot, { useSlotAds, weaveAdAt } from '../components/SponsoredSlot';
 import { useUserPrefs } from '../hooks/useUserPrefs';
 import { useAuthUser } from '../hooks/useAuthUser';
-import { CACHE_KEYS, cacheGet, cacheSet } from '../lib/offlineCache';
+import { CACHE_KEYS, cacheGet, cacheSet, filterGuestSafePromos, isPromoActive } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
 import { readGpsCached } from '../lib/lastKnownGps';
 import { resolveMediaUrl } from '../lib/mediaUrl';
@@ -103,7 +103,7 @@ function promosForPlace(branch: Branch, promos: Promo[]) {
   const keys = chainKeysForBranch(branch);
   if (!keys.length) return [];
   return promos.filter((promo) => {
-    if (isLandingPromoTitle(promo, keys)) return false;
+    if (!isPromoActive(promo) || isLandingPromoTitle(promo, keys)) return false;
     const chain = foldName(promo.chainName || '');
     if (!chain) return false;
     return keys.some(
@@ -153,6 +153,7 @@ export default function Cerca() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
+  const [offersOnly, setOffersOnly] = useState(false);
   const [openOffersId, setOpenOffersId] = useState<string | null>(null);
   const [userOrigin, setUserOrigin] = useState<{
     lat: number;
@@ -229,7 +230,7 @@ export default function Cerca() {
       if (Math.hypot(latDelta, lngDelta) > 1000) return false;
     }
     setBranches(cached.data.branches);
-    setPromos(cached.data.promos ?? []);
+    setPromos(filterGuestSafePromos(cached.data.promos ?? []));
     setNote(
       (cached.data.promos?.length ?? 0) > 0
         ? t('offlineLastSearchWithPromos')
@@ -297,7 +298,7 @@ export default function Cerca() {
           : label;
       await cacheSet(CACHE_KEYS.lastNear, {
         branches: list,
-        promos: nearPromos,
+        promos: filterGuestSafePromos(nearPromos),
         note: savedNote,
         lat,
         lng,
@@ -383,9 +384,13 @@ export default function Cerca() {
     t(k as 'cacheAgeJustNow', vars)
   );
 
+  const shownBranches = useMemo(() => offersOnly
+    ? branches.filter((branch) => String(branch._id) === selectedPlaceId || placeHasOffers(branch, promos))
+    : branches, [branches, offersOnly, promos, selectedPlaceId]);
+
   const spots = useMemo(
     () =>
-      branches.flatMap((b) => {
+      shownBranches.flatMap((b) => {
         const lat = b.lat;
         const lng = b.lng ?? b.long;
         if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -412,22 +417,21 @@ export default function Cerca() {
           branch: b,
         }];
       }),
-    [branches, promos, t]
+    [shownBranches, promos, t]
   );
   const offerSpots = spots.filter((spot) => spot.hasOffer);
   const selectedSpot = spots.find((spot) => spot.id === selectedPlaceId) || null;
 
-  function focusPlace(id: string, scroll: boolean) {
+  function focusPlace(id: string, revealMap = false) {
     if (absorbTimer.current) window.clearTimeout(absorbTimer.current);
     setAbsorbingId(null);
     setSelectedPlaceId(id);
-    if (!scroll) return;
-    window.setTimeout(() => {
-      document.getElementById(`cerca-place-${id}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
+    if (revealMap) {
+      document.getElementById('cerca-mapa')?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+        block: 'center',
       });
-    }, 180);
+    }
   }
 
   function openPlacePromos(id: string) {
@@ -821,7 +825,7 @@ export default function Cerca() {
               <p className="cerca-stage-hint">{t('cercaStageHint')}</p>
             </div>
             <p className="cerca-count">
-              {branches.length} {t('locations').toLowerCase()}
+              {shownBranches.length} {t('locations').toLowerCase()}
               {offerSpots.length > 0 && (
                 <span className="cerca-offer-count">
                   {t('cercaOfferCount').replace('{n}', String(offerSpots.length))}
@@ -829,13 +833,27 @@ export default function Cerca() {
               )}
             </p>
           </div>
-          <div className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${selectedSpot && !absorbingId ? ' is-focused' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
+          <div className="cerca-place-foot">
+            <button
+              type="button" className="btn ghost cerca-map-focus" aria-pressed={offersOnly}
+              onClick={() => setOffersOnly((active) => !active)}
+            >
+              {t('nearWithActiveOffers')}
+            </button>
+            {selectedSpot && (
+              <a className="btn ghost cerca-map-focus" href={`#cerca-place-${selectedSpot.id}`}>
+                {t('nearSelectedInList')}
+              </a>
+            )}
+          </div>
+          {!shownBranches.length && <p className="meta">{t('nearNoActiveOffers')}</p>}
+          {shownBranches.length > 0 && <div id="cerca-mapa" className={`cerca-stage-frame${offerSpots.length ? ' has-rail' : ''}${selectedSpot && !absorbingId ? ' is-focused' : ''}${absorbingId ? ' is-absorbing' : ''}`}>
             <NearMap
               places={spots}
               you={originKind === 'gps' ? userOrigin : null}
               selectedId={selectedPlaceId}
               dive={Boolean(absorbingId)}
-              onSelect={(id) => focusPlace(id, false)}
+              onSelect={focusPlace}
             />
             {absorbingId && selectedSpot && (
               <div className="cerca-absorb" aria-hidden>
@@ -844,7 +862,13 @@ export default function Cerca() {
               </div>
             )}
             {selectedSpot && !absorbingId && (
-              <article className="cerca-float" key={selectedSpot.id}>
+              <article className="cerca-float" key={selectedSpot.id} aria-label={selectedSpot.name}>
+                <button
+                  type="button"
+                  className="cerca-float-close"
+                  aria-label={t('closeMapCard')}
+                  onClick={() => setSelectedPlaceId(null)}
+                >×</button>
                 <p className="cerca-float-chain">{selectedSpot.chain}</p>
                 <h3>{selectedSpot.name}</h3>
                 {selectedSpot.detail && <p className="meta">{selectedSpot.detail}</p>}
@@ -890,7 +914,8 @@ export default function Cerca() {
                     key={spot.id}
                     type="button"
                     className={`cerca-spot${selectedPlaceId === spot.id ? ' is-on' : ''}`}
-                    onClick={() => focusPlace(spot.id, false)}
+                    aria-pressed={spot.id === selectedPlaceId}
+                    onClick={() => focusPlace(spot.id)}
                   >
                     <strong>{spot.name}</strong>
                     <span>{spot.detail}</span>
@@ -899,8 +924,9 @@ export default function Cerca() {
               </div>
             )}
           </div>
+          }
           <ul className="cerca-place-list stagger">
-            {branches.map((b, index) => {
+            {shownBranches.map((b, index) => {
               const id = String(b._id);
               const nombre = b.nombre || b.name || t('branchFallback');
               const chain = b.chainName || t('businessFallback');
@@ -927,7 +953,6 @@ export default function Cerca() {
                   className={`cerca-place-card${
                     placeHasOffers(b, promos) ? ' has-offer' : ''
                   }${selectedPlaceId === id ? ' is-on-map' : ''}`}
-                  onClick={() => focusPlace(id, false)}
                 >
                   <PlaceBrandMark
                     label={chain || nombre}
@@ -958,6 +983,8 @@ export default function Cerca() {
                             colonia: b.colonia,
                             municipio: b.city,
                             horario: b.hours,
+                            lat: b.lat,
+                            lng: b.lng ?? b.long,
                             distanciaKm:
                               typeof b.distanceMeters === 'number'
                                 ? b.distanceMeters / 1000
@@ -966,6 +993,9 @@ export default function Cerca() {
                         />
                       </div>
                     </div>
+                    {offersOnly && selectedPlaceId === id && !placeHasOffers(b, promos) && (
+                      <p className="cerca-place-meta">{t('nearSelectedNoOffers')}</p>
+                    )}
                     {b.address && <p className="cerca-place-meta">{b.address}</p>}
                     {(b.colonia || b.city) && (
                       <p className="cerca-place-meta">
@@ -974,6 +1004,16 @@ export default function Cerca() {
                     )}
                     {b.hours && <p className="cerca-place-meta">{b.hours}</p>}
                     <div className="cerca-place-foot">
+                      {spots.some((spot) => spot.id === id) && (
+                        <button
+                          type="button"
+                          className="btn ghost cerca-map-focus"
+                          aria-pressed={selectedPlaceId === id}
+                          onClick={() => focusPlace(id, true)}
+                        >
+                          {t('focusBranchOnMap')}
+                        </button>
+                      )}
                       {placeHasOffers(b, promos) ? (
                         <button
                           type="button"

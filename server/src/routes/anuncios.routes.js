@@ -6,6 +6,7 @@ import {
   activateAnuncio,
   adminUpsertSuscripcion,
   createAnuncio,
+  deleteAnuncioDraft,
   listCadenaAnuncios,
   serveAnuncios,
   streamAdMedia,
@@ -75,5 +76,6 @@ anunciosCadenaRouter.post(
   activateAnuncio
 );
 anunciosCadenaRouter.put('/:id', auth, requireChain, updateAnuncio);
+anunciosCadenaRouter.delete('/:id', auth, requireChain, deleteAnuncioDraft);
 
 export default anunciosPublicRouter;

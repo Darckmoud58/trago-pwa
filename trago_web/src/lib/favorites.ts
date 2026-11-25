@@ -12,6 +12,8 @@ export type FavoritePlace = {
   horario?: string;
   distanciaKm?: number;
   imagen?: string;
+  lat?: number;
+  lng?: number;
   savedAt: number;
 };
 

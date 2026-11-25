@@ -11,6 +11,8 @@ const schema = new mongoose.Schema({
   municipio: { type: String, default: '' },
   horario: { type: String, default: '' },
   imagen: { type: String, default: '' },
+  lat: Number,
+  lng: Number,
   savedAt: { type: Date, default: Date.now },
 }, { timestamps: true, collection: 'favoritos' });
 

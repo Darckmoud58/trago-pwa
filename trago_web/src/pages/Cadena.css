@@ -113,14 +113,6 @@
   font-size: 0.92rem;
 }
 
-.cadena-creative {
-  width: 100%;
-  max-height: 180px;
-  object-fit: cover;
-  border-radius: 12px;
-  background: #1a060a;
-}
-
 .cadena-check {
   flex-direction: row !important;
   align-items: center;
@@ -155,6 +147,52 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.cadena-ad-group h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.cadena-ad-group .cadena-list li {
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  gap: 0.45rem;
+}
+
+.cadena-ad-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.cadena-ad-status {
+  width: fit-content;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.cadena-ad-status[data-active='true'] {
+  background: #17432b;
+  border-color: #367451;
+  color: #e9fff0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cadena-ad-published {
+    animation: cadena-publication-in 260ms ease-out;
+  }
+}
+
+@keyframes cadena-publication-in {
+  from {
+    opacity: 0.6;
+    transform: translateY(6px);
+  }
 }
 
 .cadena-info {
@@ -252,8 +290,10 @@ html[data-theme='night'] .cadena-card label {
 }
 
 html[data-theme='night'] .cadena-card input,
-html[data-theme='night'] .cadena-card textarea {
+html[data-theme='night'] .cadena-card textarea,
+html[data-theme='night'] .cadena-card select {
   background: #1a060a;
+  color-scheme: dark;
   border-color: rgba(255, 246, 230, 0.22);
   color: #fff6e6;
 }

@@ -31,7 +31,7 @@
   box-shadow: 0 14px 32px color-mix(in srgb, #3b0b13 18%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  pointer-events: none;
+  padding-inline-end: 3rem;
 }
 
 .vigencia-float-kicker {
@@ -55,24 +55,36 @@
   color: #5c3a3a;
 }
 
-.vigencia-popup-kicker {
-  margin: 0 0 0.2rem;
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #d81a1c;
+.vigencia-float-close {
+  position: absolute;
+  inset: 0.2rem 0.2rem auto auto;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #820808;
+  font: inherit;
+  font-size: 1.4rem;
+  cursor: pointer;
 }
 
-.vigencia-popup-meta {
-  margin: 0.35rem 0 0;
-  font-size: 0.78rem;
-  color: #6b4a4a;
+@media (pointer: coarse) {
+  .vigencia-float {
+    position: relative;
+    inset: auto;
+    margin-top: 0.5rem;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
-.vigencia-leaflet-popup .leaflet-popup-content-wrapper {
-  border-radius: 0.85rem;
-  box-shadow: 0 12px 28px rgba(59, 11, 19, 0.18);
+@media (prefers-reduced-motion: no-preference) {
+  .vigencia-float { animation: vigencia-card-in 240ms ease-out; }
+}
+
+@keyframes vigencia-card-in {
+  from { opacity: 0; transform: translateY(6px); }
 }
 
 .vigencia-pin-wrap {

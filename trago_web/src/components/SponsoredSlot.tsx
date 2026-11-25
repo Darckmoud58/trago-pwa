@@ -47,7 +47,11 @@ export function useSlotAds(slot: AdSlot, zona = 'gdl') {
         const res = await api.get('/api/anuncios/serving', {
           params: { slot, zona },
         });
-        if (!cancelled) setAds((res.data.anuncios || []) as ServedAd[]);
+        if (cancelled) return;
+        const list = (res.data.anuncios || []) as ServedAd[];
+        const first = pickVisitAd(list, slot);
+        const index = first ? list.indexOf(first) : 0;
+        setAds(index > 0 ? [...list.slice(index), ...list.slice(0, index)] : list);
       } catch {
         if (!cancelled) setAds([]);
       }

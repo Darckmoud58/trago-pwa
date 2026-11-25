@@ -56,21 +56,15 @@ type Props = {
   rows: VigenciaMapRow[];
   selectedKey?: string | null;
   onSelect?: (row: VigenciaMapRow) => void;
+  onClear?: () => void;
 };
 
-export default function VigenciaMap({ rows, selectedKey, onSelect }: Props) {
+export default function VigenciaMap({ rows, selectedKey, onSelect, onClear }: Props) {
   const { t } = useI18n();
   const mapId = useId().replace(/:/g, '');
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
-
-  const pointsSig = rows
-    .map(
-      (r) =>
-        `${r.promoId}:${r.ubicacionId}:${r.lat}:${r.lng}:${r.crowdStatus}:${r.reportsVigente}:${r.reportsCaduco}`
-    )
-    .join('|');
 
   useEffect(() => {
     if (mapRef.current) return;
@@ -116,51 +110,35 @@ export default function VigenciaMap({ rows, selectedKey, onSelect }: Props) {
     for (const row of points) {
       const key = `${row.promoId}-${row.ubicacionId}`;
       const marker = L.marker([row.lat, row.lng], {
-        icon: pinIcon(row.crowdStatus, selectedKey === key),
+        icon: pinIcon(row.crowdStatus, false),
         title: `${row.sucursalNombre} · ${row.promoNombre}`,
       });
-      const status = statusLabel(row.crowdStatus, t);
-      marker.bindPopup(
-        `<div class="vigencia-popup">
-          <p class="vigencia-popup-kicker">${escapeHtml(status)}</p>
-          <strong>${escapeHtml(row.sucursalNombre)}</strong>
-          <p>${escapeHtml(row.promoNombre)}</p>
-          <p class="vigencia-popup-meta">${escapeHtml(
-            t('voteCounts')
-              .replace('{yes}', String(row.reportsVigente))
-              .replace('{no}', String(row.reportsCaduco))
-          )}${row.activaOficial ? '' : ` · ${escapeHtml(t('chainPaused'))}`}</p>
-        </div>`,
-        { maxWidth: 260, className: 'vigencia-leaflet-popup' }
-      );
-      marker.on('click', () => {
-        onSelect?.(row);
-        marker.openPopup();
-        map.setView([row.lat, row.lng], Math.max(map.getZoom(), 16), {
-          animate: true,
-        });
-      });
+      marker.on('click', () => onSelect?.(row));
       marker.addTo(layer);
       markersRef.current.set(key, marker);
       bounds.extend([row.lat, row.lng]);
     }
 
-    if (selectedKey) {
-      const sel = points.find(
-        (r) => `${r.promoId}-${r.ubicacionId}` === selectedKey
-      );
-      const marker = markersRef.current.get(selectedKey);
-      if (sel) {
-        map.setView([sel.lat, sel.lng], Math.max(map.getZoom(), 16), {
-          animate: true,
-        });
-        marker?.openPopup();
-        return;
-      }
-    }
+    map.fitBounds(bounds.pad(0.2), { maxZoom: 15, animate: false });
+  }, [rows, onSelect]);
 
-    map.fitBounds(bounds.pad(0.2), { maxZoom: 15 });
-  }, [pointsSig, rows, selectedKey, onSelect, t]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    for (const row of rows) {
+      const key = `${row.promoId}-${row.ubicacionId}`;
+      const marker = markersRef.current.get(key);
+      marker?.setIcon(pinIcon(row.crowdStatus, selectedKey === key));
+      marker?.setZIndexOffset(selectedKey === key ? 500 : 0);
+    }
+    const marker = selectedKey ? markersRef.current.get(selectedKey) : null;
+    if (!marker) return;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const zoom = Math.max(map.getZoom(), 16);
+    map.stop();
+    if (reduce) map.setView(marker.getLatLng(), zoom, { animate: false });
+    else map.flyTo(marker.getLatLng(), zoom, { duration: 0.5 });
+  }, [rows, selectedKey]);
 
   const pointsCount = rows.filter(
     (r) => r.lat != null && r.lng != null
@@ -189,14 +167,22 @@ export default function VigenciaMap({ rows, selectedKey, onSelect }: Props) {
         <div
           id={mapId}
           className="vigencia-map"
-          role="img"
+          role="region"
           aria-label={t('mapVigenciaAria')}
         />
         {!pointsCount && (
           <p className="vigencia-map-empty muted">{t('mapVigenciaNoCoords')}</p>
         )}
         {selected && selected.lat != null && selected.lng != null ? (
-          <aside className="vigencia-float" aria-live="polite">
+          <aside className="vigencia-float" key={selectedKey} aria-live="polite">
+            {onClear && (
+              <button
+                type="button"
+                className="vigencia-float-close"
+                aria-label={t('closeMapCard')}
+                onClick={onClear}
+              >×</button>
+            )}
             <p className="vigencia-float-kicker">
               {statusLabel(selected.crowdStatus, t)}
             </p>
@@ -213,12 +199,4 @@ export default function VigenciaMap({ rows, selectedKey, onSelect }: Props) {
       </div>
     </div>
   );
-}
-
-function escapeHtml(s: string) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }

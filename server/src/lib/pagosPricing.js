@@ -179,6 +179,11 @@ export function resolveCreativePlacement(body = {}) {
   };
 }
 
+/** La posición aleatoria se contrata por ventana. */
+export function competingAdPlacement({ slot, ventana }) {
+  return slot === 'aleatoria' ? { slot, ventana } : { slot };
+}
+
 /**
  * El primer campo usa la cotización del plan. Cada campo nuevo cuesta el base
  * y se suma a los que ya están pagados.

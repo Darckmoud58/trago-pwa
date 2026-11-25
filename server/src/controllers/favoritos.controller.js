@@ -45,6 +45,11 @@ function snapshotFrom(body = {}) {
       out[field] = body[field].trim().slice(0, field === 'nombre' ? 160 : 500);
     }
   }
+  if (Number.isFinite(body.lat) && Number.isFinite(body.lng) &&
+      Math.abs(body.lat) <= 90 && Math.abs(body.lng) <= 180) {
+    out.lat = body.lat;
+    out.lng = body.lng;
+  }
   if (!out.nombre) throw Object.assign(new Error('El nombre del favorito es requerido'), { status: 400 });
   return out;
 }
@@ -60,6 +65,8 @@ function toClient(doc) {
     municipio: doc.municipio,
     horario: doc.horario,
     imagen: doc.imagen,
+    lat: doc.lat,
+    lng: doc.lng,
     savedAt: new Date(doc.savedAt || doc.createdAt).getTime(),
   };
 }

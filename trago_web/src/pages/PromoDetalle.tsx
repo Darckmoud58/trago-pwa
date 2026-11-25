@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, readToken } from '../api';
 import FavoriteButton from '../components/FavoriteButton';
 import OfflineState from '../components/OfflineState';
@@ -44,7 +44,25 @@ function readGps(): Promise<GeolocationPosition> {
 
 export default function PromoDetalle() {
   const { promoId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const explore = location.state as { exploreHref?: string; exploreImage?: string } | null;
+  const exploreHref = explore?.exploreHref;
+  const exploreImage = resolveMediaUrl(explore?.exploreImage);
   const { t, locale } = useI18n();
+  const back = (
+    <Link
+      className="btn ghost"
+      to={exploreHref || '/promos'}
+      onClick={(event) => {
+        if (!exploreHref || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        navigate(-1);
+      }}
+    >
+      {t('backToPromos')}
+    </Link>
+  );
   const { birthdayToday, token } = useAuthUser();
   const [promo, setPromo] = useState<Promo | null>(null);
   const [ubicaciones, setUbicaciones] = useState<Branch[]>([]);
@@ -180,6 +198,11 @@ export default function PromoDetalle() {
   if (loading) {
     return (
       <section className="promo-detail">
+        {exploreImage && (
+          <div className="detail-cover detail-explore-cover" aria-hidden="true">
+            <PromoMediaImg src={exploreImage} loading="eager" />
+          </div>
+        )}
         <div className="detail-loading" aria-hidden>
           <div className="ui-skeleton" />
           <div className="ui-skeleton sm" />
@@ -199,9 +222,7 @@ export default function PromoDetalle() {
         ) : (
           <>
             <p className="error">{error || t('promoNotFound')}</p>
-            <Link className="btn ghost" to="/promos" viewTransition>
-              {t('backToPromos')}
-            </Link>
+            {back}
           </>
         )}
       </section>
@@ -239,6 +260,8 @@ export default function PromoDetalle() {
         colonia: nearestBranch.colonia,
         municipio: nearestBranch.city,
         horario: nearestBranch.hours,
+        lat: nearestBranch.lat,
+        lng: nearestBranch.lng ?? nearestBranch.long,
         distanciaKm:
           typeof nearestBranch.distanceMeters === 'number'
             ? nearestBranch.distanceMeters / 1000
@@ -284,7 +307,7 @@ export default function PromoDetalle() {
     <section className="promo-detail">
       <div className="detail-stage rise">
         <div
-          className={`detail-cover${img ? '' : ' detail-cover-fallback'}`}
+          className={`detail-cover${img ? '' : ' detail-cover-fallback'}${exploreImage ? ' detail-explore-cover' : ''}`}
           aria-hidden={!img}
         >
           <PromoMediaImg
@@ -530,9 +553,7 @@ export default function PromoDetalle() {
             {t('quickLogin')}
           </Link>
         )}
-        <Link className="btn ghost" to="/promos" viewTransition>
-          {t('backToPromos')}
-        </Link>
+        {back}
       </div>
     </section>
   );

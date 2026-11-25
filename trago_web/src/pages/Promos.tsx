@@ -1,5 +1,6 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { flushSync } from 'react-dom';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { Link, useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import OfflineState from '../components/OfflineState';
 import PromoMediaImg from '../components/PromoMediaImg';
@@ -17,6 +18,7 @@ import {
   isRestrictedCachedPromo,
 } from '../lib/offlineCache';
 import { useI18n } from '../lib/i18n';
+import { getLastKnownGps } from '../lib/lastKnownGps';
 import { resolveMediaUrl } from '../lib/mediaUrl';
 import { formatCacheAge } from '../lib/userPrefs';
 import type { Promo } from '../types';
@@ -29,6 +31,8 @@ type FilterId =
   | 'comida'
   | 'cafe'
   | 'destilados';
+
+let exploreReturn: { key: string; query: string; y: number } | null = null;
 
 const PUBLIC_FILTERS: FilterId[] = [
   'todas',
@@ -67,6 +71,11 @@ function daysLeft(iso?: string) {
 export default function Promos() {
   const { t, locale } = useI18n();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const restore = useRef(
+    navigationType === 'POP' && exploreReturn?.key === location.key ? exploreReturn : null
+  );
   const { token, birthdayToday, firstName } = useAuthUser();
   const { prefs } = useUserPrefs();
   const allowBday = birthdayToday;
@@ -81,10 +90,13 @@ export default function Promos() {
   );
   const [emptyOfficial, setEmptyOfficial] = useState(false);
   const [restrictedHidden, setRestrictedHidden] = useState(true);
-  const [query, setQuery] = useState('');
-  const [serverQuery, setServerQuery] = useState('');
+  const [query, setQuery] = useState(() => restore.current?.query ?? '');
+  const [serverQuery, setServerQuery] = useState(() => {
+    const saved = restore.current?.query.trim() ?? '';
+    return saved.length >= 2 ? saved : '';
+  });
   const [filter, setFilter] = useState<FilterId>(() =>
-    parseFilter(searchParams.get('f'), false)
+    parseFilter(searchParams.get('f'), allowBday)
   );
   const [bdayLockedNote, setBdayLockedNote] = useState(false);
 
@@ -125,8 +137,13 @@ export default function Promos() {
     async function load() {
       try {
         if (!navigator.onLine) throw new Error('offline');
+        const gps = getLastKnownGps();
         const res = await api.get('/api/promociones', {
-          params: serverQuery ? { q: serverQuery } : undefined,
+          params: {
+            q: serverQuery || undefined,
+            lat: gps?.lat,
+            lng: gps?.lng,
+          },
         });
         if (cancelled) return;
         const list = filterActivePromos((res.data.promos ?? []) as Promo[]);
@@ -169,6 +186,34 @@ export default function Promos() {
       cancelled = true;
     };
   }, [t, serverQuery]);
+
+  useLayoutEffect(() => {
+    if (loading || !restore.current) return;
+    window.scrollTo({ top: restore.current.y, behavior: 'instant' });
+    restore.current = null;
+  }, [loading]);
+
+  function openPromo(event: MouseEvent<HTMLAnchorElement>, to: string, image: string) {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const href = location.pathname + location.search;
+    exploreReturn = { key: location.key, query, y: window.scrollY };
+    const state = { exploreHref: href, exploreImage: image };
+    const open = () => {
+      flushSync(() => navigate(to, { state }));
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    };
+    const cover = event.currentTarget.closest('.promo-card')?.querySelector<HTMLElement>('.promo-cover');
+    if (!image || !cover || !document.startViewTransition ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      open();
+      return;
+    }
+    cover.style.viewTransitionName = 'explore-promo-cover';
+    const transition = document.startViewTransition(open);
+    const clear = () => { cover.style.viewTransitionName = ''; };
+    void transition.finished.then(clear, clear);
+  }
 
   function applyFilter(next: FilterId) {
     if (next === 'cumple' && !allowBday) {
@@ -418,18 +463,22 @@ export default function Promos() {
           const desc = p.descripcion || p.subtitle;
           const end = p.termina_en || p.endsAt;
           const left = daysLeft(end);
+          const nearby = !fromCache && online
+            ? p.ubicacionesCercanas?.find((branch) => branch.participacionConfirmada === true && Number.isFinite(branch.distanceMeters))
+            : undefined;
           const img = resolveMediaUrl(p.imagen || p.imageUrl);
           const nextAd = weaveAdAt(exploreAds, index, 6);
+          const detailPath = `/promos/${p.slug || p._id}`;
 
           return (
             <Fragment key={p._id}>
             <article className="promo-card promo-rich">
               <Link
-                to={`/promos/${p.slug || p._id}`}
+                to={detailPath}
+                onClick={(event) => openPromo(event, detailPath, img)}
                 className={`promo-cover${img ? '' : ' promo-cover-fallback'}`}
                 tabIndex={-1}
                 aria-hidden="true"
-                viewTransition
               >
                 <PromoMediaImg
                   src={img}
@@ -453,9 +502,9 @@ export default function Promos() {
                 <PromoPrice promo={p} />
                 <h2 className="promo-card-title">
                   <Link
-                    to={`/promos/${p.slug || p._id}`}
+                    to={detailPath}
+                    onClick={(event) => openPromo(event, detailPath, img)}
                     className="promo-title-link"
-                    viewTransition
                   >
                     {title}
                   </Link>
@@ -463,6 +512,11 @@ export default function Promos() {
                 {desc && <p className="promo-desc">{desc}</p>}
 
                 <div className="promo-meta-row">
+                  {nearby && (
+                    <span className="meta">
+                      {t('promoConfirmedNearby', { distance: Math.round(nearby.distanceMeters), branch: nearby.nombre })}
+                    </span>
+                  )}
                   {end ? (
                     <span className="meta">
                       {t('untilDate')}{' '}

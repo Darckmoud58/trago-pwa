@@ -461,3 +461,13 @@ html[data-theme='night'] .promo-rich {
     animation: none;
   }
 }
+
+
+@media (pointer: coarse) {
+  .promo-cover, .promo-title-link { touch-action: manipulation; }
+  .filter-chip { min-height: 44px; }
+}
+
+@media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  .promo-cover:active img { transform: scale(0.98); }
+}

@@ -286,6 +286,23 @@ export async function listPromos(req, res) {
           origen: { $in: ['oficial', 'demo', 'empresa'] },
         }
       : await publicCatalogFilter(now);
+    let sucursal = null;
+    if (req.query.sucursal !== undefined) {
+      const id = req.query.sucursal;
+      if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) {
+        return res.status(400).json({ message: 'Sucursal inválida' });
+      }
+      const ubicacion = await Ubicacion.findOne({ _id: id, estatus: 'activo' }).lean();
+      if (!ubicacion) return res.status(404).json({ message: 'Sucursal no encontrada' });
+      const company = await Empresa.findOne({ _id: ubicacion.id_empresa, estatus: 'activo' }).lean();
+      if (!company) return res.status(404).json({ message: 'Sucursal no encontrada' });
+      sucursal = mapUbicacion(ubicacion, { [String(company._id)]: company });
+      const linked = await PromoUbicacion.distinct('id_promo', {
+        id_ubicacion: id,
+        activa_oficial: { $ne: false },
+      });
+      filter = { $and: [filter, { _id: { $in: linked } }] };
+    }
     if (searchRx) {
       const matchedEmpresas = await Empresa.find({
         estatus: 'activo',
@@ -321,8 +338,43 @@ export async function listPromos(req, res) {
       promos.map((p) => mapPromo(p, empresaById)),
       req.viewer
     );
+    const userLat = Number(req.query.lat);
+    const userLng = Number(req.query.lng);
+    if (!sucursal && mapped.length && assertMexicoCoords(userLat, userLng).ok) {
+      const links = await PromoUbicacion.find({
+        id_promo: { $in: mapped.map((promo) => promo._id) },
+        activa_oficial: { $ne: false },
+      }).select('id_promo id_ubicacion').lean();
+      const branches = await Ubicacion.find({
+        _id: { $in: links.map((link) => link.id_ubicacion) },
+        estatus: 'activo',
+      }).select('nombre calle lat long').lean();
+      const nearby = new Map();
+      for (const branch of branches) {
+        const meters = distanceMeters({ lat: userLat, lng: userLng }, { lat: branch.lat, lng: branch.long });
+        if (Number.isFinite(meters) && meters <= 2000) {
+          nearby.set(String(branch._id), {
+            _id: branch._id, nombre: branch.nombre || branch.calle,
+            distanceMeters: Math.round(meters), participacionConfirmada: true,
+          });
+        }
+      }
+      const nearest = new Map();
+      for (const link of links) {
+        const branch = nearby.get(String(link.id_ubicacion));
+        const key = String(link.id_promo);
+        if (branch && (!nearest.has(key) || nearest.get(key).distanceMeters > branch.distanceMeters)) {
+          nearest.set(key, branch);
+        }
+      }
+      for (const promo of mapped) {
+        const branch = nearest.get(String(promo._id));
+        if (branch) promo.ubicacionesCercanas = [branch];
+      }
+    }
     res.json({
       count: mapped.length,
+      ...(sucursal ? { sucursal } : {}),
       promos: mapped,
       birthdayOnly: Boolean(birthdayOnly),
       sources: refresh.sources,

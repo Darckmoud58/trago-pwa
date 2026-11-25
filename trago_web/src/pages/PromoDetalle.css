@@ -325,3 +325,21 @@ html[data-theme='night'] .detail-dist {
 .detail-loading .ui-skeleton.sm {
   height: 3.2rem;
 }
+
+
+@media (prefers-reduced-motion: no-preference) {
+  .detail-explore-cover {
+    view-transition-name: explore-promo-cover;
+    animation: detail-cover-arrive 280ms ease-out;
+  }
+
+  ::view-transition-group(explore-promo-cover) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes detail-cover-arrive {
+  from { opacity: 0.88; scale: 0.985; }
+  to { opacity: 1; scale: 1; }
+}

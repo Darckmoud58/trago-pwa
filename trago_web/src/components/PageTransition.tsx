@@ -21,8 +21,7 @@ export default function PageTransition({ children }: Props) {
   }, []);
 
   const animate = !reduce.current;
-  // POP (atrás) más sutil: misma animación, clave distinta fuerza remount
-  const key = `${pathname}:${navType}`;
+  const key = pathname;
 
   return (
     <div
