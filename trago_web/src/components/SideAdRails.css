@@ -14,7 +14,7 @@
     top: 1.15rem;
     align-self: start;
     width: 100%;
-    max-width: 11rem;
+    max-width: 10rem;
     z-index: 2;
   }
 
@@ -44,6 +44,6 @@
 
 @media (min-width: 1200px) {
   .app-ad-col {
-    max-width: 13rem;
+    max-width: 11.5rem;
   }
 }

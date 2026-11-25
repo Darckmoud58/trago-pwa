@@ -93,22 +93,20 @@ html {
 }
 
 /* ——— Revelado al entrar en viewport (bajar / navegar) ———
-   Entrada alineada a la «succión» del hero: sube + escala desde más adentro. */
+   Sin filter:blur — dejaba listas/mapas borrosos y huecos negros en desktop
+   mientras el IO no marcaba is-inview (o con view() mid-scroll). */
 .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 40px, 0) scale(0.94);
-  filter: blur(6px);
+  transform: translate3d(0, 16px, 0);
   transition:
-    opacity 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
-    filter 0.75s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+    opacity 0.45s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    transform 0.45s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
   will-change: opacity, transform;
 }
 
 .scroll-reveal.is-inview {
   opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-  filter: blur(0);
+  transform: none;
 }
 
 .scroll-reveal.is-inview .home-deal,
@@ -203,10 +201,9 @@ html {
 }
 
 /*
-  Succión continua en bloques principales (Inicio + pantallas clave).
-  Misma familia que hero-drift: entra desde abajo/escala, se asienta
-  (legible), y al subir se contrae como el hero. El view timeline manda
-  aquí (sin pelear con la transición one-shot de .scroll-reveal).
+  Entrada suave en bloques principales. Solo en entry (no cover):
+  con cover + listas altas (promo-grid) el view timeline dejaba blur,
+  translateY y huecos negros a mitad de viewport en desktop.
 */
 @supports (animation-timeline: view()) {
   .home-app > [data-reveal].scroll-reveal,
@@ -218,16 +215,15 @@ html {
   .detail-facts[data-reveal].scroll-reveal,
   .detail-section[data-reveal].scroll-reveal {
     opacity: 1;
-    filter: none;
     transform: none;
     transition: none;
     will-change: transform, opacity;
     animation: section-suction linear both;
     animation-timeline: view();
-    animation-range: cover;
+    animation-range: entry 0% entry 28%;
   }
 
-  /* Evita triple motion: el bloque succiona; hijos no repiten settle/child-in */
+  /* Evita triple motion: el bloque entra; hijos no repiten settle/child-in */
   .home-app > [data-reveal].scroll-reveal .home-deal,
   .home-app > [data-reveal].scroll-reveal .home-explore-card,
   .home-app > [data-reveal].scroll-reveal .home-step,
@@ -236,29 +232,17 @@ html {
   }
 
   @keyframes section-suction {
-    0% {
-      opacity: 0.5;
-      transform: translate3d(0, 32px, 0) scale(0.96);
-      filter: blur(4px);
+    from {
+      opacity: 0.88;
+      transform: translate3d(0, 12px, 0);
     }
-    12% {
+    to {
       opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-      filter: blur(0);
-    }
-    78% {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-      filter: blur(0);
-    }
-    100% {
-      opacity: 0.72;
-      transform: translate3d(0, -16px, 0) scale(0.978);
-      filter: blur(0);
+      transform: none;
     }
   }
 
-  /* Cards en listados (el bloque padre ya succiona en Inicio) */
+  /* Cards en listados: settle ligero sin blur */
   .promo-card,
   .feed-card,
   .cerca-offer-card,
@@ -269,19 +253,17 @@ html {
   .settings-row {
     animation: view-settle linear both;
     animation-timeline: view();
-    animation-range: entry 0% entry 40%;
+    animation-range: entry 0% entry 32%;
   }
 
   @keyframes view-settle {
     from {
-      opacity: 0.4;
-      transform: translateY(18px) scale(0.985);
-      filter: blur(1.5px);
+      opacity: 0.82;
+      transform: translateY(10px);
     }
     to {
       opacity: 1;
-      transform: translateY(0) scale(1);
-      filter: blur(0);
+      transform: none;
     }
   }
 }

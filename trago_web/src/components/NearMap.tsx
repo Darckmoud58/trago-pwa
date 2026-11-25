@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useI18n } from '../lib/i18n';
-import { OSM_CARTO_TILE_OPTIONS, OSM_CARTO_TILE_URL } from '../lib/leafletTiles';
+import { OSM_HOT_TILE_OPTIONS, OSM_HOT_TILE_URL } from '../lib/leafletTiles';
 import './NearMap.css';
 
 export type NearMapPlace = {
@@ -70,7 +70,7 @@ export default function NearMap({ places, you, selectedId, dive = false, onSelec
       attributionControl: true,
     });
     L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer(OSM_CARTO_TILE_URL, OSM_CARTO_TILE_OPTIONS).addTo(map);
+    L.tileLayer(OSM_HOT_TILE_URL, OSM_HOT_TILE_OPTIONS).addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
     return () => {
